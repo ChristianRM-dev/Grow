@@ -73,3 +73,244 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+// ----------------------------
+// Core business models
+// ----------------------------
+
+enum PartyRoleType {
+  CUSTOMER
+  SUPPLIER
+}
+
+enum SalesNoteStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentDirection {
+  IN
+  OUT
+}
+
+enum PaymentType {
+  CASH
+  TRANSFER
+  CREDIT
+  Exchange
+}
+
+enum PartyLedgerSide {
+  RECEIVABLE
+  PAYABLE
+}
+
+enum PartyLedgerSourceType {
+  SALES_NOTE
+  SUPPLIER_PURCHASE
+  PAYMENT
+  ADJUSTMENT
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  CONVERTED
+  CANCELLED
+}
+
+enum FolioType {
+  SALES_NOTE
+  QUOTATION
+}
+
+model Party {
+  id        String   @id @default(cuid())
+  // Unique system identifier for special parties (e.g., walk-in public).
+  systemKey String?  @unique
+  
+  name      String
+  phone     String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime?
+  isDeleted Boolean  @default(false)
+  deletedAt DateTime?
+
+  roles     PartyRole[]
+  salesNotes SalesNote[]
+  payments  Payment[]
+  supplierPurchases SupplierPurchase[]
+  quotations Quotation[]
+  ledgerEntries PartyLedgerEntry[]
+
+  @@index([name])
+}
+
+model PartyRole {
+  id      String        @id @default(cuid())
+  partyId String
+  role    PartyRoleType
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, role])
+  @@index([role])
+}
+
+model ProductVariant {
+  id           String   @id @default(cuid())
+  speciesName  String
+  variantName  String?
+  bagSize      String?
+  color        String?
+  defaultPrice Decimal  @db.Decimal(18, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  salesNoteLines SalesNoteLine[]
+  quotationLines QuotationLine[]
+
+  @@index([speciesName, variantName])
+}
+
+model SalesNote {
+  id            String         @id @default(cuid())
+  folio         String         @unique
+  createdAt     DateTime       @default(now())
+
+  partyId       String
+  party         Party          @relation(fields: [partyId], references: [id], onDelete: Restrict)
+
+  status        SalesNoteStatus @default(DRAFT)
+
+  subtotal      Decimal        @db.Decimal(18, 2)
+  discountTotal Decimal        @db.Decimal(18, 2)
+  total         Decimal        @db.Decimal(18, 2)
+
+  lines         SalesNoteLine[]
+  payments      Payment[]
+
+  @@index([partyId])
+  @@index([createdAt])
+}
+
+model SalesNoteLine {
+  id                  String   @id @default(cuid())
+  salesNoteId         String
+  productVariantId    String?
+
+  descriptionSnapshot String
+  quantity            Decimal  @db.Decimal(18, 3)
+  unitPrice           Decimal  @db.Decimal(18, 2)
+  lineTotal           Decimal  @db.Decimal(18, 2)
+
+  salesNote      SalesNote      @relation(fields: [salesNoteId], references: [id], onDelete: Cascade)
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+
+  @@index([salesNoteId])
+  @@index([productVariantId])
+}
+
+model Payment {
+  id         String          @id @default(cuid())
+
+  salesNoteId String?
+  salesNote   SalesNote?     @relation(fields: [salesNoteId], references: [id], onDelete: SetNull)
+
+  partyId    String?
+  party      Party?          @relation(fields: [partyId], references: [id], onDelete: SetNull)
+
+  direction  PaymentDirection
+  paymentType PaymentType
+  amount     Decimal?         @db.Decimal(18, 2)
+
+  reference  String?
+  notes      String?
+
+  occurredAt DateTime
+  createdAt  DateTime         @default(now())
+
+  @@index([salesNoteId])
+  @@index([partyId])
+  @@index([occurredAt])
+}
+
+model SupplierPurchase {
+  id           String   @id @default(cuid())
+  partyId      String
+  supplierFolio String
+  occurredAt   DateTime
+  total        Decimal  @db.Decimal(18, 2)
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Restrict)
+
+  @@index([partyId])
+  @@index([occurredAt])
+  // Optional uniqueness if supplier folios are stable:
+  // @@unique([partyId, supplierFolio])
+}
+
+model PartyLedgerEntry {
+  id         String              @id @default(cuid())
+  partyId    String
+  side       PartyLedgerSide
+  sourceType PartyLedgerSourceType
+  sourceId   String?
+  reference  String
+  occurredAt DateTime
+  amount     Decimal             @db.Decimal(18, 2)
+  notes      String?
+  createdAt  DateTime            @default(now())
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@index([partyId])
+  @@index([occurredAt])
+  @@index([sourceType, sourceId])
+}
+
+model Quotation {
+  id        String          @id @default(cuid())
+  folio     String          @unique
+  partyId   String
+  createdAt DateTime        @default(now())
+  status    QuotationStatus @default(DRAFT)
+  total     Decimal?        @db.Decimal(18, 2)
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  lines QuotationLine[]
+
+  @@index([partyId])
+  @@index([createdAt])
+}
+
+model QuotationLine {
+  id                  String   @id @default(cuid())
+  quotationId         String
+  productVariantId    String?
+
+  descriptionSnapshot String
+  quantity            Decimal  @db.Decimal(18, 3)
+  quotedUnitPrice     Decimal  @db.Decimal(18, 2)
+
+  quotation      Quotation      @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+
+  @@index([quotationId])
+  @@index([productVariantId])
+}
+
+model FolioSequence {
+  id         String    @id @default(cuid())
+  type       FolioType
+  year       Int
+  month      Int
+  nextNumber Int
+
+  @@unique([type, year, month])
+}
