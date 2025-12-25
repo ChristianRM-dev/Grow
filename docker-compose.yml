@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: grow_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: grow
+      POSTGRES_USER: grow
+      POSTGRES_PASSWORD: grow
+    ports:
+      - "5432:5432"
+    volumes:
+      - grow_db_data:/var/lib/postgresql/data
+
+  devcontainer:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    container_name: grow_devcontainer
+    restart: unless-stopped
+    depends_on:
+      - db
+    volumes:
+      - ./:/workspace:cached
+    environment:
+      # This is convenient for tools inside the container (Prisma, scripts, etc.)
+      DATABASE_URL: postgresql://grow:grow@db:5432/grow?schema=public
+      AUTH_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+      - "5555:5555" # prisma studio (optional)
+    command: sleep infinity
+
+volumes:
+  grow_db_data:

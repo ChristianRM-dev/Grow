@@ -1,0 +1,32 @@
+# Git / editor
+.git
+.gitignore
+.vscode
+.DS_Store
+
+# Node / build output
+node_modules
+.next
+out
+dist
+.turbo
+.cache
+coverage
+*.log
+
+# Env files (avoid copying secrets into image layers)
+.env
+.env.*
+!.env.example
+
+# Prisma local artifacts (not schema/migrations)
+prisma/*.db
+prisma/*.db-journal
+
+# Devcontainer local runtime folders
+.devcontainer/.cache
+.devcontainer/.tmp
+
+# Docs are fine to include, but not needed for building the image
+# (optional) Uncomment if you want to exclude docs from build context:
+# docs

@@ -1,0 +1,26 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Markdown: no recortar espacios (útil para saltos de línea intencionales)
+[*.md]
+trim_trailing_whitespace = false
+
+# JSON/YAML: mantener 2 espacios
+[*.{json,jsonc,yml,yaml}]
+indent_size = 2
+
+# Prisma schema suele verse mejor con 2 espacios (default)
+[*.prisma]
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+end_of_line = lf
+indent_size = 2
