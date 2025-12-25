@@ -1,5 +1,6 @@
 import { getProductsTable } from "@/modules/products/queries/getProductsTable.query";
 import { ProductsTableClient } from "./products-table-client";
+import { ListPageLayout } from "@/components/ui/ListPageLayout/ListPageLayout";
 
 export const dynamic = "force-dynamic"; // ensure fresh render per navigation
 
@@ -8,18 +9,17 @@ type Props = {
 };
 
 export default async function ProductsPage({ searchParams }: Props) {
-  const sp = await searchParams; // ✅ Next 15: searchParams is a Promise
+  const sp = await searchParams;
   const result = await getProductsTable(sp);
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-semibold">Productos</h1>
-      <div className="mt-4">
-        <ProductsTableClient
-          data={result.data}
-          pagination={result.pagination}
-        />
-      </div>
-    </div>
+    <ListPageLayout
+      title="Productos"
+      description="Administra el catálogo de productos."
+      fabLabel="Nuevo producto"
+      createRoute="/products/new"
+    >
+      <ProductsTableClient data={result.data} pagination={result.pagination} />
+    </ListPageLayout>
   );
 }

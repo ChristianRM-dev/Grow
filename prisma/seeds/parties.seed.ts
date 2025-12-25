@@ -15,7 +15,7 @@ export async function seedParties(
 
   if (opts.onlyIfEmpty) {
     const existing = await prisma.party.count();
-    if (existing > 0) {
+    if (existing > 1) {
       console.log("SEED: Parties skipped (db not empty).");
       return;
     }
