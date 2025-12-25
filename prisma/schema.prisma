@@ -27,10 +27,15 @@ model User {
   image         String?
 
   // Single role per user (MVP)
-  role          UserRole  @default(OPERATOR)
+  role     UserRole @default(OPERATOR)
+  isActive Boolean  @default(true)
 
-  accounts      Account[]
-  sessions      Session[]
+  // Password hash for Credentials login (bcrypt).
+  // Nullable to allow future OAuth users without passwords.
+  passwordHash String? @db.Text
+
+  accounts Account[]
+  sessions Session[]
 }
 
 model Account {
