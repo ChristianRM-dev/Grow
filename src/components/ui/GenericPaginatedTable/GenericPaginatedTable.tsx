@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type {
   ColumnDef,
   SortOrder,
@@ -22,28 +22,16 @@ type Props<T extends TableRow> = {
   pagination: TablePagination;
   loading: boolean;
 
-  /**
-   * Parent-owned querying (fetching) logic.
-   * Component only emits query intents.
-   */
   onQueryChange: (query: TableQuery) => void;
-
-  /**
-   * Parent-owned action handling.
-   */
   onAction?: (event: TableActionEvent<T>) => void;
 
-  /**
-   * UI options
-   */
-  searchPlaceholder?: string; // Spanish
+  searchPlaceholder?: string;
   initialSort?: { sortField: string; sortOrder: SortOrder };
   initialSearchTerm?: string;
-
-  /**
-   * Debounce for search (ms). Default: 300
-   */
   searchDebounceMs?: number;
+
+  pageSizeOptions?: number[];
+  showPageSizeSelector?: boolean;
 };
 
 export function GenericPaginatedTable<T extends TableRow>({
@@ -58,20 +46,24 @@ export function GenericPaginatedTable<T extends TableRow>({
   initialSort = { sortField: "createdAt", sortOrder: "desc" },
   initialSearchTerm = "",
   searchDebounceMs = 300,
+  pageSizeOptions = [10, 25, 50],
+  showPageSizeSelector = true,
 }: Props<T>) {
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [sortField, setSortField] = useState(initialSort.sortField);
   const [sortOrder, setSortOrder] = useState<SortOrder>(initialSort.sortOrder);
 
+  const didMountRef = useRef(false);
   const hasActions = actions.length > 0;
 
-  const sortableColumns = useMemo(
-    () => columns.filter((c) => c.sortable),
-    [columns]
-  );
-
   // Debounced search emits query changes; page resets to 1.
+  // Skip first render to avoid pushing URL immediately on mount.
   useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+
     const handle = setTimeout(() => {
       onQueryChange({
         pagination: { page: 1, pageSize: pagination.pageSize },
@@ -129,12 +121,18 @@ export function GenericPaginatedTable<T extends TableRow>({
     });
   };
 
+  const handlePageSizeChange = (nextPageSize: number) => {
+    emitQuery({
+      pagination: { page: 1, pageSize: nextPageSize },
+      sort: { sortField, sortOrder },
+    });
+  };
+
   return (
     <div className="w-full">
       {/* Toolbar */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <label className="input input-bordered flex items-center gap-2 w-full md:max-w-sm">
-          {/* Simple magnifier icon */}
           <svg
             aria-hidden="true"
             viewBox="0 0 24 24"
@@ -145,6 +143,7 @@ export function GenericPaginatedTable<T extends TableRow>({
               d="M10 4a6 6 0 1 1 3.88 10.58l4.27 4.27-1.41 1.41-4.27-4.27A6 6 0 0 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8"
             />
           </svg>
+
           <input
             className="grow"
             placeholder={searchPlaceholder}
@@ -157,13 +156,6 @@ export function GenericPaginatedTable<T extends TableRow>({
         <div className="flex items-center gap-2 justify-end">
           {loading ? (
             <span className="loading loading-spinner loading-sm" />
-          ) : null}
-
-          {/* Optional hint */}
-          {sortableColumns.length > 0 ? (
-            <span className="text-xs opacity-70">
-              Ordena dando click en el encabezado
-            </span>
           ) : null}
         </div>
       </div>
@@ -222,7 +214,9 @@ export function GenericPaginatedTable<T extends TableRow>({
 
                   return (
                     <td key={String(col.field)} className={col.className ?? ""}>
-                      {col.cell ? col.cell(value as any, row) : (value as any)}
+                      {"cell" in col && typeof col.cell === "function"
+                        ? col.cell(value, row)
+                        : value}
                     </td>
                   );
                 })}
@@ -246,7 +240,6 @@ export function GenericPaginatedTable<T extends TableRow>({
                           action.label
                         );
 
-                        // DaisyUI tooltip requires `data-tip` + `.tooltip`
                         const tooltip = action.tooltip ?? action.label;
 
                         return (
@@ -292,8 +285,8 @@ export function GenericPaginatedTable<T extends TableRow>({
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      {/* Bottom bar: page info + page size selector + pagination */}
+      <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="text-sm opacity-70">
           Página <b>{pagination.page}</b> de <b>{pagination.totalPages}</b>
           {typeof pagination.totalItems === "number" ? (
@@ -304,38 +297,59 @@ export function GenericPaginatedTable<T extends TableRow>({
           ) : null}
         </div>
 
-        <div className="join justify-end">
-          <button
-            className="btn btn-sm join-item"
-            onClick={() => goToPage(1)}
-            disabled={loading || pagination.page <= 1}
-          >
-            «
-          </button>
-          <button
-            className="btn btn-sm join-item"
-            onClick={() => goToPage(pagination.page - 1)}
-            disabled={loading || pagination.page <= 1}
-          >
-            Anterior
-          </button>
-          <button className="btn btn-sm join-item btn-disabled">
-            {pagination.page}
-          </button>
-          <button
-            className="btn btn-sm join-item"
-            onClick={() => goToPage(pagination.page + 1)}
-            disabled={loading || pagination.page >= pagination.totalPages}
-          >
-            Siguiente
-          </button>
-          <button
-            className="btn btn-sm join-item"
-            onClick={() => goToPage(pagination.totalPages)}
-            disabled={loading || pagination.page >= pagination.totalPages}
-          >
-            »
-          </button>
+        <div className="flex items-center justify-end gap-3">
+          {showPageSizeSelector ? (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="opacity-70">Filas:</span>
+              <select
+                className="select select-bordered select-sm"
+                value={pagination.pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                disabled={loading}
+                aria-label="Filas por página"
+              >
+                {pageSizeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          <div className="join">
+            <button
+              className="btn btn-sm join-item"
+              onClick={() => goToPage(1)}
+              disabled={loading || pagination.page <= 1}
+            >
+              «
+            </button>
+            <button
+              className="btn btn-sm join-item"
+              onClick={() => goToPage(pagination.page - 1)}
+              disabled={loading || pagination.page <= 1}
+            >
+              Anterior
+            </button>
+            <button className="btn btn-sm join-item btn-disabled">
+              {pagination.page}
+            </button>
+            <button
+              className="btn btn-sm join-item"
+              onClick={() => goToPage(pagination.page + 1)}
+              disabled={loading || pagination.page >= pagination.totalPages}
+            >
+              Siguiente
+            </button>
+            <button
+              className="btn btn-sm join-item"
+              onClick={() => goToPage(pagination.totalPages)}
+              disabled={loading || pagination.page >= pagination.totalPages}
+            >
+              »
+            </button>
+          </div>
         </div>
       </div>
     </div>

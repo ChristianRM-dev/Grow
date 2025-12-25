@@ -1,8 +1,5 @@
 import type React from "react";
 
-/**
- * Basic requirement for stable row keys.
- */
 export type TableRow = {
   id: string;
 };
@@ -27,9 +24,8 @@ export type TableActionEvent<T> = {
   row: T;
 };
 
-type ColumnDefBase<T> = {
+type ColumnDefBase = {
   header: string;
-  /** If provided, overrides which field name is sent on sort. */
   sortField?: string;
   sortable?: boolean;
   className?: string;
@@ -37,20 +33,37 @@ type ColumnDefBase<T> = {
 };
 
 /**
- * Strongly-typed column definition:
- * - field is a keyof T
- * - cell receives the exact type T[K]
+ * Keys whose values are directly renderable without a cell formatter.
  */
-export type ColumnDef<T> = {
-  [K in keyof T]-?: ColumnDefBase<T> & {
+type RenderableKeys<T> = {
+  [K in keyof T]-?: T[K] extends React.ReactNode ? K : never;
+}[keyof T];
+
+/**
+ * Column where the value is renderable -> cell is NOT needed.
+ */
+type ColumnValue<T> = {
+  [K in RenderableKeys<T>]-?: ColumnDefBase & {
     field: K;
-    cell?: (value: T[K], row: T) => React.ReactNode;
+    cell?: undefined;
+  };
+}[RenderableKeys<T>];
+
+/**
+ * Column with a custom cell renderer -> cell is required.
+ */
+type ColumnWithCell<T> = {
+  [K in keyof T]-?: ColumnDefBase & {
+    field: K;
+    cell: (value: T[K], row: T) => React.ReactNode;
   };
 }[keyof T];
 
+export type ColumnDef<T> = ColumnValue<T> | ColumnWithCell<T>;
+
 export type TableActionDef<T> = {
   type: string;
-  label: string; // Spanish label for accessibility/tooltip
+  label: string; // Spanish label
   icon?: React.ReactNode;
   tooltip?: string; // Spanish tooltip
   disabled?: (row: T) => boolean;
