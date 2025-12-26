@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { routes } from "./lib/routes";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -18,7 +19,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
   pages: {
-    signIn: "/login",
+    signIn: routes.login(),
   },
   providers: [
     Credentials({

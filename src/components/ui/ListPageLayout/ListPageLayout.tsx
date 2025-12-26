@@ -23,6 +23,8 @@ type Props = {
    * Label opcional para el botón.
    */
   fabLabel?: string;
+
+  breadcrumbs: React.ReactNode;
 };
 
 export function ListPageLayout({
@@ -31,6 +33,7 @@ export function ListPageLayout({
   children,
   onCreate,
   createRoute,
+  breadcrumbs,
   fabLabel = "Nuevo",
 }: Props) {
   const router = useRouter();
@@ -52,6 +55,7 @@ export function ListPageLayout({
 
   return (
     <div className="relative w-full p-4">
+      {breadcrumbs}
       {(title || description) && (
         <div className="mb-4">
           {title ? <h1 className="text-xl font-semibold">{title}</h1> : null}

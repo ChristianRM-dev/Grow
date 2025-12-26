@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ProductVariantWizard } from "@/modules/products/components/ProductVariantWizard/ProductVariantWizard";
 import type { ProductVariantFormValues } from "@/modules/products/forms/productVariantForm.schemas";
 import { createProductVariantAction } from "@/modules/products/actions/createProductVariant.action";
+import { toast } from "@/components/ui/Toast/toast";
+import { routes } from "@/lib/routes";
 
 export function ProductNewClient() {
   const router = useRouter();
@@ -13,12 +15,12 @@ export function ProductNewClient() {
   const handleSubmit = async (values: ProductVariantFormValues) => {
     try {
       await createProductVariantAction(values);
-      alert("Guardado exitosamente");
-      router.push("/products");
+      toast.success("Guardado exitosamente");
+      router.push(routes.products.list());
       router.refresh();
     } catch (err) {
       console.error(err);
-      alert("No se pudo guardar el producto");
+      toast.error("No se pudo guardar el producto");
     }
   };
 

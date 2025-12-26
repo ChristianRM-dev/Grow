@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { signOutCommand } from "@/modules/auth/actions/signOut.command";
+import { routes } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,7 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/login");
+    redirect(routes.login());
   }
 
   return (
@@ -33,7 +34,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex-1">
-            <Link href="/dashboard" className="btn btn-ghost text-lg">
+            <Link href={routes.dashboard()} className="btn btn-ghost text-lg">
               Grow
             </Link>
           </div>
@@ -66,13 +67,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <div className="bg-base-200 w-72 min-h-full border-r border-base-300">
           <ul className="menu px-3 py-4">
             <li>
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href={routes.dashboard()}>Dashboard</Link>
             </li>
             <li>
-              <Link href="/products">Productos</Link>
+              <Link href={routes.products.list()}>Productos</Link>
             </li>
             <li>
-              <Link href="/sales-notes">Nodas de venta</Link>
+              <Link href={routes.salesNotes.list()}>Notas de venta</Link>
             </li>
           </ul>
         </div>

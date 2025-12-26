@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { SalesNoteWizard } from "@/modules/sales-notes/components/SalesNoteWizard/SalesNoteWizard";
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 import { createSalesNoteAction } from "@/modules/sales-notes/actions/createSalesNote.action";
+import { toast } from "@/components/ui/Toast/toast";
+import { routes } from "@/lib/routes";
 
 export function SalesNoteNewClient() {
   const router = useRouter();
@@ -14,19 +16,17 @@ export function SalesNoteNewClient() {
   const handleSubmit = async (values: SalesNoteFormValues) => {
     setSubmitting(true);
     try {
-      console.log("Form::handleSubmit::values", values);
       const res = await createSalesNoteAction(values);
-      console.log("Form::handleSubmit::res", res);
 
       if (!res.ok) {
-        alert("Revisa los campos. Hay errores de validación.");
+        // Nota: aquí probablemente era toast.error, no success 🙂
+        toast.error("Revisa los campos. Hay errores de validación.");
         return;
       }
 
-      alert("Guardado exitosamente");
-      router.push("/sales-notes");
-      // Or if you later have details page:
-      // router.push(`/sales-notes/${res.salesNoteId}`);
+      toast.success("Guardado exitosamente");
+
+      router.push(routes.salesNotes.details(res.salesNoteId)); // si la agregas
     } finally {
       setSubmitting(false);
     }

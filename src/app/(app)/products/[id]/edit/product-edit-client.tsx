@@ -7,6 +7,8 @@ import { ProductVariantWizard } from "@/modules/products/components/ProductVaria
 import type { ProductVariantFormValues } from "@/modules/products/forms/productVariantForm.schemas";
 import type { ProductVariantEditDto } from "@/modules/products/queries/getProductVariantById.query";
 import { updateProductVariantAction } from "@/modules/products/actions/updateProductVariant.action";
+import { toast } from "@/components/ui/Toast/toast";
+import { routes } from "@/lib/routes";
 
 export function ProductEditClient({
   product,
@@ -27,12 +29,12 @@ export function ProductEditClient({
   const handleSubmit = async (values: ProductVariantFormValues) => {
     try {
       await updateProductVariantAction({ id: product.id, values });
-      alert("Actualizado exitosamente");
-      router.push("/products");
+      toast.success("Actualizado exitosamente");
+      router.push(routes.products.list());
       router.refresh();
     } catch (err) {
       console.error(err);
-      alert("No se pudo actualizar el producto");
+      toast.error("No se pudo actualizar el producto");
     }
   };
 

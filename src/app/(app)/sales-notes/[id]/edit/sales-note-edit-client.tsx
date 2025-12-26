@@ -7,6 +7,8 @@ import { SalesNoteWizard } from "@/modules/sales-notes/components/SalesNoteWizar
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 import type { SalesNoteForEditDto } from "@/modules/sales-notes/queries/getSalesNoteForEdit.query";
 import { updateSalesNoteAction } from "@/modules/sales-notes/actions/updateSalesNote.action";
+import { toast } from "@/components/ui/Toast/toast";
+import { routes } from "@/lib/routes";
 
 export function SalesNoteEditClient({
   salesNote,
@@ -20,12 +22,12 @@ export function SalesNoteEditClient({
     setSubmitting(true);
     try {
       await updateSalesNoteAction({ id: salesNote.id, values });
-      alert("Actualizado exitosamente");
-      router.push("/sales-notes");
+      toast.success("Actualizado exitosamente");
+      router.push(routes.salesNotes.details(salesNote.id));
       router.refresh();
     } catch (err) {
       console.error(err);
-      alert("No se pudo actualizar la nota de venta");
+      toast.error("No se pudo actualizar la nota de venta");
     } finally {
       setSubmitting(false);
     }

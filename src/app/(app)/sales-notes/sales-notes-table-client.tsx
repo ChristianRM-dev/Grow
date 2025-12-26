@@ -16,6 +16,7 @@ import {
   EyeIcon,
   PencilSquareIcon,
 } from "@heroicons/react/16/solid";
+import { routes } from "@/lib/routes";
 
 function formatMoney(v: string) {
   const n = Number(v);
@@ -94,10 +95,17 @@ export function SalesNotesTableClient({
       loading={false}
       onQueryChange={pushTableQuery}
       onAction={(e) => {
-        if (e.type === "details") router.push(`/sales-notes/${e.row.id}`);
-        if (e.type === "edit") router.push(`/sales-notes/${e.row.id}/edit`);
-        if (e.type === "payment")
-          router.push(`/sales-notes/${e.row.id}/payments/new`);
+        switch (e.type) {
+          case "details":
+            router.push(routes.salesNotes.details(e.row.id));
+            break;
+          case "edit":
+            router.push(routes.salesNotes.edit(e.row.id));
+            break;
+          case "payment":
+            router.push(routes.salesNotes.payments.new(e.row.id));
+            break;
+        }
       }}
       searchPlaceholder="Buscar por folio o cliente…"
       pageSizeOptions={[10, 25, 50]}

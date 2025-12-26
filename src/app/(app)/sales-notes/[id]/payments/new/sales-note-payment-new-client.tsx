@@ -7,6 +7,8 @@ import type { SalesNoteForPaymentDto } from "@/modules/sales-notes/queries/getSa
 import { SalesNotePaymentWizard } from "@/modules/sales-notes/components/SalesNotePaymentWizard/SalesNotePaymentWizard";
 import type { SalesNotePaymentFormValues } from "@/modules/sales-notes/forms/salesNotePaymentForm.schemas";
 import { createSalesNotePaymentAction } from "@/modules/sales-notes/actions/createSalesNotePayment.action";
+import { toast } from "@/components/ui/Toast/toast";
+import { routes } from "@/lib/routes";
 
 export function SalesNotePaymentNewClient({
   salesNote,
@@ -23,15 +25,14 @@ export function SalesNotePaymentNewClient({
         salesNoteId: salesNote.id,
         values,
       });
-
-      alert("Pago registrado exitosamente");
-      router.push(`/sales-notes/${salesNote.id}/edit`);
+      toast.success("Pago registrado exitosamente");
+      router.push(routes.salesNotes.details(salesNote.id));
       router.refresh();
     } catch (err) {
       console.error(err);
-      alert(
-        err instanceof Error ? err.message : "No se pudo registrar el pago"
-      );
+      const message =
+        err instanceof Error ? err.message : "No se pudo registrar el pago";
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -46,6 +47,7 @@ export function SalesNotePaymentNewClient({
           total: salesNote.total,
           paid: salesNote.paid,
           remaining: salesNote.remaining,
+          mode: "create",
         }}
         initialValues={{
           paymentType: "CASH",

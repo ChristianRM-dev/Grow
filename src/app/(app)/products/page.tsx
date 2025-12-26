@@ -1,6 +1,8 @@
 import { getProductsTable } from "@/modules/products/queries/getProductsTable.query";
 import { ProductsTableClient } from "./products-table-client";
 import { ListPageLayout } from "@/components/ui/ListPageLayout/ListPageLayout";
+import { routes } from "@/lib/routes";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs";
 
 export const dynamic = "force-dynamic"; // ensure fresh render per navigation
 
@@ -17,7 +19,15 @@ export default async function ProductsPage({ searchParams }: Props) {
       title="Productos"
       description="Administra el catálogo de productos."
       fabLabel="Nuevo producto"
-      createRoute="/products/new"
+      breadcrumbs={
+        <Breadcrumbs
+          items={[
+            { label: "Productos"},
+
+          ]}
+        />
+      }
+      createRoute={routes.products.new()}
     >
       <ProductsTableClient data={result.data} pagination={result.pagination} />
     </ListPageLayout>

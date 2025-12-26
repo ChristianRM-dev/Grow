@@ -7,6 +7,8 @@ import { SalesNotePaymentWizard } from "@/modules/sales-notes/components/SalesNo
 import type { SalesNotePaymentFormValues } from "@/modules/sales-notes/forms/salesNotePaymentForm.schemas";
 import type { SalesNotePaymentEditDto } from "@/modules/sales-notes/queries/getSalesNotePaymentForEdit.query";
 import { updateSalesNotePaymentAction } from "@/modules/sales-notes/actions/updateSalesNotePayment.action";
+import { toast } from "@/components/ui/Toast/toast";
+import { routes } from "@/lib/routes";
 
 export function SalesNotePaymentEditClient({
   dto,
@@ -24,15 +26,13 @@ export function SalesNotePaymentEditClient({
         paymentId: dto.paymentId,
         values,
       });
-
-      alert("Pago actualizado exitosamente");
-      router.push(`/sales-notes/${dto.salesNoteId}/edit`);
+      toast.success("Pago actualizado exitosamente");
+      router.push(routes.salesNotes.details(dto.salesNoteId));
       router.refresh();
     } catch (err) {
-      console.error(err);
-      alert(
-        err instanceof Error ? err.message : "No se pudo actualizar el pago"
-      );
+      const message =
+        err instanceof Error ? err.message : "No se pudo actualizar el pago";
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }

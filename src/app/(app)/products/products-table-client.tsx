@@ -11,6 +11,7 @@ import type {
 import type { ProductVariantRowDto } from "@/modules/products/queries/getProductsTable.query";
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
 import { PencilSquareIcon } from "@heroicons/react/16/solid";
+import { routes } from "@/lib/routes";
 
 function formatMoney(v: string) {
   const n = Number(v);
@@ -88,7 +89,9 @@ export function ProductsTableClient({
       loading={false}
       onQueryChange={pushTableQuery}
       onAction={(e) => {
-        if (e.type === "edit") router.push(`/products/${e.row.id}/edit`);
+        if (e.type === "edit") {
+          router.push(routes.products.edit(e.row.id));
+        }
       }}
       searchPlaceholder="Buscar productos…"
       pageSizeOptions={[10, 25, 50]}
