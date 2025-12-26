@@ -41,6 +41,7 @@ export function ProductEditClient({
       <ProductVariantWizard
         initialValues={initialValues}
         onSubmit={handleSubmit}
+        submitting={false}
       />
     </div>
   );

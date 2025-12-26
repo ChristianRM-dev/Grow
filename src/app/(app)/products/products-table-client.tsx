@@ -10,6 +10,7 @@ import type {
 } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable.types";
 import type { ProductVariantRowDto } from "@/modules/products/queries/getProductsTable.query";
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
+import { PencilSquareIcon } from "@heroicons/react/16/solid";
 
 export function ProductsTableClient({
   data,
@@ -67,14 +68,7 @@ export function ProductsTableClient({
       type: "edit",
       label: "Editar",
       tooltip: "Editar producto",
-      icon: (
-        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M5 19h14v2H5zM15.7 5.3l3 3L9 18H6v-3zM18.4 4.6l-1-1a1.5 1.5 0 0 0-2.1 0l-1.1 1.1l3 3l1.2-1.1a1.5 1.5 0 0 0 0-2.1"
-          />
-        </svg>
-      ),
+      icon: <PencilSquareIcon className="h-5 w-5" />,
     },
   ];
 

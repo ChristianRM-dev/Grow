@@ -32,5 +32,29 @@ export function SalesNoteNewClient() {
     }
   };
 
-  return <SalesNoteWizard onSubmit={handleSubmit} submitting={submitting} />;
+  return (
+    <SalesNoteWizard
+      initialValues={{
+        customer: {
+          mode: "PUBLIC",
+          partyMode: "EXISTING",
+          existingPartyName: "",
+          existingPartyId: "",
+          newParty: { name: "", phone: "", notes: "" },
+        },
+        lines: [
+          {
+            productVariantId: "",
+            productName: "",
+            quantity: 1,
+            unitPrice: "",
+            description: "",
+          },
+        ],
+        unregisteredLines: [],
+      }}
+      onSubmit={handleSubmit}
+      submitting={submitting}
+    />
+  );
 }

@@ -24,7 +24,18 @@ export function ProductNewClient() {
 
   return (
     <div className="p-4">
-      <ProductVariantWizard onSubmit={handleSubmit} />
+      <ProductVariantWizard
+        initialValues={{
+          speciesName: "",
+          variantName: "",
+          bagSize: "",
+          color: "",
+          defaultPrice: "",
+          isActive: true,
+        }}
+        onSubmit={handleSubmit}
+        submitting={false}
+      />
     </div>
   );
 }

@@ -29,21 +29,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               htmlFor="app-drawer"
               className="btn btn-ghost btn-square"
               aria-label="Abrir menú"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <path
-                  d="M4 6h16M4 12h16M4 18h16"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </label>
+            ></label>
           </div>
 
           <div className="flex-1">

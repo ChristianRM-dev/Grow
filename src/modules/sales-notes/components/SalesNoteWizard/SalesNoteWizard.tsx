@@ -23,34 +23,30 @@ import { SalesNoteLinesStep } from "./steps/SalesNoteLinesStep";
 import { SalesNoteUnregisteredLinesStep } from "./steps/SalesNoteUnregisteredLinesStep";
 import { SalesNoteSummaryStep } from "./steps/SalesNoteSummaryStep";
 
-export function SalesNoteWizard(props: {
-  onSubmit: (values: SalesNoteFormValues) => Promise<void>;
-  submitting?: boolean;
-}) {
-  const { onSubmit, submitting } = props;
+type SalesNoteWizardProps = {
+  /**
+   * Optional initial values (for edit forms).
+   */
+  initialValues: Partial<SalesNoteFormValues>;
 
+  /**
+   * Called when user submits the wizard.
+   * Typically this will call a server action.
+   */
+  onSubmit: (values: SalesNoteFormValues) => Promise<void> | void;
+
+  submitting: boolean;
+};
+
+export function SalesNoteWizard({
+  initialValues,
+  onSubmit,
+  submitting,
+}: SalesNoteWizardProps) {
   const form = useForm<SalesNoteFormValues>({
     resolver: zodResolver(SalesNoteFormSchema),
     shouldUnregister: false, // ✅ wizard
-    defaultValues: {
-      customer: {
-        mode: "PUBLIC",
-        partyMode: "EXISTING",
-        existingPartyName: "",
-        existingPartyId: "",
-        newParty: { name: "", phone: "", notes: "" },
-      },
-      lines: [
-        {
-          productVariantId: "",
-          productName: "",
-          quantity: 1,
-          unitPrice: "",
-          description: "",
-        },
-      ],
-      unregisteredLines: [],
-    },
+    defaultValues: initialValues,
     mode: "onSubmit",
   });
 

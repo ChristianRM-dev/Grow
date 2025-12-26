@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import { PlusIcon } from "@heroicons/react/16/solid";
 
 type Props = {
   title?: string;
@@ -73,12 +74,8 @@ export function ListPageLayout({
               title={fabLabel}
             >
               {/* Plus icon */}
-              <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-                <path
-                  fill="currentColor"
-                  d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z"
-                />
-              </svg>
+
+              <PlusIcon></PlusIcon>
             </button>
           </div>
         </div>

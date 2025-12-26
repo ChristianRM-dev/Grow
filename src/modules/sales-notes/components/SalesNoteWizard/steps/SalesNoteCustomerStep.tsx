@@ -21,6 +21,7 @@ export function SalesNoteCustomerStep({ form }: Props) {
   const mode = watch("customer.mode");
   const partyMode = watch("customer.partyMode");
   const existingPartyId = watch("customer.existingPartyId");
+  const existingPartyName = watch("customer.existingPartyName");
 
   // Autocomplete local state
   const [term, setTerm] = useState("");
@@ -30,10 +31,11 @@ export function SalesNoteCustomerStep({ form }: Props) {
 
   const customerErrors = errors.customer;
 
-  const selectedParty = useMemo(() => {
-    if (!existingPartyId) return null;
-    return results.find((r) => r.id === existingPartyId) ?? null;
-  }, [existingPartyId, results]);
+  const selectedLabel = useMemo(() => {
+    // IMPORTANT: do not depend on `results` for selection display
+    const label = String(existingPartyName ?? "").trim();
+    return label || "";
+  }, [existingPartyName]);
 
   const debounceRef = useRef<number | null>(null);
 
@@ -42,6 +44,7 @@ export function SalesNoteCustomerStep({ form }: Props) {
     if (mode === "PUBLIC") {
       setValue("customer.partyMode", undefined);
       setValue("customer.existingPartyId", "");
+      setValue("customer.existingPartyName", "");
       setValue("customer.newParty.name", "");
       setValue("customer.newParty.phone", "");
       setValue("customer.newParty.notes", "");
@@ -66,15 +69,36 @@ export function SalesNoteCustomerStep({ form }: Props) {
       setValue("customer.newParty.name", "");
       setValue("customer.newParty.phone", "");
       setValue("customer.newParty.notes", "");
+
+      // If we already have a selected party (edit scenario), show it in the input
+      const label = String(existingPartyName ?? "").trim();
+      if (existingPartyId && label && term.trim().length === 0) {
+        setTerm(label);
+      }
       return;
     }
 
     // partyMode === "NEW"
     setValue("customer.existingPartyId", "");
+    setValue("customer.existingPartyName", "");
     setTerm("");
     setResults([]);
     setOpen(false);
-  }, [mode, partyMode, setValue]);
+  }, [mode, partyMode, setValue, existingPartyId, existingPartyName, term]);
+
+  // Hydrate term from existingPartyName when selection exists (edit + no typing)
+  useEffect(() => {
+    if (mode !== "PARTY" || partyMode !== "EXISTING") return;
+
+    const label = String(existingPartyName ?? "").trim();
+    if (!existingPartyId || !label) return;
+
+    // If user hasn't typed anything (or term is out-of-sync), sync it.
+    // We avoid overriding while dropdown is open (user typing).
+    if (!open && term.trim() !== label) {
+      setTerm(label);
+    }
+  }, [existingPartyId, existingPartyName, mode, partyMode, open, term]);
 
   // Autocomplete search (debounced)
   useEffect(() => {
@@ -186,9 +210,16 @@ export function SalesNoteCustomerStep({ form }: Props) {
                       const next = e.target.value;
                       setTerm(next);
 
-                      // Editing the term invalidates any previous selection.
+                      // Editing invalidates any previous selection.
                       if (existingPartyId) {
-                        setValue("customer.existingPartyId", "");
+                        setValue("customer.existingPartyId", "", {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        setValue("customer.existingPartyName", "", {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
                       }
                     }}
                     onFocus={() => setOpen(true)}
@@ -247,9 +278,9 @@ export function SalesNoteCustomerStep({ form }: Props) {
                     <span className="badge badge-success">
                       Cliente seleccionado
                     </span>
-                    {selectedParty ? (
+                    {selectedLabel ? (
                       <span className="ml-2 text-sm opacity-70">
-                        {selectedParty.name}
+                        {selectedLabel}
                       </span>
                     ) : null}
                   </div>
@@ -264,6 +295,10 @@ export function SalesNoteCustomerStep({ form }: Props) {
                 <input
                   type="hidden"
                   {...register("customer.existingPartyId")}
+                />
+                <input
+                  type="hidden"
+                  {...register("customer.existingPartyName")}
                 />
               </div>
             ) : null}

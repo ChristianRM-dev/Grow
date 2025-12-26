@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useRouter } from "next/navigation";
 
 import { GenericPaginatedTable } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable";
@@ -11,6 +10,11 @@ import type {
 } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable.types";
 import type { SalesNoteRowDto } from "@/modules/sales-notes/queries/getSalesNotesTable.query";
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
+import {
+  CurrencyDollarIcon,
+  EyeIcon,
+  PencilSquareIcon,
+} from "@heroicons/react/16/solid";
 
 function formatMoney(v: string) {
   const n = Number(v);
@@ -101,6 +105,13 @@ export function SalesNotesTableClient({
       type: "view",
       label: "Ver",
       tooltip: "Ver nota de venta",
+      icon: <EyeIcon className="h-5 w-5" />,
+    },
+    {
+      type: "edit",
+      label: "Editar",
+      tooltip: "Editar nota de venta",
+      icon: <PencilSquareIcon className="h-5 w-5" />,
     },
   ];
 
@@ -115,6 +126,9 @@ export function SalesNotesTableClient({
       onAction={(e) => {
         if (e.type === "view") {
           router.push(`/sales-notes/${e.row.id}`);
+        }
+        if (e.type === "edit") {
+          router.push(`/sales-notes/${e.row.id}/edit`);
         }
       }}
       searchPlaceholder="Buscar por folio o cliente…"

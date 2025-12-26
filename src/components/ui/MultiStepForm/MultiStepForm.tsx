@@ -16,6 +16,7 @@ import { pickInitialStepId } from "./utils/pickInitialStepId";
 import { mergeLabels } from "./utils/mergeLabels";
 import { issuePathToDotPath } from "./utils/issuePath";
 import { validateStep } from "./utils/validateStep";
+import { MultiStepFormStepper } from "./MultiStepFormStepper";
 
 /**
  * MultiStepForm wrapper component:
@@ -379,47 +380,13 @@ export function MultiStepForm<TFormValues extends FieldValues>(
 
       {/* Stepper */}
       {config.showProgress !== false ? (
-        <div className="mb-4">
-          <div className="overflow-x-auto">
-            <ul className="steps min-w-max size-full">
-              {stepperItems.map((item) => {
-                const active = item.id === currentStepId;
-                const completed = item.status === "completed";
-                const error = item.status === "error";
-                const skipped = item.status === "skipped";
-
-                const stepClass = [
-                  "step",
-                  active ? "step-primary" : "",
-                  !active && completed ? "step-success" : "",
-                  !active && error ? "step-error" : "",
-                  !active && skipped ? "step-neutral" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
-
-                const canClick =
-                  config.allowFreeNavigation ||
-                  visitedIds.has(item.id) ||
-                  item.id === currentStepId;
-
-                return (
-                  <li
-                    key={item.id}
-                    className={stepClass}
-                    onClick={() =>
-                      canClick ? wizardApi.goToStep(item.id) : null
-                    }
-                    style={{ cursor: canClick ? "pointer" : "default" }}
-                    title={item.title}
-                  >
-                    {item.title}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
+        <MultiStepFormStepper
+          items={stepperItems}
+          currentStepId={currentStepId}
+          allowFreeNavigation={config.allowFreeNavigation}
+          visitedIds={visitedIds}
+          onStepClick={(id) => wizardApi.goToStep(id)}
+        />
       ) : null}
 
       {/* Step content */}

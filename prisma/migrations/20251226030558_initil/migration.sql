@@ -35,6 +35,8 @@ CREATE TABLE "User" (
     "role" "UserRole" NOT NULL DEFAULT 'OPERATOR',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "passwordHash" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -108,6 +110,9 @@ CREATE TABLE "ProductVariant" (
     "defaultPrice" DECIMAL(18,2) NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "ProductVariant_pkey" PRIMARY KEY ("id")
 );
@@ -117,6 +122,7 @@ CREATE TABLE "SalesNote" (
     "id" TEXT NOT NULL,
     "folio" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "partyId" TEXT NOT NULL,
     "status" "SalesNoteStatus" NOT NULL DEFAULT 'DRAFT',
     "subtotal" DECIMAL(18,2) NOT NULL,
@@ -151,6 +157,7 @@ CREATE TABLE "Payment" (
     "notes" TEXT,
     "occurredAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
 );
@@ -164,6 +171,7 @@ CREATE TABLE "SupplierPurchase" (
     "total" DECIMAL(18,2) NOT NULL,
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "SupplierPurchase_pkey" PRIMARY KEY ("id")
 );
@@ -190,6 +198,7 @@ CREATE TABLE "Quotation" (
     "folio" TEXT NOT NULL,
     "partyId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "status" "QuotationStatus" NOT NULL DEFAULT 'DRAFT',
     "total" DECIMAL(18,2),
 
@@ -247,6 +256,9 @@ CREATE UNIQUE INDEX "PartyRole_partyId_role_key" ON "PartyRole"("partyId", "role
 CREATE INDEX "ProductVariant_speciesName_variantName_idx" ON "ProductVariant"("speciesName", "variantName");
 
 -- CreateIndex
+CREATE INDEX "ProductVariant_isDeleted_idx" ON "ProductVariant"("isDeleted");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "SalesNote_folio_key" ON "SalesNote"("folio");
 
 -- CreateIndex
@@ -254,6 +266,9 @@ CREATE INDEX "SalesNote_partyId_idx" ON "SalesNote"("partyId");
 
 -- CreateIndex
 CREATE INDEX "SalesNote_createdAt_idx" ON "SalesNote"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "SalesNote_status_idx" ON "SalesNote"("status");
 
 -- CreateIndex
 CREATE INDEX "SalesNoteLine_salesNoteId_idx" ON "SalesNoteLine"("salesNoteId");
@@ -293,6 +308,9 @@ CREATE INDEX "Quotation_partyId_idx" ON "Quotation"("partyId");
 
 -- CreateIndex
 CREATE INDEX "Quotation_createdAt_idx" ON "Quotation"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "Quotation_status_idx" ON "Quotation"("status");
 
 -- CreateIndex
 CREATE INDEX "QuotationLine_quotationId_idx" ON "QuotationLine"("quotationId");

@@ -26,17 +26,18 @@ model User {
   emailVerified DateTime?
   image         String?
 
-  // Single role per user (MVP)
   role     UserRole @default(OPERATOR)
   isActive Boolean  @default(true)
 
-  // Password hash for Credentials login (bcrypt).
-  // Nullable to allow future OAuth users without passwords.
   passwordHash String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   accounts Account[]
   sessions Session[]
 }
+
 
 model Account {
   id                String  @id @default(cuid())
@@ -98,7 +99,7 @@ enum PaymentType {
   CASH
   TRANSFER
   CREDIT
-  Exchange
+  Exchange //Al cambio
 }
 
 enum PartyLedgerSide {
@@ -129,7 +130,7 @@ model Party {
   id        String   @id @default(cuid())
   // Unique system identifier for special parties (e.g., walk-in public).
   systemKey String?  @unique
-  
+
   name      String
   phone     String?
   notes     String?
@@ -167,35 +168,46 @@ model ProductVariant {
   bagSize      String?
   color        String?
   defaultPrice Decimal  @db.Decimal(18, 2)
+
   isActive     Boolean  @default(true)
+
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  isDeleted    Boolean  @default(false)
+  deletedAt    DateTime?
 
   salesNoteLines SalesNoteLine[]
   quotationLines QuotationLine[]
 
   @@index([speciesName, variantName])
+  @@index([isDeleted])
 }
 
 model SalesNote {
-  id            String         @id @default(cuid())
-  folio         String         @unique
-  createdAt     DateTime       @default(now())
+  id            String          @id @default(cuid())
+  folio         String          @unique
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   partyId       String
-  party         Party          @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  party         Party           @relation(fields: [partyId], references: [id], onDelete: Restrict)
 
   status        SalesNoteStatus @default(DRAFT)
 
-  subtotal      Decimal        @db.Decimal(18, 2)
-  discountTotal Decimal        @db.Decimal(18, 2)
-  total         Decimal        @db.Decimal(18, 2)
+  subtotal      Decimal         @db.Decimal(18, 2)
+  discountTotal Decimal         @db.Decimal(18, 2)
+  total         Decimal         @db.Decimal(18, 2)
 
   lines         SalesNoteLine[]
   payments      Payment[]
 
   @@index([partyId])
   @@index([createdAt])
+  @@index([status])
 }
+
 
 model SalesNoteLine {
   id                  String   @id @default(cuid())
@@ -215,45 +227,49 @@ model SalesNoteLine {
 }
 
 model Payment {
-  id         String          @id @default(cuid())
+  id          String           @id @default(cuid())
 
   salesNoteId String?
-  salesNote   SalesNote?     @relation(fields: [salesNoteId], references: [id], onDelete: SetNull)
+  salesNote   SalesNote?       @relation(fields: [salesNoteId], references: [id], onDelete: SetNull)
 
-  partyId    String?
-  party      Party?          @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  partyId     String?
+  party       Party?           @relation(fields: [partyId], references: [id], onDelete: SetNull)
 
-  direction  PaymentDirection
+  direction   PaymentDirection
   paymentType PaymentType
-  amount     Decimal?         @db.Decimal(18, 2)
+  amount      Decimal?         @db.Decimal(18, 2)
 
-  reference  String?
-  notes      String?
+  reference   String?
+  notes       String?
 
-  occurredAt DateTime
-  createdAt  DateTime         @default(now())
+  occurredAt  DateTime
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([salesNoteId])
   @@index([partyId])
   @@index([occurredAt])
 }
 
+
 model SupplierPurchase {
-  id           String   @id @default(cuid())
-  partyId      String
+  id            String   @id @default(cuid())
+  partyId       String
   supplierFolio String
-  occurredAt   DateTime
-  total        Decimal  @db.Decimal(18, 2)
-  notes        String?
-  createdAt    DateTime @default(now())
+  occurredAt    DateTime
+  total         Decimal  @db.Decimal(18, 2)
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   party Party @relation(fields: [partyId], references: [id], onDelete: Restrict)
 
   @@index([partyId])
   @@index([occurredAt])
-  // Optional uniqueness if supplier folios are stable:
-  // @@unique([partyId, supplierFolio])
 }
+
 
 model PartyLedgerEntry {
   id         String              @id @default(cuid())
@@ -278,7 +294,10 @@ model Quotation {
   id        String          @id @default(cuid())
   folio     String          @unique
   partyId   String
+
   createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
   status    QuotationStatus @default(DRAFT)
   total     Decimal?        @db.Decimal(18, 2)
 
@@ -287,7 +306,9 @@ model Quotation {
 
   @@index([partyId])
   @@index([createdAt])
+  @@index([status])
 }
+
 
 model QuotationLine {
   id                  String   @id @default(cuid())

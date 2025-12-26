@@ -21,28 +21,6 @@ export async function seedParties(
     }
   }
 
-  // Ensure walk-in public party exists
-  const publicName = "PÚBLICO";
-  const existingPublic = await prisma.party.findFirst({
-    where: { name: publicName, isDeleted: false },
-    select: { id: true },
-  });
-
-  let publicPartyId: string;
-  if (existingPublic) {
-    publicPartyId = existingPublic.id;
-  } else {
-    const created = await prisma.party.create({
-      data: {
-        name: publicName,
-        notes: "Cliente mostrador (walk-in).",
-        roles: { create: [{ role: PartyRoleType.CUSTOMER }] },
-      },
-      select: { id: true },
-    });
-    publicPartyId = created.id;
-  }
-
   const partiesData = Array.from({ length: opts.count }).map(() => {
     const isCompany = faker.datatype.boolean();
     const name = isCompany ? faker.company.name() : faker.person.fullName();
@@ -84,5 +62,5 @@ export async function seedParties(
     void created;
   }
 
-  console.log(`SEED: Parties done. Public PartyId: ${publicPartyId}`);
+  console.log(`SEED: Parties done. Created ${opts.count} parties.`);
 }

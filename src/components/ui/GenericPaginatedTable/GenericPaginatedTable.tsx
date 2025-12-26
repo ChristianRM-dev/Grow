@@ -133,17 +133,6 @@ export function GenericPaginatedTable<T extends TableRow>({
       {/* Toolbar */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <label className="input input-bordered flex items-center gap-2 w-full md:max-w-sm">
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="h-4 w-4 opacity-70"
-          >
-            <path
-              fill="currentColor"
-              d="M10 4a6 6 0 1 1 3.88 10.58l4.27 4.27-1.41 1.41-4.27-4.27A6 6 0 0 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8"
-            />
-          </svg>
-
           <input
             className="grow"
             placeholder={searchPlaceholder}
@@ -214,9 +203,7 @@ export function GenericPaginatedTable<T extends TableRow>({
 
                   return (
                     <td key={String(col.field)} className={col.className ?? ""}>
-                      {"cell" in col && typeof col.cell === "function"
-                        ? col.cell(value, row)
-                        : value}
+                      {col.cell ? <>{col.cell(value, row)}</> : <>{value}</>}
                     </td>
                   );
                 })}

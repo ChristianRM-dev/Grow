@@ -14,7 +14,7 @@ import {
 
 import { ProductVariantSingleStep } from "./steps/ProductVariantSingleStep";
 
-type Props = {
+type ProductVariantWizardProps = {
   /**
    * Optional initial values (for edit forms).
    */
@@ -25,20 +25,18 @@ type Props = {
    * Typically this will call a server action.
    */
   onSubmit: (values: ProductVariantFormValues) => Promise<void> | void;
+
+  submitting: boolean;
 };
 
-export function ProductVariantWizard({ initialValues, onSubmit }: Props) {
+export function ProductVariantWizard({
+  initialValues,
+  onSubmit,
+  submitting,
+}: ProductVariantWizardProps) {
   const form = useForm<ProductVariantFormValues>({
     resolver: zodResolver(ProductVariantFinalSchema),
-    defaultValues: {
-      speciesName: "",
-      variantName: "",
-      bagSize: "",
-      color: "",
-      defaultPrice: "",
-      isActive: true, // Active by default (no UI toggle in v1)
-      ...initialValues,
-    },
+    defaultValues: initialValues,
     mode: "onSubmit",
   });
 
