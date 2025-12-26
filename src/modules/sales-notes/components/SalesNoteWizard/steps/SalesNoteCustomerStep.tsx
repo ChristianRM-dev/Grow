@@ -217,6 +217,11 @@ export function SalesNoteCustomerStep({ form }: Props) {
                                   shouldDirty: true,
                                   shouldValidate: true,
                                 });
+                                setValue("customer.existingPartyName", p.name, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                });
+
                                 setTerm(p.name);
                                 setOpen(false);
                               }}

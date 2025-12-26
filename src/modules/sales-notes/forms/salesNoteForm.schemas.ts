@@ -3,8 +3,19 @@ import { z } from "zod";
 export const CustomerModeEnum = z.enum(["PUBLIC", "PARTY"]);
 export const PartyModeEnum = z.enum(["EXISTING", "NEW"]);
 
+/**
+ * NOTE:
+ * This schema must be permissive because RHF defaultValues often include
+ * an object for newParty even when the user is not in "NEW" party mode.
+ * We enforce required fields conditionally in the step superRefine.
+ */
 export const NewPartySchema = z.object({
-  name: z.string().trim().min(1, "El nombre es requerido"),
+  name: z
+    .string()
+    .trim()
+    .max(120, "Máximo 120 caracteres")
+    .optional()
+    .or(z.literal("")),
   phone: z
     .string()
     .trim()
@@ -19,45 +30,48 @@ export const NewPartySchema = z.object({
     .or(z.literal("")),
 });
 
-export const SalesNoteCustomerStepSchema = z
-  .object({
-    mode: CustomerModeEnum,
-    partyMode: PartyModeEnum.optional(),
-    existingPartyId: z.string().optional(),
-    newParty: NewPartySchema.optional(),
-  })
-  .superRefine((v, ctx) => {
-    if (v.mode === "PUBLIC") return;
+  export const SalesNoteCustomerStepSchema = z
+    .object({
+      mode: CustomerModeEnum,
+      partyMode: PartyModeEnum.optional(),
+      existingPartyId: z.string().optional(),
+      existingPartyName: z.string().optional(), // ✅ NEW (solo para UI/summary)
+      newParty: NewPartySchema.optional(),
+    })
+    .superRefine((v, ctx) => {
+      if (v.mode === "PUBLIC") return;
 
-    if (!v.partyMode) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["partyMode"],
-        message: "Selecciona una opción",
-      });
-      return;
-    }
-
-    if (v.partyMode === "EXISTING") {
-      if (!v.existingPartyId || v.existingPartyId.trim().length === 0) {
+      if (!v.partyMode) {
         ctx.addIssue({
           code: "custom",
-          path: ["existingPartyId"],
-          message: "Selecciona un cliente",
+          path: ["partyMode"],
+          message: "Selecciona una opción",
+        });
+        return;
+      }
+
+      if (v.partyMode === "EXISTING") {
+        const id = v.existingPartyId?.trim() ?? "";
+        if (!id) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["existingPartyId"],
+            message: "Selecciona un cliente",
+          });
+        }
+        return;
+      }
+
+      const name = v.newParty?.name?.trim() ?? "";
+      if (!name) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["newParty", "name"],
+          message: "El nombre es requerido",
         });
       }
-      return;
-    }
+    });
 
-    const name = v.newParty?.name?.trim() ?? "";
-    if (!name) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["newParty", "name"],
-        message: "El nombre es requerido",
-      });
-    }
-  });
 
 const decimalString = z
   .string()
@@ -101,9 +115,27 @@ export const SalesNoteLinesStepSchema = z
     }
   });
 
+export const SalesNoteUnregisteredLineSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es requerido"),
+  quantity: z.number().int().min(1, "Cantidad mínima 1"),
+  unitPrice: decimalString,
+  description: z
+    .string()
+    .trim()
+    .max(200, "Máximo 200 caracteres")
+    .optional()
+    .or(z.literal("")),
+});
+
+export const SalesNoteUnregisteredLinesStepSchema = z
+  .array(SalesNoteUnregisteredLineSchema)
+  // IMPORTANT: optional step -> empty array is valid
+  .default([]);
+
 export const SalesNoteFormSchema = z.object({
   customer: SalesNoteCustomerStepSchema,
   lines: SalesNoteLinesStepSchema,
+  unregisteredLines: SalesNoteUnregisteredLinesStepSchema,
 });
 
 export type SalesNoteFormValues = z.infer<typeof SalesNoteFormSchema>;

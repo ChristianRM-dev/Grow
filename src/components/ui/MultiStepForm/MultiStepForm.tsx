@@ -6,52 +6,16 @@ import { useWatch } from "react-hook-form";
 
 import type {
   MultiStepFormProps,
-  StepDefinition,
   StepRuntimeState,
   StepStatus,
   WizardApi,
   WizardButtonLabels,
 } from "./MultiStepForm.types";
 
-/**
- * Safely converts a Zod issue path into a dot-path string.
- */
-function issuePathToDotPath(issuePath: Array<string | number>): string {
-  return issuePath.map(String).join(".");
-}
-
-/**
- * Finds the first visible step id that is not summary (fallback to first visible).
- */
-function pickInitialStepId<TFormValues extends FieldValues>(
-  steps: readonly StepDefinition<TFormValues>[],
-  values: TFormValues
-): string | null {
-  const visible = steps.filter((s) =>
-    s.isVisible ? s.isVisible(values) : true
-  );
-  if (visible.length === 0) return null;
-
-  const firstNonSummary = visible.find((s) => s.kind !== "summary");
-  return (firstNonSummary ?? visible[0]).id;
-}
-
-function mergeLabels(
-  defaults: Required<WizardButtonLabels>,
-  global?: WizardButtonLabels,
-  perStep?: WizardButtonLabels
-): Required<WizardButtonLabels> {
-  return {
-    back: perStep?.back ?? global?.back ?? defaults.back,
-    next: perStep?.next ?? global?.next ?? defaults.next,
-    saveDraft: perStep?.saveDraft ?? global?.saveDraft ?? defaults.saveDraft,
-    submit: perStep?.submit ?? global?.submit ?? defaults.submit,
-    submitting:
-      perStep?.submitting ?? global?.submitting ?? defaults.submitting,
-    savingDraft:
-      perStep?.savingDraft ?? global?.savingDraft ?? defaults.savingDraft,
-  };
-}
+import { pickInitialStepId } from "./utils/pickInitialStepId";
+import { mergeLabels } from "./utils/mergeLabels";
+import { issuePathToDotPath } from "./utils/issuePath";
+import { validateStep } from "./utils/validateStep";
 
 /**
  * MultiStepForm wrapper component:
@@ -162,17 +126,6 @@ export function MultiStepForm<TFormValues extends FieldValues>(
     return visibleSteps.map((s) => byId.get(s.id)!).filter(Boolean);
   }, [runtimeSteps, visibleSteps]);
 
-  const progress = useMemo(() => {
-    const relevant = visibleRuntimeSteps.filter((s) => !s.isSummary);
-    if (relevant.length === 0) return 0;
-
-    const done = relevant.filter(
-      (s) => s.status === "completed" || s.status === "skipped"
-    ).length;
-
-    return Math.round((done / relevant.length) * 100);
-  }, [visibleRuntimeSteps]);
-
   const goToStepInternal = useCallback(
     (toStepId: string) => {
       if (!currentStepId) return;
@@ -219,48 +172,67 @@ export function MultiStepForm<TFormValues extends FieldValues>(
 
   const validateCurrentStep = useCallback(async (): Promise<boolean> => {
     if (!currentStep) return false;
-    if (currentStep.kind === "summary") return true;
 
-    // 1) RHF field-level validation (shows inline errors)
-    const okRhf = await form.trigger(currentStep.fieldPaths as any);
-    if (!okRhf) {
-      setErrorIds((prev) => new Set(prev).add(currentStep.id));
-      await focusFirstField(currentStep.fieldPaths[0]);
-      return false;
-    }
-
-    // 2) Zod step-level validation (cross-field rules)
-    if (currentStep.validator) {
-      const allValues = form.getValues() as TFormValues;
-      const stepValues = currentStep.validator.getStepValues(allValues);
-      const parsed = currentStep.validator.schema.safeParse(stepValues);
-
-      if (!parsed.success) {
-        for (const issue of parsed.error.issues) {
-          const mapped =
-            currentStep.validator.mapIssuePathToFieldPath?.(issue.path) ??
-            (issuePathToDotPath(issue.path) as FieldPath<TFormValues>);
-
-          if (mapped) {
-            form.setError(mapped, { type: "zod", message: issue.message });
-          }
-        }
-
-        setErrorIds((prev) => new Set(prev).add(currentStep.id));
-        await focusFirstField(currentStep.fieldPaths[0]);
-        return false;
-      }
-    }
-
-    // Mark as completed
-    setErrorIds((prev) => {
-      const next = new Set(prev);
-      next.delete(currentStep.id);
-      return next;
+    return validateStep<TFormValues>({
+      form,
+      step: currentStep,
+      focusFirstField,
+      onStepError: (id) => setErrorIds((prev) => new Set(prev).add(id)),
+      onStepCompleted: (id) => {
+        setErrorIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        setCompletedIds((prev) => new Set(prev).add(id));
+      },
     });
-    setCompletedIds((prev) => new Set(prev).add(currentStep.id));
-    return true;
   }, [currentStep, focusFirstField, form]);
+
+  const submit = useCallback(async () => {
+    const snapshot = form.getValues() as TFormValues;
+
+    setIsSubmitting(true);
+    try {
+      // 1) RHF full validation
+      const okRhf = await form.trigger();
+      if (!okRhf) {
+        const firstVisibleStep = visibleSteps.find((s) => {
+          if (s.kind !== "step") return false;
+          return s.fieldPaths.some((p) => Boolean(form.getFieldState(p).error));
+        });
+        if (firstVisibleStep) goToStepInternal(firstVisibleStep.id);
+        return;
+      }
+
+      // 2) Final schema validation
+      if (finalSchema) {
+        const parsed = finalSchema.safeParse(snapshot);
+        if (!parsed.success) {
+          for (const issue of parsed.error.issues) {
+            const path = issuePathToDotPath(
+              issue.path
+            ) as FieldPath<TFormValues>;
+            form.setError(path, { type: "zod", message: issue.message });
+          }
+
+          const firstVisibleStep = visibleSteps.find((s) => {
+            if (s.kind !== "step") return false;
+            return s.fieldPaths.some((p) =>
+              Boolean(form.getFieldState(p).error)
+            );
+          });
+          if (firstVisibleStep) goToStepInternal(firstVisibleStep.id);
+          return;
+        }
+      }
+
+      onEvent?.({ type: "submit", values: snapshot });
+      await onSubmit(snapshot);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [finalSchema, form, goToStepInternal, onEvent, onSubmit, visibleSteps]);
 
   const goNext = useCallback(async () => {
     if (!currentStepId) return;
@@ -289,6 +261,7 @@ export function MultiStepForm<TFormValues extends FieldValues>(
     currentStepId,
     isLastVisibleStep,
     onEvent,
+    submit,
     validateCurrentStep,
     visibleSteps,
   ]);
@@ -323,53 +296,6 @@ export function MultiStepForm<TFormValues extends FieldValues>(
       setIsSavingDraft(false);
     }
   }, [config.allowDraftSave, form, onEvent, onSaveDraft]);
-
-  const submit = useCallback(async () => {
-    const snapshot = form.getValues() as TFormValues;
-
-    setIsSubmitting(true);
-    try {
-      // 1) RHF full validation
-      const okRhf = await form.trigger();
-      if (!okRhf) {
-        // Move to the first visible step that has any of its fields invalid
-        const firstVisibleStep = visibleSteps.find((s) => {
-          if (s.kind !== "step") return false;
-          return s.fieldPaths.some((p) => Boolean(form.getFieldState(p).error));
-        });
-        if (firstVisibleStep) goToStepInternal(firstVisibleStep.id);
-        return;
-      }
-
-      // 2) Final schema validation (recommended)
-      if (finalSchema) {
-        const parsed = finalSchema.safeParse(snapshot);
-        if (!parsed.success) {
-          for (const issue of parsed.error.issues) {
-            const path = issuePathToDotPath(
-              issue.path
-            ) as FieldPath<TFormValues>;
-            form.setError(path, { type: "zod", message: issue.message });
-          }
-
-          // Jump to the first step containing an errored field
-          const firstVisibleStep = visibleSteps.find((s) => {
-            if (s.kind !== "step") return false;
-            return s.fieldPaths.some((p) =>
-              Boolean(form.getFieldState(p).error)
-            );
-          });
-          if (firstVisibleStep) goToStepInternal(firstVisibleStep.id);
-          return;
-        }
-      }
-
-      onEvent?.({ type: "submit", values: snapshot });
-      await onSubmit(snapshot);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [finalSchema, form, goToStepInternal, onEvent, onSubmit, visibleSteps]);
 
   const wizardLabels = useMemo(() => {
     const stepLabels = currentStep?.labels;
@@ -426,18 +352,15 @@ export function MultiStepForm<TFormValues extends FieldValues>(
 
   const CurrentComponent = currentStep.Component;
 
-  // Top stepper uses only visible steps for navigation
   const stepperItems = visibleSteps.map((s) => {
     const state = visibleRuntimeSteps.find((x) => x.id === s.id);
     const status = state?.status ?? "pending";
     return { id: s.id, title: s.title, status };
   });
 
-  // Primary action label: on last visible step -> submit label
   const primaryLabel = isLastVisibleStep
     ? wizardLabels.submit
     : wizardLabels.next;
-
   const primaryLoadingLabel = isLastVisibleStep
     ? wizardLabels.submitting
     : wizardLabels.next;
@@ -458,17 +381,13 @@ export function MultiStepForm<TFormValues extends FieldValues>(
       {config.showProgress !== false ? (
         <div className="mb-4">
           <div className="overflow-x-auto">
-            <ul className="steps min-w-max">
+            <ul className="steps min-w-max size-full">
               {stepperItems.map((item) => {
                 const active = item.id === currentStepId;
                 const completed = item.status === "completed";
                 const error = item.status === "error";
                 const skipped = item.status === "skipped";
 
-                // IMPORTANT:
-                // - Only the active step is "primary"
-                // - Completed steps use "success"
-                // This avoids the "stuck on step 2" visual issue.
                 const stepClass = [
                   "step",
                   active ? "step-primary" : "",

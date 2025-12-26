@@ -15,18 +15,28 @@ import {
   SalesNoteCustomerStepSchema,
   type SalesNoteFormValues,
   SalesNoteLinesStepSchema,
+  SalesNoteUnregisteredLinesStepSchema,
 } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 
 import { SalesNoteCustomerStep } from "./steps/SalesNoteCustomerStep";
 import { SalesNoteLinesStep } from "./steps/SalesNoteLinesStep";
+import { SalesNoteUnregisteredLinesStep } from "./steps/SalesNoteUnregisteredLinesStep";
+import { SalesNoteSummaryStep } from "./steps/SalesNoteSummaryStep";
 
-export function SalesNoteWizard() {
+export function SalesNoteWizard(props: {
+  onSubmit: (values: SalesNoteFormValues) => Promise<void>;
+  submitting?: boolean;
+}) {
+  const { onSubmit, submitting } = props;
+
   const form = useForm<SalesNoteFormValues>({
     resolver: zodResolver(SalesNoteFormSchema),
+    shouldUnregister: false, // ✅ wizard
     defaultValues: {
       customer: {
         mode: "PUBLIC",
         partyMode: "EXISTING",
+        existingPartyName: "",
         existingPartyId: "",
         newParty: { name: "", phone: "", notes: "" },
       },
@@ -39,8 +49,8 @@ export function SalesNoteWizard() {
           description: "",
         },
       ],
+      unregisteredLines: [],
     },
-
     mode: "onSubmit",
   });
 
@@ -77,6 +87,32 @@ export function SalesNoteWizard() {
         },
         Component: SalesNoteLinesStep,
       }),
+      {
+        id: "unregisteredLines",
+        kind: "step",
+        title: "Productos no registrados",
+        fieldPaths: ["unregisteredLines"],
+        validator: {
+          schema: SalesNoteUnregisteredLinesStepSchema,
+          getStepValues: (v) => v.unregisteredLines,
+          mapIssuePathToFieldPath: (issuePath) =>
+            `unregisteredLines.${issuePath.map(String).join(".")}` as any,
+        },
+        Component: SalesNoteUnregisteredLinesStep,
+      },
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Resumen",
+        fieldPaths: [],
+        Component: SalesNoteSummaryStep,
+        labels: {
+          submit: "Guardar",
+          submitting: "Guardando…",
+          next: "Siguiente",
+          back: "Atrás",
+        },
+      },
     ] as const;
   }, [Step]);
 
@@ -85,22 +121,22 @@ export function SalesNoteWizard() {
       config={{
         title: "Nueva nota de venta",
         description: "Captura el cliente. Más pasos se agregarán después.",
-        showProgress: false,
+        showProgress: true,
         allowDraftSave: false,
         labels: {
           back: "Atrás",
           next: "Siguiente",
-          submit: "Siguiente",
-          submitting: "Procesando…",
+          submit: "Guardar",
+          submitting: "Guardando…",
         },
       }}
       steps={steps}
       form={form}
-      finalSchema={SalesNoteFormSchema}
-      // No server save yet (demo only)
-      onSubmit={async (values) => {
-        console.log("salesNote::demo_submit", values);
-        alert("Demo: paso 1 válido ✅");
+      // finalSchema={SalesNoteFormSchema} // opcional; ya está en resolver
+      onSubmit={onSubmit} // ✅ usa el handler real del cliente
+      onEvent={(e) => {
+        // Helpful during debugging
+        console.log("SalesNoteWizard::event", e);
       }}
     />
   );

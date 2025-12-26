@@ -1,10 +1,9 @@
-import React from "react";
-import { SalesNoteWizard } from "@/modules/sales-notes/components/SalesNoteWizard/SalesNoteWizard";
+import { SalesNoteNewClient } from "./sales-note-new-client";
 
 export default function SalesNoteNewPage() {
   return (
     <div className="p-4">
-      <SalesNoteWizard />
+      <SalesNoteNewClient />
     </div>
   );
 }

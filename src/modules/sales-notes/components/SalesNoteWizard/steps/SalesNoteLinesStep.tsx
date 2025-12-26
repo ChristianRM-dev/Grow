@@ -12,15 +12,18 @@ import {
 
 type Props = StepComponentProps<SalesNoteFormValues>;
 
-function moneyTotal(qty: number, price: string) {
-  const p = Number(price);
-  if (!Number.isFinite(p) || p <= 0) return "—";
-  const t = qty * p;
-  return `$${t.toFixed(2)}`;
+function parseMoney(v: string): number {
+  const n = Number(String(v ?? "").trim());
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function formatMoney(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  return `$${n.toFixed(2)}`;
 }
 
 function isPriceLike(v: string) {
-  const s = v.trim();
+  const s = String(v ?? "").trim();
   return /^\d+(\.\d{1,2})?$/.test(s) && Number(s) > 0;
 }
 
@@ -31,6 +34,7 @@ export function SalesNoteLinesStep({ form }: Props) {
     setValue,
     watch,
     getValues,
+    trigger,
     formState: { errors },
   } = form;
 
@@ -54,11 +58,12 @@ export function SalesNoteLinesStep({ form }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // We still watch to re-render on user edits, but we avoid relying on stable references for memo logic.
   const lines = watch("lines") ?? [];
 
   // Build excludeIds list to avoid selecting duplicates
   const selectedIds = useMemo(() => {
-    return lines
+    return (lines ?? [])
       .map((l) => l?.productVariantId?.trim())
       .filter((x): x is string => Boolean(x));
   }, [lines]);
@@ -75,19 +80,43 @@ export function SalesNoteLinesStep({ form }: Props) {
   const linesErrors: any = errors.lines;
 
   const isRowComplete = (idx: number) => {
-    const row = lines[idx];
+    // Use getValues to avoid stale watched references
+    const row = getValues(`lines.${idx}`);
     if (!row) return false;
+
     if (!row.productVariantId?.trim()) return false;
     if (!row.productName?.trim()) return false;
-    if (!Number.isFinite(row.quantity) || row.quantity < 1) return false;
+
+    const qty = Number(row.quantity);
+    if (!Number.isFinite(qty) || qty < 1) return false;
+
     if (!isPriceLike(String(row.unitPrice ?? ""))) return false;
+
     return true;
   };
 
-  const canAddRow = useMemo(() => {
-    if (!lines || lines.length === 0) return true;
-    return lines.every((_, idx) => isRowComplete(idx));
-  }, [lines]);
+  // IMPORTANT: compute on every render (no useMemo) because RHF may keep array references stable.
+  const canAddRow =
+    fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
+
+  const computedTotals = useMemo(() => {
+    const snapshot = getValues("lines") ?? [];
+    let subtotal = 0;
+
+    for (const r of snapshot) {
+      const qty = Number(r?.quantity ?? 0);
+      const price = parseMoney(String(r?.unitPrice ?? ""));
+      if (!Number.isFinite(qty) || qty <= 0) continue;
+      if (!Number.isFinite(price) || price <= 0) continue;
+      subtotal += qty * price;
+    }
+
+    return {
+      subtotal,
+      itemsCount: snapshot.length,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields.length, lines]); // re-run when rows/values change; ok to include lines for rerenders
 
   const handleSearch = (rowKey: string, term: string, excludeIds: string[]) => {
     // debounce per row key
@@ -115,7 +144,7 @@ export function SalesNoteLinesStep({ form }: Props) {
     }, 300);
   };
 
-  const selectProduct = (
+  const selectProduct = async (
     index: number,
     rowKey: string,
     p: ProductVariantLookupDto
@@ -138,7 +167,6 @@ export function SalesNoteLinesStep({ form }: Props) {
       shouldValidate: true,
     });
 
-    // Model doesn't have description; we use suggestion from bagSize/color
     if (p.descriptionSuggestion) {
       setValue(`lines.${index}.description`, p.descriptionSuggestion, {
         shouldDirty: true,
@@ -148,10 +176,21 @@ export function SalesNoteLinesStep({ form }: Props) {
 
     setTermRow((prev) => ({ ...prev, [rowKey]: p.label }));
     setOpenRow(null);
+
+    // Trigger validation for this row to refresh button state/errors immediately.
+    await trigger([
+      `lines.${index}.productVariantId`,
+      `lines.${index}.productName`,
+      `lines.${index}.quantity`,
+      `lines.${index}.unitPrice`,
+      `lines.${index}.description`,
+    ] as any);
   };
 
   const clearSelectionIfTyped = (index: number) => {
-    const currentId = lines[index]?.productVariantId?.trim();
+    const currentId = (
+      getValues(`lines.${index}.productVariantId`) ?? ""
+    ).trim();
     if (currentId) {
       setValue(`lines.${index}.productVariantId`, "", {
         shouldDirty: true,
@@ -193,10 +232,19 @@ export function SalesNoteLinesStep({ form }: Props) {
                   const term = termRow[rowKey] ?? row?.productName ?? "";
 
                   const rowErr = linesErrors?.[index];
-
                   const excludeIdsForRow = selectedIds.filter(
                     (id) => id !== row?.productVariantId
                   );
+
+                  const qty = Number(row?.quantity ?? 0);
+                  const price = parseMoney(String(row?.unitPrice ?? ""));
+                  const rowTotal =
+                    Number.isFinite(qty) &&
+                    qty > 0 &&
+                    Number.isFinite(price) &&
+                    price > 0
+                      ? qty * price
+                      : NaN;
 
                   return (
                     <tr key={rowKey}>
@@ -336,10 +384,7 @@ export function SalesNoteLinesStep({ form }: Props) {
 
                       {/* Total */}
                       <td className="text-right font-medium">
-                        {moneyTotal(
-                          Number(row?.quantity ?? 0),
-                          String(row?.unitPrice ?? "")
-                        )}
+                        {formatMoney(rowTotal)}
                       </td>
 
                       {/* Actions */}
@@ -376,6 +421,25 @@ export function SalesNoteLinesStep({ form }: Props) {
             {typeof linesErrors?.message === "string" ? (
               <p className="mt-3 text-sm text-error">{linesErrors.message}</p>
             ) : null}
+
+            {/* Totals section */}
+            <div className="mt-4 flex justify-end">
+              <div className="w-full max-w-sm rounded-box border border-base-300 bg-base-100 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm opacity-70">Productos</span>
+                  <span className="font-medium">
+                    {computedTotals.itemsCount}
+                  </span>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-sm opacity-70">Subtotal</span>
+                  <span className="text-lg font-semibold">
+                    {formatMoney(computedTotals.subtotal)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 flex items-center justify-end gap-2">
