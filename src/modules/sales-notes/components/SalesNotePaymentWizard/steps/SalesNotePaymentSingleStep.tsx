@@ -4,16 +4,7 @@ import React, { useMemo } from "react";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { SalesNotePaymentFormValues } from "@/modules/sales-notes/forms/salesNotePaymentForm.schemas";
 import { useSalesNotePaymentWizardMeta } from "../SalesNotePaymentWizard.context";
-
-function toNumberSafe(v: string): number {
-  const n = Number(String(v ?? "").trim());
-  return Number.isFinite(n) ? n : 0;
-}
-
-function formatMoney(v: string): string {
-  const n = toNumberSafe(v);
-  return n.toFixed(2);
-}
+import { moneySafe, toNumberSafe } from "@/modules/shared/utils/formatters";
 
 export function SalesNotePaymentSingleStep({
   form,
@@ -25,12 +16,12 @@ export function SalesNotePaymentSingleStep({
     [meta.remaining]
   );
   const maxAmountText = useMemo(
-    () => formatMoney(meta.remaining),
+    () => moneySafe(meta.remaining),
     [meta.remaining]
   );
 
-  const totalText = useMemo(() => formatMoney(meta.total), [meta.total]);
-  const paidText = useMemo(() => formatMoney(meta.paid), [meta.paid]);
+  const totalText = useMemo(() => moneySafe(meta.total), [meta.total]);
+  const paidText = useMemo(() => moneySafe(meta.paid), [meta.paid]);
 
   const labelPaid = meta.mode === "edit" ? "Pagado (sin este pago)" : "Pagado";
 
@@ -41,7 +32,6 @@ export function SalesNotePaymentSingleStep({
   } = form;
 
   const amountReg = register("amount");
-
   const isLocked = maxAmountNum <= 0;
 
   return (
@@ -68,7 +58,7 @@ export function SalesNotePaymentSingleStep({
 
             {meta.mode === "edit" && meta.currentAmount ? (
               <div className="text-xs opacity-70">
-                Monto actual: <b>${formatMoney(meta.currentAmount)}</b>
+                Monto actual: <b>${moneySafe(meta.currentAmount)}</b>
               </div>
             ) : null}
 

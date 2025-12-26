@@ -17,12 +17,7 @@ import {
   PencilSquareIcon,
 } from "@heroicons/react/16/solid";
 import { routes } from "@/lib/routes";
-
-function formatMoney(v: string) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
+import { dateMX, money } from "@/modules/shared/utils/formatters";
 
 export function SalesNotesTableClient({
   data,
@@ -46,20 +41,20 @@ export function SalesNotesTableClient({
       header: "Total",
       field: "total",
       sortable: true,
-      cell: (v) => formatMoney(v),
+      cell: (v) => money(v),
       sortField: "total",
     },
     {
       header: "Total pagado",
       field: "paidTotal",
       sortable: false, // calculado
-      cell: (v) => formatMoney(v),
+      cell: (v) => money(v),
     },
     {
       header: "Creado",
       field: "createdAt",
       sortable: true,
-      cell: (v) => new Date(v).toLocaleString("es-MX"),
+      cell: (v) => dateMX(v),
       sortField: "createdAt",
     },
   ];

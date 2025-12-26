@@ -12,12 +12,7 @@ import type { ProductVariantRowDto } from "@/modules/products/queries/getProduct
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
 import { PencilSquareIcon } from "@heroicons/react/16/solid";
 import { routes } from "@/lib/routes";
-
-function formatMoney(v: string) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
+import { dateMX, money } from "@/modules/shared/utils/formatters";
 
 export function ProductsTableClient({
   data,
@@ -48,7 +43,7 @@ export function ProductsTableClient({
       header: "Precio",
       field: "defaultPrice",
       sortable: true,
-      cell: (v) => formatMoney(v),
+      cell: (v) => money(v),
       sortField: "defaultPrice",
     },
     {
@@ -66,7 +61,7 @@ export function ProductsTableClient({
       header: "Creado",
       field: "createdAt",
       sortable: true,
-      cell: (v) => new Date(v).toLocaleDateString("es-MX"),
+      cell: (v) => dateMX(v),
       sortField: "createdAt",
     },
   ];

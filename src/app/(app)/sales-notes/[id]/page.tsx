@@ -3,16 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getSalesNoteDetailsById } from "@/modules/sales-notes/queries/getSalesNoteDetails.query";
-
-function money(v: string) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(2) : v;
-}
-
-function dateMX(iso: string) {
-  const d = new Date(iso);
-  return Number.isFinite(d.getTime()) ? d.toLocaleString("es-MX") : iso;
-}
+import { DetailsPageLayout } from "@/components/ui/DetailsPageLayout/DetailsPageLayout";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs";
+import { routes } from "@/lib/routes";
+import { dateMX, money } from "@/modules/shared/utils/formatters";
 
 export default async function SalesNoteDetailsPage({
   params,
@@ -27,30 +21,31 @@ export default async function SalesNoteDetailsPage({
   const canAddPayment = !dto.isFullyPaid;
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{dto.folio}</h1>
-            <span
-              className={`badge ${
-                dto.isFullyPaid ? "badge-success" : "badge-warning"
-              }`}
-            >
-              {dto.isFullyPaid ? "Pagado" : "Pendiente"}
-            </span>
-          </div>
-
-          <p className="mt-1 text-sm opacity-70">
-            Cliente: <b>{dto.party.name}</b> · Creado:{" "}
-            <b>{dateMX(dto.createdAt)}</b>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 justify-end">
+    <DetailsPageLayout
+      backHref={routes.salesNotes.list()}
+      breadcrumbs={
+        <Breadcrumbs
+          items={[
+            { label: "Notas de venta", href: routes.salesNotes.list() },
+            { label: `Nota: ${dto.folio}` },
+          ]}
+        />
+      }
+      title={dto.folio}
+      badge={{
+        label: dto.isFullyPaid ? "Pagado" : "Pendiente",
+        variant: dto.isFullyPaid ? "success" : "warning",
+      }}
+      subtitle={
+        <>
+          Cliente: <b>{dto.party.name}</b> · Creado:{" "}
+          <b>{dateMX(dto.createdAt)}</b>
+        </>
+      }
+      headerActions={
+        <>
           <Link
-            href={`/sales-notes/${dto.id}/payments/new`}
+            href={routes.salesNotes.payments.new(dto.id)}
             className={`btn btn-primary btn-sm ${
               canAddPayment ? "" : "btn-disabled"
             }`}
@@ -59,12 +54,12 @@ export default async function SalesNoteDetailsPage({
             Registrar pago
           </Link>
 
-          <Link href={`/sales-notes/${dto.id}/edit`} className="btn btn-sm">
+          <Link href={routes.salesNotes.edit(dto.id)} className="btn btn-sm">
             Editar nota
           </Link>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="card bg-base-200">
@@ -190,7 +185,7 @@ export default async function SalesNoteDetailsPage({
             <h2 className="text-lg font-semibold">Pagos</h2>
 
             <Link
-              href={`/sales-notes/${dto.id}/payments/new`}
+              href={routes.salesNotes.payments.new(dto.id)}
               className={`btn btn-primary btn-sm ${
                 canAddPayment ? "" : "btn-disabled"
               }`}
@@ -232,7 +227,7 @@ export default async function SalesNoteDetailsPage({
                       <td className="text-right">
                         <Link
                           className="btn btn-ghost btn-sm"
-                          href={`/sales-notes/${dto.id}/payments/${p.id}/edit`}
+                          href={routes.salesNotes.payments.edit(dto.id, p.id)}
                         >
                           Editar
                         </Link>
@@ -257,6 +252,6 @@ export default async function SalesNoteDetailsPage({
           )}
         </div>
       </div>
-    </div>
+    </DetailsPageLayout>
   );
 }
