@@ -35,9 +35,6 @@ export type WizardButtonLabels = {
  * Global configuration for the wizard UI/behavior.
  */
 export type MultiStepFormConfig = {
-  title: string; // Spanish title shown at top
-  description?: string;
-
   /**
    * If true, allows clicking future steps (not recommended by default).
    */

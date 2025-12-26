@@ -33,8 +33,6 @@ export function SalesNotePaymentWizard({
   meta,
   onSubmit,
   submitting,
-  title = "Registrar pago",
-  description = "Captura la información del pago y guarda los cambios.",
 }: SalesNotePaymentWizardProps) {
   const form = useForm<SalesNotePaymentFormValues>({
     resolver: zodResolver(SalesNotePaymentFormSchema),
@@ -68,8 +66,6 @@ export function SalesNotePaymentWizard({
     <SalesNotePaymentWizardProvider meta={meta}>
       <MultiStepForm<SalesNotePaymentFormValues>
         config={{
-          title,
-          description,
           showProgress: false,
           allowFreeNavigation: false,
           allowDraftSave: false,

@@ -115,8 +115,6 @@ export function SalesNoteWizard({
   return (
     <MultiStepForm<SalesNoteFormValues>
       config={{
-        title: "Nueva nota de venta",
-        description: "Captura el cliente. Más pasos se agregarán después.",
         showProgress: true,
         allowDraftSave: false,
         labels: {

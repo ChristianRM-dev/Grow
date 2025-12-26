@@ -71,9 +71,6 @@ export function ProductVariantWizard({
   return (
     <MultiStepForm<ProductVariantFormValues>
       config={{
-        title: "Producto",
-        description:
-          "Captura la información del producto y guarda los cambios.",
         showProgress: false, // single step: no stepper needed
         allowFreeNavigation: false,
         allowDraftSave: false,

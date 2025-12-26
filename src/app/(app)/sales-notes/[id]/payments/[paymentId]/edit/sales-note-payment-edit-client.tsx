@@ -11,9 +11,9 @@ import { toast } from "@/components/ui/Toast/toast";
 import { routes } from "@/lib/routes";
 
 export function SalesNotePaymentEditClient({
-  dto,
+  payment,
 }: {
-  dto: SalesNotePaymentEditDto;
+  payment: SalesNotePaymentEditDto;
 }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -22,12 +22,12 @@ export function SalesNotePaymentEditClient({
     setSubmitting(true);
     try {
       await updateSalesNotePaymentAction({
-        salesNoteId: dto.salesNoteId,
-        paymentId: dto.paymentId,
+        salesNoteId: payment.salesNoteId,
+        paymentId: payment.paymentId,
         values,
       });
       toast.success("Pago actualizado exitosamente");
-      router.push(routes.salesNotes.details(dto.salesNoteId));
+      router.push(routes.salesNotes.details(payment.salesNoteId));
       router.refresh();
     } catch (err) {
       const message =
@@ -44,15 +44,15 @@ export function SalesNotePaymentEditClient({
         title="Editar pago"
         description="Actualiza la información del pago y guarda los cambios."
         meta={{
-          folio: dto.meta.folio,
-          partyName: dto.meta.partyName,
-          total: dto.meta.total,
-          paid: dto.meta.paidWithoutThisPayment,
-          remaining: dto.meta.maxAllowedAmount,
+          folio: payment.meta.folio,
+          partyName: payment.meta.partyName,
+          total: payment.meta.total,
+          paid: payment.meta.paidWithoutThisPayment,
+          remaining: payment.meta.maxAllowedAmount,
           mode: "edit",
-          currentAmount: dto.meta.currentAmount,
+          currentAmount: payment.meta.currentAmount,
         }}
-        initialValues={dto.values}
+        initialValues={payment.values}
         onSubmit={handleSubmit}
         submitting={submitting}
       />

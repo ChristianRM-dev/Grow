@@ -370,14 +370,6 @@ export function MultiStepForm<TFormValues extends FieldValues>(
 
   return (
     <div className="w-full">
-      {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold">{config.title}</h1>
-        {config.description ? (
-          <p className="mt-1 text-sm opacity-70">{config.description}</p>
-        ) : null}
-      </div>
-
       {/* Stepper */}
       {config.showProgress !== false ? (
         <MultiStepFormStepper
