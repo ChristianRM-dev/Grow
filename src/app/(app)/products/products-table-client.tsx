@@ -12,6 +12,12 @@ import type { ProductVariantRowDto } from "@/modules/products/queries/getProduct
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
 import { PencilSquareIcon } from "@heroicons/react/16/solid";
 
+function formatMoney(v: string) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  return `$${n.toFixed(2)}`;
+}
+
 export function ProductsTableClient({
   data,
   pagination,
@@ -41,7 +47,7 @@ export function ProductsTableClient({
       header: "Precio",
       field: "defaultPrice",
       sortable: true,
-      cell: (v) => `$${v}`,
+      cell: (v) => formatMoney(v),
       sortField: "defaultPrice",
     },
     {
@@ -60,6 +66,7 @@ export function ProductsTableClient({
       field: "createdAt",
       sortable: true,
       cell: (v) => new Date(v).toLocaleDateString("es-MX"),
+      sortField: "createdAt",
     },
   ];
 
@@ -81,9 +88,7 @@ export function ProductsTableClient({
       loading={false}
       onQueryChange={pushTableQuery}
       onAction={(e) => {
-        if (e.type === "edit") {
-          router.push(`/products/${e.row.id}/edit`);
-        }
+        if (e.type === "edit") router.push(`/products/${e.row.id}/edit`);
       }}
       searchPlaceholder="Buscar productos…"
       pageSizeOptions={[10, 25, 50]}

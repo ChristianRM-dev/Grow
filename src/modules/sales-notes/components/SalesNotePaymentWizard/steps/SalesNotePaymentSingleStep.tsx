@@ -20,14 +20,19 @@ export function SalesNotePaymentSingleStep({
 }: StepComponentProps<SalesNotePaymentFormValues>) {
   const meta = useSalesNotePaymentWizardMeta();
 
-  const remainingNum = useMemo(
+  const maxAmountNum = useMemo(
     () => toNumberSafe(meta.remaining),
     [meta.remaining]
   );
-  const remainingText = useMemo(
+  const maxAmountText = useMemo(
     () => formatMoney(meta.remaining),
     [meta.remaining]
   );
+
+  const totalText = useMemo(() => formatMoney(meta.total), [meta.total]);
+  const paidText = useMemo(() => formatMoney(meta.paid), [meta.paid]);
+
+  const labelPaid = meta.mode === "edit" ? "Pagado (sin este pago)" : "Pagado";
 
   const {
     register,
@@ -37,9 +42,11 @@ export function SalesNotePaymentSingleStep({
 
   const amountReg = register("amount");
 
+  const isLocked = maxAmountNum <= 0;
+
   return (
     <div className="space-y-6">
-      {/* Header moved here (no duplicate page title) */}
+      {/* Header inside the step */}
       <div className="card bg-base-200">
         <div className="card-body">
           <div className="flex flex-col gap-1">
@@ -47,27 +54,35 @@ export function SalesNotePaymentSingleStep({
               Nota: <b>{meta.folio}</b> · Cliente: <b>{meta.partyName}</b>
             </div>
             <div className="text-sm opacity-70">
-              Total: <b>${formatMoney(meta.total)}</b> · Pagado:{" "}
-              <b>${formatMoney(meta.paid)}</b>
+              Total: <b>${totalText}</b> · {labelPaid}: <b>${paidText}</b>
             </div>
+
             <div className="text-base">
-              Restante:{" "}
+              Máximo permitido:{" "}
               <span
-                className={`font-semibold ${
-                  remainingNum <= 0 ? "text-warning" : ""
-                }`}
+                className={`font-semibold ${isLocked ? "text-warning" : ""}`}
               >
-                ${remainingText}
+                ${maxAmountText}
               </span>
+            </div>
+
+            {meta.mode === "edit" && meta.currentAmount ? (
+              <div className="text-xs opacity-70">
+                Monto actual: <b>${formatMoney(meta.currentAmount)}</b>
+              </div>
+            ) : null}
+
+            <div className="text-xs opacity-60">
+              Dirección inferida: <b>Entrada</b> (el cliente paga al negocio)
             </div>
           </div>
         </div>
       </div>
 
-      {remainingNum <= 0 ? (
+      {isLocked ? (
         <div className="alert alert-warning">
           <span>
-            Esta nota ya está liquidada. No puedes registrar un pago adicional.
+            No hay saldo pendiente disponible para registrar/editar este pago.
           </span>
         </div>
       ) : null}
@@ -83,6 +98,7 @@ export function SalesNotePaymentSingleStep({
               errors.paymentType ? "select-error" : ""
             }`}
             {...register("paymentType")}
+            disabled={isLocked}
           >
             <option value="CASH">Efectivo</option>
             <option value="TRANSFER">Transferencia</option>
@@ -96,7 +112,7 @@ export function SalesNotePaymentSingleStep({
           ) : null}
         </div>
 
-        {/* Amount (clamped to remaining) */}
+        {/* Amount clamped to max */}
         <div className="form-control">
           <label className="label">
             <span className="label-text font-medium">Monto</span>
@@ -110,7 +126,7 @@ export function SalesNotePaymentSingleStep({
               type="number"
               step="0.01"
               min={0}
-              max={remainingNum}
+              max={maxAmountNum}
               className={`input input-bordered w-full pl-10 ${
                 errors.amount ? "input-error" : ""
               }`}
@@ -124,19 +140,19 @@ export function SalesNotePaymentSingleStep({
                 const n = Number(raw);
                 if (!Number.isFinite(n)) return;
 
-                if (remainingNum > 0 && n > remainingNum) {
-                  setValue("amount", remainingText, {
+                if (n > maxAmountNum) {
+                  setValue("amount", maxAmountText, {
                     shouldDirty: true,
                     shouldValidate: true,
                   });
                 }
               }}
-              disabled={remainingNum <= 0}
+              disabled={isLocked}
             />
           </div>
 
           <p className="mt-1 text-xs opacity-60">
-            Máximo permitido: <b>${remainingText}</b>
+            Máximo permitido: <b>${maxAmountText}</b>
           </p>
 
           {errors.amount?.message ? (
@@ -158,7 +174,7 @@ export function SalesNotePaymentSingleStep({
           }`}
           placeholder="Ej: folio transferencia"
           {...register("reference")}
-          disabled={remainingNum <= 0}
+          disabled={isLocked}
         />
         {errors.reference?.message ? (
           <p className="mt-2 text-sm text-error">
@@ -178,7 +194,7 @@ export function SalesNotePaymentSingleStep({
           }`}
           placeholder="Información adicional"
           {...register("notes")}
-          disabled={remainingNum <= 0}
+          disabled={isLocked}
         />
         {errors.notes?.message ? (
           <p className="mt-2 text-sm text-error">

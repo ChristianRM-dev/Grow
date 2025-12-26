@@ -5,9 +5,11 @@ import React, { createContext, useContext } from "react";
 export type SalesNotePaymentWizardMeta = {
   folio: string;
   partyName: string;
-  total: string;
-  paid: string;
-  remaining: string;
+  total: string; // decimal as string
+  paid: string; // for edit: paid without this payment
+  remaining: string; // max allowed amount
+  mode: "create" | "edit";
+  currentAmount?: string; // only for edit (decimal as string)
 };
 
 const SalesNotePaymentWizardContext =
@@ -20,10 +22,10 @@ export function SalesNotePaymentWizardProvider({
   meta: SalesNotePaymentWizardMeta;
   children: React.ReactNode;
 }) {
-  return React.createElement(
-    SalesNotePaymentWizardContext.Provider,
-    { value: meta },
-    children
+  return (
+    <SalesNotePaymentWizardContext.Provider value={meta}>
+      {children}
+    </SalesNotePaymentWizardContext.Provider>
   );
 }
 

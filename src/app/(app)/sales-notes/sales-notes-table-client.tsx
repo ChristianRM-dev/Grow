@@ -10,6 +10,7 @@ import type {
 } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable.types";
 import type { SalesNoteRowDto } from "@/modules/sales-notes/queries/getSalesNotesTable.query";
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
+
 import {
   CurrencyDollarIcon,
   EyeIcon,
@@ -20,31 +21,6 @@ function formatMoney(v: string) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "—";
   return `$${n.toFixed(2)}`;
-}
-
-function statusBadge(status: string) {
-  const s = String(status).toUpperCase();
-
-  // Adjust to your enum values if needed
-  const className =
-    s === "PAID"
-      ? "badge-success"
-      : s === "CANCELLED"
-      ? "badge-error"
-      : s === "DRAFT"
-      ? "badge-ghost"
-      : "badge-neutral";
-
-  const label =
-    s === "PAID"
-      ? "Pagada"
-      : s === "CANCELLED"
-      ? "Cancelada"
-      : s === "DRAFT"
-      ? "Borrador"
-      : status;
-
-  return <span className={`badge ${className}`}>{label}</span>;
 }
 
 export function SalesNotesTableClient({
@@ -66,45 +42,32 @@ export function SalesNotesTableClient({
       sortField: "partyName",
     },
     {
-      header: "Estado",
-      field: "status",
-      sortable: true,
-      cell: (v) => statusBadge(v),
-    },
-    {
-      header: "Creado",
-      field: "createdAt",
-      sortable: true,
-      cell: (v) => new Date(v).toLocaleString("es-MX"),
-    },
-    {
-      header: "Subtotal",
-      field: "subtotal",
-      sortable: true,
-      cell: (v) => formatMoney(v),
-      sortField: "subtotal",
-    },
-    {
-      header: "Descuento",
-      field: "discountTotal",
-      sortable: true,
-      cell: (v) => formatMoney(v),
-      sortField: "discountTotal",
-    },
-    {
       header: "Total",
       field: "total",
       sortable: true,
       cell: (v) => formatMoney(v),
       sortField: "total",
     },
+    {
+      header: "Total pagado",
+      field: "paidTotal",
+      sortable: false, // calculado
+      cell: (v) => formatMoney(v),
+    },
+    {
+      header: "Creado",
+      field: "createdAt",
+      sortable: true,
+      cell: (v) => new Date(v).toLocaleString("es-MX"),
+      sortField: "createdAt",
+    },
   ];
 
   const actions: Array<TableActionDef<SalesNoteRowDto>> = [
     {
-      type: "view",
-      label: "Ver",
-      tooltip: "Ver nota de venta",
+      type: "details",
+      label: "Detalles",
+      tooltip: "Ver detalles",
       icon: <EyeIcon className="h-5 w-5" />,
     },
     {
@@ -112,6 +75,13 @@ export function SalesNotesTableClient({
       label: "Editar",
       tooltip: "Editar nota de venta",
       icon: <PencilSquareIcon className="h-5 w-5" />,
+    },
+    {
+      type: "payment",
+      label: "Agregar pago",
+      tooltip: "Registrar pago",
+      icon: <CurrencyDollarIcon className="h-5 w-5" />,
+      disabled: (row) => row.isFullyPaid,
     },
   ];
 
@@ -124,12 +94,10 @@ export function SalesNotesTableClient({
       loading={false}
       onQueryChange={pushTableQuery}
       onAction={(e) => {
-        if (e.type === "view") {
-          router.push(`/sales-notes/${e.row.id}`);
-        }
-        if (e.type === "edit") {
-          router.push(`/sales-notes/${e.row.id}/edit`);
-        }
+        if (e.type === "details") router.push(`/sales-notes/${e.row.id}`);
+        if (e.type === "edit") router.push(`/sales-notes/${e.row.id}/edit`);
+        if (e.type === "payment")
+          router.push(`/sales-notes/${e.row.id}/payments/new`);
       }}
       searchPlaceholder="Buscar por folio o cliente…"
       pageSizeOptions={[10, 25, 50]}

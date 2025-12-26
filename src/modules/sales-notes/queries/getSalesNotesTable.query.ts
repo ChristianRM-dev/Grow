@@ -1,29 +1,21 @@
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, PaymentDirection } from "@/generated/prisma/client";
+import {
+  parseTableSearchParams,
+  type ParsedTableQuery,
+} from "@/modules/shared/tables/parseTableSearchParams";
 
 export type SalesNoteRowDto = {
   id: string;
   folio: string;
   createdAt: string; // ISO
   partyName: string;
-  status: string;
-  subtotal: string;
-  discountTotal: string;
+
   total: string;
+  paidTotal: string;
+  remainingTotal: string;
+  isFullyPaid: boolean;
 };
-
-const SortOrderEnum = z.enum(["asc", "desc"]);
-
-const SearchParamsSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(200).default(10),
-  sortField: z.string().optional(),
-  sortOrder: SortOrderEnum.optional(),
-  search: z.string().optional(),
-});
-
-type ParsedTableQuery = z.infer<typeof SearchParamsSchema>;
 
 function toPrismaOrderBy(
   q: ParsedTableQuery
@@ -31,22 +23,15 @@ function toPrismaOrderBy(
   const sortField = (q.sortField ?? "createdAt").trim();
   const sortOrder = (q.sortOrder ?? "desc") as Prisma.SortOrder;
 
-  // Map allowed fields to Prisma orderBy
+  // Nota: paidTotal/remainingTotal son calculados (no ordenables con Prisma sin SQL).
   const allowed: Record<string, Prisma.SalesNoteOrderByWithRelationInput> = {
     createdAt: { createdAt: sortOrder },
     folio: { folio: sortOrder },
-    status: { status: sortOrder },
-    subtotal: { subtotal: sortOrder },
-    discountTotal: { discountTotal: sortOrder },
     total: { total: sortOrder },
-    // Party name sort (relation)
     partyName: { party: { name: sortOrder } },
   };
 
-  const order = allowed[sortField] ?? { createdAt: sortOrder };
-
-  // IMPORTANT: return a mutable array (avoids readonly type issues)
-  return [order];
+  return [allowed[sortField] ?? { createdAt: sortOrder }];
 }
 
 function toWhere(q: ParsedTableQuery): Prisma.SalesNoteWhereInput {
@@ -62,8 +47,7 @@ function toWhere(q: ParsedTableQuery): Prisma.SalesNoteWhereInput {
 }
 
 export async function getSalesNotesTableQuery(rawSearchParams: unknown) {
-  const parsed = SearchParamsSchema.safeParse(rawSearchParams ?? {});
-  const q = parsed.success ? parsed.data : SearchParamsSchema.parse({});
+  const q = parseTableSearchParams(rawSearchParams);
 
   const where = toWhere(q);
   const orderBy = toPrismaOrderBy(q);
@@ -82,27 +66,52 @@ export async function getSalesNotesTableQuery(rawSearchParams: unknown) {
         id: true,
         folio: true,
         createdAt: true,
-        status: true,
-        subtotal: true,
-        discountTotal: true,
         total: true,
         party: { select: { name: true } },
       },
     }),
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(totalItems / q.pageSize));
+  const ids = rows.map((r) => r.id);
 
-  const data: SalesNoteRowDto[] = rows.map((r) => ({
-    id: r.id,
-    folio: r.folio,
-    createdAt: r.createdAt.toISOString(),
-    partyName: r.party.name,
-    status: String(r.status),
-    subtotal: r.subtotal.toString(),
-    discountTotal: r.discountTotal.toString(),
-    total: r.total.toString(),
-  }));
+  const paidGroups = ids.length
+    ? await prisma.payment.groupBy({
+        by: ["salesNoteId"],
+        where: {
+          salesNoteId: { in: ids },
+          direction: PaymentDirection.IN,
+        },
+        _sum: { amount: true },
+      })
+    : [];
+
+  const paidByNoteId = new Map<string, Prisma.Decimal>();
+  for (const g of paidGroups) {
+    if (!g.salesNoteId) continue;
+    paidByNoteId.set(
+      g.salesNoteId,
+      (g._sum.amount ?? new Prisma.Decimal(0)) as Prisma.Decimal
+    );
+  }
+
+  const data: SalesNoteRowDto[] = rows.map((r) => {
+    const paid = paidByNoteId.get(r.id) ?? new Prisma.Decimal(0);
+    const remainingRaw = (r.total as Prisma.Decimal).sub(paid);
+    const remaining = remainingRaw.lt(0) ? new Prisma.Decimal(0) : remainingRaw;
+
+    return {
+      id: r.id,
+      folio: r.folio,
+      createdAt: r.createdAt.toISOString(),
+      partyName: r.party.name,
+      total: (r.total as Prisma.Decimal).toString(),
+      paidTotal: paid.toString(),
+      remainingTotal: remaining.toString(),
+      isFullyPaid: remaining.lte(0),
+    };
+  });
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / q.pageSize));
 
   return {
     data,
