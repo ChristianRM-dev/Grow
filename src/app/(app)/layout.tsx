@@ -25,6 +25,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const navItems: AppNavItem[] = [
     { label: "Dashboard", href: routes.dashboard(), icon: "home", exact: true },
+    { label: "Terceros", href: routes.parties.list(), icon: "parties" },
     { label: "Productos", href: routes.products.list(), icon: "products" },
     {
       label: "Notas de venta",

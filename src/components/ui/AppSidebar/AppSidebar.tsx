@@ -9,9 +9,10 @@ import {
   HomeIcon,
   CubeIcon,
   DocumentTextIcon,
+  UserCircleIcon,
 } from "@heroicons/react/16/solid";
 
-export type AppNavIcon = "home" | "products" | "salesNotes";
+export type AppNavIcon = "home" | "products" | "salesNotes" | "parties";
 
 export type AppNavItem = {
   label: string; // Spanish UI
@@ -27,6 +28,7 @@ const ICONS: Record<
   home: HomeIcon,
   products: CubeIcon,
   salesNotes: DocumentTextIcon,
+  parties: UserCircleIcon,
 };
 
 function isActivePath(pathname: string, href: string, exact?: boolean) {

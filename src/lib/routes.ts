@@ -29,4 +29,11 @@ export const routes = {
         `/sales-notes/${enc(salesNoteId)}/payments/${enc(paymentId)}/edit`,
     },
   },
+
+  parties: {
+    list: () => "/parties",
+    new: () => "/parties/new",
+    details: (id: Id) => `/parties/${enc(id)}`,
+    edit: (id: Id) => `/parties/${enc(id)}/edit`,
+  },
 } as const;

@@ -270,7 +270,6 @@ model SupplierPurchase {
   @@index([occurredAt])
 }
 
-
 model PartyLedgerEntry {
   id         String              @id @default(cuid())
   partyId    String
@@ -288,7 +287,11 @@ model PartyLedgerEntry {
   @@index([partyId])
   @@index([occurredAt])
   @@index([sourceType, sourceId])
+
+  // ✅ 1 ledger entry por source (derivado)
+  @@unique([sourceType, sourceId])
 }
+
 
 model Quotation {
   id        String          @id @default(cuid())

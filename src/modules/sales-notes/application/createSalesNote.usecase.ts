@@ -1,5 +1,10 @@
 // src/modules/sales-notes/application/createSalesNote.usecase.ts
-import { FolioType, Prisma } from "@/generated/prisma/client";
+import {
+  FolioType,
+  Prisma,
+  PartyLedgerSide,
+  PartyLedgerSourceType,
+} from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
@@ -17,8 +22,9 @@ import { safeTrim } from "@/modules/shared/utils/strings";
 import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/descriptionSnapshot";
 import { generateMonthlyFolio } from "@/modules/shared/folio/monthlyFolio";
 import { resolvePartyIdForCustomerSelection } from "@/modules/parties/application/resolvePartyIdForCustomerSelection";
+import { ensureSingleLedgerEntryForSource } from "@/modules/shared/ledger/partyLedger";
 
-type RegisteredLinePayload = {
+type LinePayload = {
   productVariantId: string | null;
   descriptionSnapshot: string;
   quantity: Prisma.Decimal;
@@ -34,7 +40,7 @@ export async function createSalesNoteUseCase(
 
   logger.log("start", {
     customerMode: values.customer.mode,
-    partyMode: (values.customer as any).partyMode,
+    partyMode: values.customer.partyMode,
     lines: values.lines?.length ?? 0,
     unregisteredLines: values.unregisteredLines?.length ?? 0,
   });
@@ -55,26 +61,24 @@ export async function createSalesNoteUseCase(
     );
 
     // 2) Build line payloads
-    const registeredLines: RegisteredLinePayload[] = (values.lines ?? []).map(
-      (l) => {
-        const qty = toDecimal(l.quantity);
-        const unitPrice = toDecimal(l.unitPrice);
-        const lineTotal = qty.mul(unitPrice);
+    const registeredLines: LinePayload[] = (values.lines ?? []).map((l) => {
+      const qty = toDecimal(l.quantity);
+      const unitPrice = toDecimal(l.unitPrice);
+      const lineTotal = qty.mul(unitPrice);
 
-        return {
-          productVariantId: safeTrim(l.productVariantId) || null,
-          descriptionSnapshot: buildDescriptionSnapshot(
-            l.productName,
-            l.description
-          ),
-          quantity: qty,
-          unitPrice,
-          lineTotal,
-        };
-      }
-    );
+      return {
+        productVariantId: safeTrim(l.productVariantId) || null,
+        descriptionSnapshot: buildDescriptionSnapshot(
+          l.productName,
+          l.description
+        ),
+        quantity: qty,
+        unitPrice,
+        lineTotal,
+      };
+    });
 
-    const unregisteredLines: RegisteredLinePayload[] = (
+    const unregisteredLines: LinePayload[] = (
       values.unregisteredLines ?? []
     ).map((l) => {
       const qty = toDecimal(l.quantity);
@@ -122,10 +126,22 @@ export async function createSalesNoteUseCase(
         discountTotal,
         total,
       },
-      select: { id: true, folio: true },
+      select: { id: true, folio: true, createdAt: true },
     });
 
     logger.log("salesNote_created", { id: created.id, folio: created.folio });
+
+    // 4.1) Ledger entry: charge to customer (RECEIVABLE +total)
+    await ensureSingleLedgerEntryForSource(tx, {
+      partyId,
+      side: PartyLedgerSide.RECEIVABLE,
+      sourceType: PartyLedgerSourceType.SALES_NOTE,
+      sourceId: created.id,
+      reference: created.folio,
+      occurredAt: created.createdAt,
+      amount: total, // ✅ positive
+      notes: null,
+    });
 
     // 5) Create lines
     if (allLines.length > 0) {

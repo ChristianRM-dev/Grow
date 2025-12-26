@@ -1,5 +1,5 @@
 // src/modules/parties/application/resolvePartyIdForCustomerSelection.ts
-import { Prisma } from "@/generated/prisma/client";
+import { PartyRoleType, Prisma } from "@/generated/prisma/client";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import {
   WALK_IN_PUBLIC_NAME,
@@ -68,6 +68,9 @@ export async function resolvePartyIdForCustomerSelection(
       name,
       phone: safeTrim(input.newParty?.phone) || null,
       notes: safeTrim(input.newParty?.notes) || null,
+      roles: {
+        create: [{ role: PartyRoleType.CUSTOMER }],
+      },
     },
     select: { id: true },
   });
