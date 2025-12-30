@@ -36,4 +36,15 @@ export const routes = {
     details: (id: Id) => `/parties/${enc(id)}`,
     edit: (id: Id) => `/parties/${enc(id)}/edit`,
   },
+
+  supplierPurchases: {
+    list: () => "/supplier-purchases",
+    new: () => "/supplier-purchases/new",
+    details: (id: Id) => `/supplier-purchases/${enc(id)}`,
+    edit: (id: Id) => `/supplier-purchases/${enc(id)}/edit`,
+    payments: {
+      new: (purchaseId: Id) =>
+        `/supplier-purchases/${enc(purchaseId)}/payments/new`,
+    },
+  },
 } as const;

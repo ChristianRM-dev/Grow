@@ -99,7 +99,7 @@ enum PaymentType {
   CASH
   TRANSFER
   CREDIT
-  Exchange //Al cambio
+  EXCHANGE //Al cambio
 }
 
 enum PartyLedgerSide {
@@ -251,7 +251,6 @@ model Payment {
   @@index([partyId])
   @@index([occurredAt])
 }
-
 
 model SupplierPurchase {
   id            String   @id @default(cuid())

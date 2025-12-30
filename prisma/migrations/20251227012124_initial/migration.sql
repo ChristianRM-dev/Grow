@@ -301,6 +301,9 @@ CREATE INDEX "PartyLedgerEntry_occurredAt_idx" ON "PartyLedgerEntry"("occurredAt
 CREATE INDEX "PartyLedgerEntry_sourceType_sourceId_idx" ON "PartyLedgerEntry"("sourceType", "sourceId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "PartyLedgerEntry_sourceType_sourceId_key" ON "PartyLedgerEntry"("sourceType", "sourceId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Quotation_folio_key" ON "Quotation"("folio");
 
 -- CreateIndex

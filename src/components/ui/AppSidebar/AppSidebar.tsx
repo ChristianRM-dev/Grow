@@ -10,9 +10,15 @@ import {
   CubeIcon,
   DocumentTextIcon,
   UserCircleIcon,
+  BanknotesIcon,
 } from "@heroicons/react/16/solid";
 
-export type AppNavIcon = "home" | "products" | "salesNotes" | "parties";
+export type AppNavIcon =
+  | "home"
+  | "products"
+  | "salesNotes"
+  | "parties"
+  | "supplierPurchases";
 
 export type AppNavItem = {
   label: string; // Spanish UI
@@ -29,6 +35,7 @@ const ICONS: Record<
   products: CubeIcon,
   salesNotes: DocumentTextIcon,
   parties: UserCircleIcon,
+  supplierPurchases: BanknotesIcon,
 };
 
 function isActivePath(pathname: string, href: string, exact?: boolean) {
@@ -48,7 +55,7 @@ export function AppSidebar({
   return (
     <div className="bg-base-200 w-72 min-h-full border-r border-base-300 flex flex-col">
       <div className="px-3 py-4">
-        <ul className="menu">
+        <ul className="menu w-full">
           {items.map((item) => {
             const active = isActivePath(pathname, item.href, item.exact);
             const Icon = ICONS[item.icon];
