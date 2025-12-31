@@ -3,6 +3,7 @@ import {
   PartyLedgerSide,
   PartyLedgerSourceType,
   Prisma,
+  PaymentType,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -16,7 +17,7 @@ import { upsertPartyLedgerEntry } from "@/modules/shared/ledger/upsertPartyLedge
 
 export type CreatePartyPaymentOutInput = {
   partyId: string;
-  paymentType: any; // <- pon tu PaymentType importado donde corresponda
+  paymentType: PaymentType; // <- pon tu PaymentType importado donde corresponda
   amount: string; // decimal string
   reference?: string; // folio/ref
   notes?: string;
@@ -64,8 +65,16 @@ export async function createPartyPaymentOutUseCase(
       },
     });
 
+    if (payment.amount == null) {
+      throw new Error("El monto del pago es requerido.");
+    }
+
+    if (payment.amount.lte(new Prisma.Decimal(0))) {
+      throw new Error("El monto del pago debe ser mayor a 0.");
+    }
+
     // Ledger: proveedor => PAYABLE (le debemos) -amount (reduce payable)
-    const ledgerAmount = payment.amount.mul(new Prisma.Decimal(-1));
+    const ledgerAmount = payment?.amount.mul(new Prisma.Decimal(-1));
 
     await upsertPartyLedgerEntry(tx, {
       partyId: payment.partyId!,

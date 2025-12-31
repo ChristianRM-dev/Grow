@@ -1,5 +1,4 @@
 // src/modules/shared/ledger/partyLedger.ts
-import type { PrismaClient } from "@/generated/prisma/client";
 import {
   PartyLedgerSourceType,
   PartyLedgerSide,
@@ -17,19 +16,8 @@ export type LedgerEntryInput = {
   notes?: string | null;
 };
 
-/**
- * Ensures there is exactly ONE ledger entry for (sourceType, sourceId, side).
- * Since we don't have a DB unique constraint yet, we:
- * - findMany
- * - keep the oldest
- * - delete duplicates
- * - update/create the "kept" entry
- *
- * IMPORTANT:
- * - amount is signed (+ charge, - payment/credit)
- */
 export async function ensureSingleLedgerEntryForSource(
-  tx: PrismaClient,
+  tx: Prisma.TransactionClient, // ✅ was PrismaClient
   input: LedgerEntryInput
 ): Promise<{ id: string; created: boolean }> {
   const existing = await tx.partyLedgerEntry.findMany({
@@ -62,7 +50,6 @@ export async function ensureSingleLedgerEntryForSource(
 
   const keepId = existing[0].id;
 
-  // Clean duplicates (rare, but possible without unique constraints)
   if (existing.length > 1) {
     const dupIds = existing.slice(1).map((x) => x.id);
     await tx.partyLedgerEntry.deleteMany({ where: { id: { in: dupIds } } });
@@ -83,12 +70,8 @@ export async function ensureSingleLedgerEntryForSource(
   return { id: updated.id, created: false };
 }
 
-/**
- * Bulk move ledger entries for payments (or other sources) to a new party.
- * Useful if a SalesNote changes customer and you want Party statements consistent.
- */
 export async function reassignLedgerPartyBySourceIds(
-  tx: PrismaClient,
+  tx: Prisma.TransactionClient, // ✅ was PrismaClient
   params: {
     sourceType: PartyLedgerSourceType;
     sourceIds: string[];

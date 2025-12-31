@@ -9,6 +9,7 @@ import type { SalesNotePaymentFormValues } from "@/modules/sales-notes/forms/sal
 import { toDecimal, zeroDecimal } from "@/modules/shared/utils/decimals";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { ensureSingleLedgerEntryForSource } from "@/modules/shared/ledger/partyLedger";
+import { Decimal } from "@prisma/client/runtime/client";
 
 export async function createSalesNotePaymentUseCase(params: {
   salesNoteId: string;
@@ -63,7 +64,7 @@ export async function createSalesNotePaymentUseCase(params: {
       sourceId: created.id,
       reference: note.folio, // ✅ reference folio for statement/search
       occurredAt: created.occurredAt,
-      amount: created.amount.mul(-1), // ✅ signed negative
+      amount: created.amount ? created.amount.mul(-1) : toDecimal(0), // ✅ signed negative
       notes: safeTrim(values.notes) || null,
     });
 

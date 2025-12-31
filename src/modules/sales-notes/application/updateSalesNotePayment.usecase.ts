@@ -79,7 +79,7 @@ export async function updateSalesNotePaymentUseCase(params: {
       sourceId: updated.id,
       reference: note.folio,
       occurredAt: payment.occurredAt, // keep original occurredAt
-      amount: updated.amount.mul(-1),
+      amount: updated.amount ? updated.amount.mul(-1) : toDecimal(0),
       notes: safeTrim(values.notes) || null,
     });
 

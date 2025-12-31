@@ -83,19 +83,19 @@ export function SalesNoteWizard({
         },
         Component: SalesNoteLinesStep,
       }),
-      {
+      Step.withValidator({
         id: "unregisteredLines",
-        kind: "step",
         title: "Productos no registrados",
         fieldPaths: ["unregisteredLines"],
         validator: {
           schema: SalesNoteUnregisteredLinesStepSchema,
           getStepValues: (v) => v.unregisteredLines,
-          mapIssuePathToFieldPath: (issuePath) =>
+          mapIssuePathToFieldPath: (issuePath: readonly PropertyKey[]) =>
             `unregisteredLines.${issuePath.map(String).join(".")}` as any,
         },
         Component: SalesNoteUnregisteredLinesStep,
-      },
+      }),
+
       {
         id: "summary",
         kind: "summary",

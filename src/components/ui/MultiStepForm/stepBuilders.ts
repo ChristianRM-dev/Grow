@@ -12,15 +12,19 @@ import type {
 
 /**
  * Creates a typed mapper that prefixes Zod issue paths with a RHF base path.
- * Example:
- *   prefix = "customer"
- *   issuePath ["name"] -> "customer.name"
  */
 export function prefixIssuePathMapper<TFormValues extends FieldValues>(
   prefix: FieldPath<TFormValues>
 ) {
-  return (issuePath: Array<string | number>): FieldPath<TFormValues> => {
-    const suffix = issuePath.map(String).join(".");
+  return (issuePath: readonly PropertyKey[]): FieldPath<TFormValues> => {
+    const suffix = issuePath
+      .map((segment) =>
+        typeof segment === "symbol"
+          ? segment.description ?? segment.toString()
+          : String(segment)
+      )
+      .join(".");
+
     const full = suffix ? `${prefix}.${suffix}` : String(prefix);
     return full as FieldPath<TFormValues>;
   };
@@ -28,7 +32,6 @@ export function prefixIssuePathMapper<TFormValues extends FieldValues>(
 
 /**
  * Step builder with overloads to enforce schema/value consistency.
- * Consumers never have to touch generics like <TStepValues>.
  */
 export function defineFormStep<TFormValues extends FieldValues>() {
   function withoutValidator(def: {
@@ -54,7 +57,7 @@ export function defineFormStep<TFormValues extends FieldValues>() {
     };
   }
 
-  function withValidator<TSchema extends z.ZodTypeAny>(def: {
+  function withValidator<TSchema extends z.ZodType<any>>(def: {
     id: string;
     title: string;
     description?: string;
@@ -73,12 +76,13 @@ export function defineFormStep<TFormValues extends FieldValues>() {
       schema: TSchema;
       getStepValues: (values: TFormValues) => z.infer<TSchema>;
       mapIssuePathToFieldPath?: (
-        issuePath: Array<string | number>
+        issuePath: readonly PropertyKey[]
       ) => FieldPath<TFormValues> | undefined;
     };
     Component: React.ComponentType<StepComponentProps<TFormValues>>;
   }): FormStepDefinition<TFormValues, z.infer<TSchema>> {
-    const validator: StepValidator<TFormValues, z.infer<TSchema>> = {
+    // Usa any para evitar conflictos de tipos
+    const validator: any = {
       schema: def.validator.schema,
       getStepValues: def.validator.getStepValues,
       mapIssuePathToFieldPath: def.validator.mapIssuePathToFieldPath,

@@ -89,7 +89,7 @@ export type StepValidator<TFormValues extends FieldValues, TStepValues> = {
    * ["name"] -> "customer.name"
    */
   mapIssuePathToFieldPath?: (
-    issuePath: Array<string | number>
+    issuePath: readonly PropertyKey[]
   ) => FieldPath<TFormValues> | undefined;
 };
 
@@ -168,7 +168,7 @@ export type SummaryStepDefinition<TFormValues extends FieldValues> = {
  * Discriminated union for all steps.
  */
 export type StepDefinition<TFormValues extends FieldValues> =
-  | FormStepDefinition<TFormValues, unknown>
+  | FormStepDefinition<TFormValues, any>
   | SummaryStepDefinition<TFormValues>;
 
 /**

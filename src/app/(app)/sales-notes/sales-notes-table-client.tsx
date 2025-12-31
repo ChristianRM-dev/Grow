@@ -15,6 +15,7 @@ import {
   CurrencyDollarIcon,
   EyeIcon,
   PencilSquareIcon,
+  DocumentIcon,
 } from "@heroicons/react/16/solid";
 import { routes } from "@/lib/routes";
 import { dateMX, money } from "@/modules/shared/utils/formatters";
@@ -79,6 +80,13 @@ export function SalesNotesTableClient({
       icon: <CurrencyDollarIcon className="h-5 w-5" />,
       disabled: (row) => row.isFullyPaid,
     },
+    {
+      type: "pdf",
+      label: "Ver PDF",
+      tooltip: "Ver PDF",
+      icon: <DocumentIcon className="h-5 w-5" />,
+      disabled: (row) => row.isFullyPaid,
+    },
   ];
 
   return (
@@ -100,6 +108,11 @@ export function SalesNotesTableClient({
           case "payment":
             router.push(routes.salesNotes.payments.new(e.row.id));
             break;
+          case "pdf": {
+            const url = routes.salesNotes.pdf(e.row.id); // /sales-notes/[id]/pdf (route.ts)
+            window.open(url, "_blank", "noopener,noreferrer");
+            break;
+          }
         }
       }}
       searchPlaceholder="Buscar por folio o cliente…"

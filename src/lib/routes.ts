@@ -22,6 +22,7 @@ export const routes = {
     new: () => "/sales-notes/new",
     edit: (id: Id) => `/sales-notes/${enc(id)}/edit`,
     details: (id: Id) => `/sales-notes/${enc(id)}`,
+    pdf: (id: string) => `/sales-notes/${id}/pdf`,
 
     payments: {
       new: (salesNoteId: Id) => `/sales-notes/${enc(salesNoteId)}/payments/new`,

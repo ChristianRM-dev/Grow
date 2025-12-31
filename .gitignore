@@ -43,3 +43,6 @@ next-env.d.ts
 /src/generated/prisma
 
 .pnpm-store/
+
+# Next generated type validators (should live under .next/, not tracked)
+types/
