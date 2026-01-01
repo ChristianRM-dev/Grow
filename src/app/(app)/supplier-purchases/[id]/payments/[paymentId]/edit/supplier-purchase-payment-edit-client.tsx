@@ -33,8 +33,8 @@ export function SupplierPurchasePaymentEditClient({
       });
 
       toast.success("Pago actualizado");
-      router.push(routes.supplierPurchases.details(dto.supplierPurchase.id));
-      router.refresh();
+      router.replace(routes.supplierPurchases.details(dto.supplierPurchase.id));
+
     } catch (err) {
       console.error(err);
       toast.error("No se pudo actualizar el pago");

@@ -99,11 +99,11 @@ export function SalesNoteLinesStep({ form }: Props) {
   const canAddRow =
     fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
 
-  const computedTotals = useMemo(() => {
-    const snapshot = getValues("lines") ?? [];
+  // Compute on every render to avoid stale memo with RHF stable refs.
+  const computedTotals = (() => {
     let subtotal = 0;
 
-    for (const r of snapshot) {
+    for (const r of lines) {
       const qty = Number(r?.quantity ?? 0);
       const price = parseMoney(String(r?.unitPrice ?? ""));
       if (!Number.isFinite(qty) || qty <= 0) continue;
@@ -113,10 +113,9 @@ export function SalesNoteLinesStep({ form }: Props) {
 
     return {
       subtotal,
-      itemsCount: snapshot.length,
+      itemsCount: lines.length,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields.length, lines]); // re-run when rows/values change; ok to include lines for rerenders
+  })();
 
   const handleSearch = (rowKey: string, term: string, excludeIds: string[]) => {
     // debounce per row key

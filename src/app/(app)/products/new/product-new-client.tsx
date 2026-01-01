@@ -16,8 +16,8 @@ export function ProductNewClient() {
     try {
       await createProductVariantAction(values);
       toast.success("Guardado exitosamente");
-      router.push(routes.products.list());
-      router.refresh();
+      router.replace(routes.products.list());
+
     } catch (err) {
       console.error(err);
       toast.error("No se pudo guardar el producto");

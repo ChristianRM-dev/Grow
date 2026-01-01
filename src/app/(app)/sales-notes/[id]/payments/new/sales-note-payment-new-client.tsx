@@ -26,8 +26,8 @@ export function SalesNotePaymentNewClient({
         values,
       });
       toast.success("Pago registrado exitosamente");
-      router.push(routes.salesNotes.details(salesNote.id));
-      router.refresh();
+      router.replace(routes.salesNotes.details(salesNote.id));
+
     } catch (err) {
       console.error(err);
       const message =

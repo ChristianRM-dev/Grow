@@ -19,8 +19,8 @@ export function SupplierPurchaseNewClient() {
     try {
       const res = await createSupplierPurchaseAction(values);
       toast.success("Guardado exitosamente");
-      router.push(routes.supplierPurchases.details(res.supplierPurchaseId));
-      router.refresh();
+      router.replace(routes.supplierPurchases.details(res.supplierPurchaseId));
+
     } catch (err) {
       console.error(err);
       toast.error("No se pudo guardar la compra");

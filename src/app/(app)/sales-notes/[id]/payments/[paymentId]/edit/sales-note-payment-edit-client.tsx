@@ -27,8 +27,8 @@ export function SalesNotePaymentEditClient({
         values,
       });
       toast.success("Pago actualizado exitosamente");
-      router.push(routes.salesNotes.details(payment.salesNoteId));
-      router.refresh();
+      router.replace(routes.salesNotes.details(payment.salesNoteId));
+
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "No se pudo actualizar el pago";

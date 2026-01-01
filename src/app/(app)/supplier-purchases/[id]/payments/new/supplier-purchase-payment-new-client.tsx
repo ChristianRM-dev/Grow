@@ -27,8 +27,8 @@ export function SupplierPurchasePaymentNewClient({
       console.log("handleSubmit", values);
       await createSupplierPurchasePaymentAction(values);
       toast.success("Pago registrado");
-      router.push(routes.supplierPurchases.details(dto.id));
-      router.refresh();
+      router.replace(routes.supplierPurchases.details(dto.id));
+
     } catch (err) {
       console.error(err);
       toast.error("No se pudo registrar el pago");

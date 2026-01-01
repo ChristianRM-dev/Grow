@@ -24,8 +24,8 @@ export function SupplierPurchaseEditClient({
     try {
       await updateSupplierPurchaseAction({ id: purchase.id, input: values });
       toast.success("Guardado exitosamente");
-      router.push(routes.supplierPurchases.details(purchase.id));
-      router.refresh();
+      router.replace(routes.supplierPurchases.details(purchase.id));
+
     } catch (err) {
       console.error(err);
       toast.error("No se pudo actualizar la compra");

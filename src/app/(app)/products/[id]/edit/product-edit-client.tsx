@@ -30,8 +30,8 @@ export function ProductEditClient({
     try {
       await updateProductVariantAction({ id: product.id, values });
       toast.success("Actualizado exitosamente");
-      router.push(routes.products.list());
-      router.refresh();
+      router.replace(routes.products.list());
+
     } catch (err) {
       console.error(err);
       toast.error("No se pudo actualizar el producto");

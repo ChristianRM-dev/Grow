@@ -8,6 +8,7 @@ import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs";
 import { routes } from "@/lib/routes";
 import { dateMX } from "@/modules/shared/utils/formatters";
 import { SalesNoteDetailsClient } from "./sales-note-details-client";
+import { InlineEntityLink } from "@/components/ui/InlineEntityLink/InlineEntityLink";
 
 export default async function SalesNoteDetailsPage({
   params,
@@ -39,9 +40,14 @@ export default async function SalesNoteDetailsPage({
       }}
       subtitle={
         <>
-          {routes.parties.details(dto.party.id)}
-          Cliente: <b>{dto.party.name}</b> · Creado:{" "}
-          <b>{dateMX(dto.createdAt)}</b>
+          Cliente:{" "}
+          <InlineEntityLink
+            href={routes.parties.details(dto.party.id)}
+            title="Ver detalle del cliente"
+          >
+            {dto.party.name}
+          </InlineEntityLink>{" "}
+          · Creado: <b>{dateMX(dto.createdAt)}</b>
         </>
       }
       headerActions={

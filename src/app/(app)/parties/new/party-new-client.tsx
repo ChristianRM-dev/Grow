@@ -19,8 +19,7 @@ export function PartyNewClient() {
     try {
       await createPartyAction(values);
       toast.success("Guardado exitosamente");
-      router.push(routes.parties.list());
-      router.refresh();
+      router.replace(routes.parties.list());
     } catch (err) {
       console.error(err);
       toast.error("No se pudo guardar el contacto");

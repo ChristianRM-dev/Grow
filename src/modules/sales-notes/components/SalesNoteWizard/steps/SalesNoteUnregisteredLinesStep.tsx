@@ -40,7 +40,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
 
   // Re-render on user edits
   const rows = watch("unregisteredLines") ?? [];
-  const rowsErrors: any = errors.unregisteredLines;
+  const rowsErrors = errors.unregisteredLines;
 
   const isRowComplete = (idx: number) => {
     const row = getValues(`unregisteredLines.${idx}`);
@@ -63,11 +63,11 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
   const canAddRow =
     fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
 
-  const totals = useMemo(() => {
-    const snapshot = getValues("unregisteredLines") ?? [];
+  // Compute on every render to avoid stale memo with RHF stable refs.
+  const totals = (() => {
     let subtotal = 0;
 
-    for (const r of snapshot) {
+    for (const r of rows) {
       const qty = Number(r?.quantity ?? 0);
       const price = parseMoney(String(r?.unitPrice ?? ""));
       if (!Number.isFinite(qty) || qty <= 0) continue;
@@ -75,9 +75,8 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
       subtotal += qty * price;
     }
 
-    return { subtotal, itemsCount: snapshot.length };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields.length, rows]);
+    return { subtotal, itemsCount: rows.length };
+  })();
 
   return (
     <div className="w-full">

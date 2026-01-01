@@ -23,8 +23,8 @@ export function SalesNoteEditClient({
     try {
       await updateSalesNoteAction({ id: salesNote.id, values });
       toast.success("Actualizado exitosamente");
-      router.push(routes.salesNotes.details(salesNote.id));
-      router.refresh();
+      router.replace(routes.salesNotes.details(salesNote.id));
+
     } catch (err) {
       console.error(err);
       toast.error("No se pudo actualizar la nota de venta");
