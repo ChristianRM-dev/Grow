@@ -1,4 +1,3 @@
-import React from "react";
 import { notFound } from "next/navigation";
 
 import { FormPageLayout } from "@/components/ui/FormPageLayout/FormPageLayout";

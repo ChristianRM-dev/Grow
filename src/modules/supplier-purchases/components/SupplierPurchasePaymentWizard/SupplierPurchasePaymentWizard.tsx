@@ -48,6 +48,7 @@ export function SupplierPurchasePaymentWizard({
         fieldPaths: [
           "partyId",
           "supplierPurchaseId",
+          "supplierFolio", // ✅ FALTABA (si no, no encuentra el step con error)
           "paymentType",
           "amount",
           "occurredAt",

@@ -47,6 +47,7 @@ export function SupplierPurchasePaymentSingleStep({
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="card bg-base-200">
         <div className="card-body">
           <div className="flex flex-col gap-1">
@@ -56,11 +57,20 @@ export function SupplierPurchasePaymentSingleStep({
             </div>
 
             <div className="text-sm opacity-70">
-              Total: <b>${totalText}</b> · Pagado: <b>${paidText}</b>
+              Total: <b>${totalText}</b> ·{" "}
+              {meta.mode === "edit" ? (
+                <>
+                  Pagado (sin este pago): <b>${paidText}</b>
+                </>
+              ) : (
+                <>
+                  Pagado: <b>${paidText}</b>
+                </>
+              )}
             </div>
 
             <div className="text-base">
-              Resta por pagar:{" "}
+              {meta.mode === "edit" ? "Máximo permitido" : "Resta por pagar"}:{" "}
               <span
                 className={`font-semibold ${isLocked ? "text-success" : ""}`}
               >
@@ -68,12 +78,28 @@ export function SupplierPurchasePaymentSingleStep({
               </span>
             </div>
 
+            {meta.mode === "edit" && meta.currentAmount ? (
+              <div className="text-xs opacity-70">
+                Monto actual: <b>${money(meta.currentAmount)}</b>
+              </div>
+            ) : null}
+
             <div className="text-xs opacity-60">
               Dirección inferida: <b>Salida</b> (el negocio paga al proveedor)
             </div>
           </div>
         </div>
       </div>
+
+      {isLocked ? (
+        <div className="alert alert-success">
+          <span>
+            {meta.mode === "edit"
+              ? "No hay saldo disponible para editar este pago."
+              : "Esta compra ya está completamente pagada."}
+          </span>
+        </div>
+      ) : null}
 
       {isLocked ? (
         <div className="alert alert-success">

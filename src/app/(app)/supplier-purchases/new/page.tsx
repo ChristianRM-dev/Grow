@@ -1,5 +1,3 @@
-import React from "react";
-
 import { FormPageLayout } from "@/components/ui/FormPageLayout/FormPageLayout";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs";
 import { routes } from "@/lib/routes";

@@ -21,8 +21,10 @@ export function SupplierPurchasePaymentNewClient({
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: SupplierPurchasePaymentFormValues) => {
+    console.log("handleSubmit");
     setSubmitting(true);
     try {
+      console.log("handleSubmit", values);
       await createSupplierPurchasePaymentAction(values);
       toast.success("Pago registrado");
       router.push(routes.supplierPurchases.details(dto.id));
@@ -44,11 +46,13 @@ export function SupplierPurchasePaymentNewClient({
           partyId: dto.party.id,
           partyName: dto.party.name,
           purchaseTotal: dto.total,
+          mode: "new",
           paidTotal: dto.paidTotal,
           remainingTotal: dto.remainingTotal,
         }}
         initialValues={{
           supplierPurchaseId: dto.id,
+          supplierFolio: dto.supplierFolio, // ✅ FALTABA
           partyId: dto.party.id,
           paymentType: "CASH",
           amount: "",

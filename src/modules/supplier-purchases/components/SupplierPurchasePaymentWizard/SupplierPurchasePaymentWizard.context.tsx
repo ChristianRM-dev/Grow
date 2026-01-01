@@ -11,6 +11,9 @@ export type SupplierPurchasePaymentWizardMeta = {
   purchaseTotal: string;
   paidTotal: string;
   remainingTotal: string;
+
+  mode: "new" | "edit";
+  currentAmount?: string;
 };
 
 const Ctx = createContext<SupplierPurchasePaymentWizardMeta | null>(null);

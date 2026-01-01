@@ -3,6 +3,7 @@ import {
   PartyLedgerSide,
   PartyLedgerSourceType,
   Prisma,
+  PaymentType,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -15,7 +16,8 @@ import { safeTrim } from "@/modules/shared/utils/strings";
 import { upsertPartyLedgerEntry } from "@/modules/shared/ledger/upsertPartyLedgerEntry";
 
 export type UpdatePartyPaymentOutInput = {
-  paymentType: any; // <- reemplaza por PaymentType
+  partyId: string;
+  paymentType: PaymentType; // <- reemplaza por PaymentType
   amount: string;
   reference?: string;
   notes?: string;

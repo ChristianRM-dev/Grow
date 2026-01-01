@@ -46,6 +46,8 @@ export const routes = {
     payments: {
       new: (purchaseId: Id) =>
         `/supplier-purchases/${enc(purchaseId)}/payments/new`,
+      edit: (id: string, paymentId: string) =>
+        `/supplier-purchases/${enc(id)}/payments/${enc(paymentId)}/edit`,
     },
   },
 } as const;

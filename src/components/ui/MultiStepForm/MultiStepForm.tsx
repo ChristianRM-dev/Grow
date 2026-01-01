@@ -229,6 +229,7 @@ export function MultiStepForm<TFormValues extends FieldValues>(
       }
 
       onEvent?.({ type: "submit", values: snapshot });
+      console.log("snapshot", snapshot);
       await onSubmit(snapshot);
     } finally {
       setIsSubmitting(false);
