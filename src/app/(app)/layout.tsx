@@ -24,19 +24,24 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   const navItems: AppNavItem[] = [
-    { label: "Dashboard", href: routes.dashboard(), icon: "home", exact: true },
+    { label: "Inicio", href: routes.dashboard(), icon: "home", exact: true },
     { label: "Terceros", href: routes.parties.list(), icon: "parties" },
+    {
+      label: "Notas de venta",
+      href: routes.salesNotes.list(),
+      icon: "salesNotes",
+    },
+    {
+      label: "Cotizaciones",
+      href: routes.quotations.list(),
+      icon: "quotations",
+    },
     {
       label: "Compras",
       href: routes.supplierPurchases.list(),
       icon: "supplierPurchases",
     },
     { label: "Productos", href: routes.products.list(), icon: "products" },
-    {
-      label: "Notas de venta",
-      href: routes.salesNotes.list(),
-      icon: "salesNotes",
-    },
   ];
 
   return (

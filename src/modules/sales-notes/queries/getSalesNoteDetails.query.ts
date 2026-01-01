@@ -108,9 +108,9 @@ export async function getSalesNoteDetailsById(
     id: l.id,
     productVariantId: l.productVariantId ?? null,
     descriptionSnapshot: l.descriptionSnapshot,
-    quantity: decToString(l.quantity as any),
-    unitPrice: decToString(l.unitPrice as any),
-    lineTotal: decToString(l.lineTotal as any),
+    quantity: decToString(l.quantity),
+    unitPrice: decToString(l.unitPrice),
+    lineTotal: decToString(l.lineTotal),
   }));
 
   return {
@@ -120,9 +120,9 @@ export async function getSalesNoteDetailsById(
     updatedAt: note.updatedAt.toISOString(),
     party: note.party,
 
-    subtotal: decToString(note.subtotal as any),
-    discountTotal: decToString(note.discountTotal as any),
-    total: decToString(note.total as any),
+    subtotal: decToString(note.subtotal),
+    discountTotal: decToString(note.discountTotal),
+    total: decToString(note.total),
 
     paidTotal: paidTotal.toString(),
     remainingTotal: remaining.toString(),
@@ -134,7 +134,7 @@ export async function getSalesNoteDetailsById(
     payments: payments.map((p) => ({
       id: p.id,
       paymentType: String(p.paymentType),
-      amount: decToString(p.amount as any),
+      amount: decToString(p.amount),
       reference: p.reference,
       notes: p.notes,
       occurredAt: p.occurredAt.toISOString(),

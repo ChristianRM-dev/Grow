@@ -77,7 +77,7 @@ export function SalesNoteLinesStep({ form }: Props) {
   const [termRow, setTermRow] = useState<Record<string, string>>({});
   const debounceRef = useRef<Record<string, number | null>>({});
 
-  const linesErrors: any = errors.lines;
+  const linesErrors = errors.lines;
 
   const isRowComplete = (idx: number) => {
     // Use getValues to avoid stale watched references
@@ -184,7 +184,7 @@ export function SalesNoteLinesStep({ form }: Props) {
       `lines.${index}.quantity`,
       `lines.${index}.unitPrice`,
       `lines.${index}.description`,
-    ] as any);
+    ]);
   };
 
   const clearSelectionIfTyped = (index: number) => {
@@ -212,210 +212,213 @@ export function SalesNoteLinesStep({ form }: Props) {
             Agrega productos y ajusta cantidades y precios.
           </p>
 
-          <div className="mt-4 overflow-x-auto">
-            <table className="table table-zebra w-full">
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th className="w-28">Cantidad</th>
-                  <th className="w-32">Precio</th>
-                  <th>Descripción (opcional)</th>
-                  <th className="w-28 text-right">Total</th>
-                  <th className="w-24">Acciones</th>
-                </tr>
-              </thead>
+          <div className="mt-4 -mx-4 md:mx-0 overflow-x-auto md:overflow-x-visible">
+            <div className="min-w-[860px] md:min-w-0 px-4 md:px-0">
+              <table className="table table-zebra w-full">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th className="w-28">Cantidad</th>
+                    <th className="w-32">Precio</th>
+                    <th>Descripción (opcional)</th>
+                    <th className="w-28 text-right">Total</th>
+                    <th className="w-24">Acciones</th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                {fields.map((f, index) => {
-                  const rowKey = f.id;
-                  const row = lines[index];
-                  const term = termRow[rowKey] ?? row?.productName ?? "";
+                <tbody>
+                  {fields.map((f, index) => {
+                    const rowKey = f.id;
+                    const row = lines[index];
+                    const term = termRow[rowKey] ?? row?.productName ?? "";
 
-                  const rowErr = linesErrors?.[index];
-                  const excludeIdsForRow = selectedIds.filter(
-                    (id) => id !== row?.productVariantId
-                  );
+                    const rowErr = linesErrors?.[index];
+                    const excludeIdsForRow = selectedIds.filter(
+                      (id) => id !== row?.productVariantId
+                    );
 
-                  const qty = Number(row?.quantity ?? 0);
-                  const price = parseMoney(String(row?.unitPrice ?? ""));
-                  const rowTotal =
-                    Number.isFinite(qty) &&
-                    qty > 0 &&
-                    Number.isFinite(price) &&
-                    price > 0
-                      ? qty * price
-                      : NaN;
+                    const qty = Number(row?.quantity ?? 0);
+                    const price = parseMoney(String(row?.unitPrice ?? ""));
+                    const rowTotal =
+                      Number.isFinite(qty) &&
+                      qty > 0 &&
+                      Number.isFinite(price) &&
+                      price > 0
+                        ? qty * price
+                        : NaN;
 
-                  return (
-                    <tr key={rowKey}>
-                      {/* Product autocomplete */}
-                      <td className="min-w-[320px]">
-                        <div className="relative">
-                          <input
-                            className={`input input-bordered w-full ${
-                              rowErr?.productVariantId ? "input-error" : ""
-                            }`}
-                            placeholder="Buscar producto (2+ letras)…"
-                            value={term}
-                            onChange={(e) => {
-                              const next = e.target.value;
-                              setTermRow((p) => ({ ...p, [rowKey]: next }));
-                              clearSelectionIfTyped(index);
-                              handleSearch(rowKey, next, excludeIdsForRow);
-                            }}
-                            onFocus={() => {
-                              setOpenRow(rowKey);
-                              handleSearch(rowKey, term, excludeIdsForRow);
-                            }}
-                            onBlur={() =>
-                              window.setTimeout(() => setOpenRow(null), 150)
-                            }
-                            aria-label="Buscar producto"
-                          />
+                    return (
+                      <tr key={rowKey}>
+                        {/* Product autocomplete */}
+                        <td className="w-[380px] max-w-[380px]">
+                          <div className="relative">
+                            <input
+                              className={`input input-bordered w-full ${
+                                rowErr?.productVariantId ? "input-error" : ""
+                              }`}
+                              placeholder="Buscar producto (2+ letras)…"
+                              value={term}
+                              onChange={(e) => {
+                                const next = e.target.value;
+                                setTermRow((p) => ({ ...p, [rowKey]: next }));
+                                clearSelectionIfTyped(index);
+                                handleSearch(rowKey, next, excludeIdsForRow);
+                              }}
+                              onFocus={() => {
+                                setOpenRow(rowKey);
+                                handleSearch(rowKey, term, excludeIdsForRow);
+                              }}
+                              onBlur={() =>
+                                window.setTimeout(() => setOpenRow(null), 150)
+                              }
+                              aria-label="Buscar producto"
+                            />
 
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
-                            {loadingRow[rowKey] ? (
-                              <span className="loading loading-spinner loading-sm" />
-                            ) : (
-                              <span>⌄</span>
-                            )}
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
+                              {loadingRow[rowKey] ? (
+                                <span className="loading loading-spinner loading-sm" />
+                              ) : (
+                                <span>⌄</span>
+                              )}
+                            </div>
+
+                            {/* dropdown */}
+                            {openRow === rowKey &&
+                            (resultsRow[rowKey]?.length ?? 0) > 0 ? (
+                              <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
+                                <ul className="menu menu-sm w-full">
+                                  {(resultsRow[rowKey] ?? []).map((p) => (
+                                    <li key={p.id} className="w-full">
+                                      <button
+                                        type="button"
+                                        className="w-full justify-start text-left"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() =>
+                                          selectProduct(index, rowKey, p)
+                                        }
+                                      >
+                                        <div className="flex w-full items-center justify-between gap-3 min-w-0">
+                                          <span className="font-medium truncate">
+                                            {p.label}
+                                          </span>
+                                          <span className="text-xs opacity-70 whitespace-nowrap">
+                                            ${p.defaultPrice}
+                                          </span>
+                                        </div>
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
                           </div>
 
-                          {/* dropdown */}
-                          {openRow === rowKey &&
-                          (resultsRow[rowKey]?.length ?? 0) > 0 ? (
-                            <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
-                              <ul className="menu">
-                                {(resultsRow[rowKey] ?? []).map((p) => (
-                                  <li key={p.id}>
-                                    <button
-                                      type="button"
-                                      onMouseDown={(e) => e.preventDefault()}
-                                      onClick={() =>
-                                        selectProduct(index, rowKey, p)
-                                      }
-                                    >
-                                      <div className="flex w-full items-center justify-between gap-3">
-                                        <span className="font-medium">
-                                          {p.label}
-                                        </span>
-                                        <span className="text-xs opacity-70">
-                                          ${p.defaultPrice}
-                                        </span>
-                                      </div>
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
+                          {/* hidden fields */}
+                          <input
+                            type="hidden"
+                            {...register(
+                              `lines.${index}.productVariantId` as const
+                            )}
+                          />
+                          <input
+                            type="hidden"
+                            {...register(`lines.${index}.productName` as const)}
+                          />
+
+                          {rowErr?.productVariantId?.message ? (
+                            <p className="mt-1 text-sm text-error">
+                              {String(rowErr.productVariantId.message)}
+                            </p>
                           ) : null}
-                        </div>
+                        </td>
 
-                        {/* hidden fields */}
-                        <input
-                          type="hidden"
-                          {...register(
-                            `lines.${index}.productVariantId` as const
-                          )}
-                        />
-                        <input
-                          type="hidden"
-                          {...register(`lines.${index}.productName` as const)}
-                        />
+                        {/* Quantity */}
+                        <td>
+                          <input
+                            type="number"
+                            min={1}
+                            className={`input input-bordered w-24 ${
+                              rowErr?.quantity ? "input-error" : ""
+                            }`}
+                            {...register(`lines.${index}.quantity` as const, {
+                              valueAsNumber: true,
+                            })}
+                          />
+                          {rowErr?.quantity?.message ? (
+                            <p className="mt-1 text-sm text-error">
+                              {String(rowErr.quantity.message)}
+                            </p>
+                          ) : null}
+                        </td>
 
-                        {rowErr?.productVariantId?.message ? (
-                          <p className="mt-1 text-sm text-error">
-                            {String(rowErr.productVariantId.message)}
-                          </p>
-                        ) : null}
-                      </td>
+                        {/* Unit price */}
+                        <td>
+                          <input
+                            className={`input input-bordered w-28 ${
+                              rowErr?.unitPrice ? "input-error" : ""
+                            }`}
+                            placeholder="12.50"
+                            inputMode="decimal"
+                            {...register(`lines.${index}.unitPrice` as const)}
+                          />
+                          {rowErr?.unitPrice?.message ? (
+                            <p className="mt-1 text-sm text-error">
+                              {String(rowErr.unitPrice.message)}
+                            </p>
+                          ) : null}
+                        </td>
 
-                      {/* Quantity */}
-                      <td>
-                        <input
-                          type="number"
-                          min={1}
-                          className={`input input-bordered w-24 ${
-                            rowErr?.quantity ? "input-error" : ""
-                          }`}
-                          {...register(`lines.${index}.quantity` as const, {
-                            valueAsNumber: true,
-                          })}
-                        />
-                        {rowErr?.quantity?.message ? (
-                          <p className="mt-1 text-sm text-error">
-                            {String(rowErr.quantity.message)}
-                          </p>
-                        ) : null}
-                      </td>
+                        {/* Description */}
+                        <td className="w-[320px] max-w-[320px]">
+                          <input
+                            className={`input input-bordered w-full ${
+                              rowErr?.description ? "input-error" : ""
+                            }`}
+                            placeholder="Opcional"
+                            {...register(`lines.${index}.description` as const)}
+                          />
+                          {rowErr?.description?.message ? (
+                            <p className="mt-1 text-sm text-error">
+                              {String(rowErr.description.message)}
+                            </p>
+                          ) : null}
+                        </td>
 
-                      {/* Unit price */}
-                      <td>
-                        <input
-                          className={`input input-bordered w-28 ${
-                            rowErr?.unitPrice ? "input-error" : ""
-                          }`}
-                          placeholder="12.50"
-                          inputMode="decimal"
-                          {...register(`lines.${index}.unitPrice` as const)}
-                        />
-                        {rowErr?.unitPrice?.message ? (
-                          <p className="mt-1 text-sm text-error">
-                            {String(rowErr.unitPrice.message)}
-                          </p>
-                        ) : null}
-                      </td>
+                        {/* Total */}
+                        <td className="text-right font-medium">
+                          {formatMoney(rowTotal)}
+                        </td>
 
-                      {/* Description */}
-                      <td className="min-w-[240px]">
-                        <input
-                          className={`input input-bordered w-full ${
-                            rowErr?.description ? "input-error" : ""
-                          }`}
-                          placeholder="Opcional"
-                          {...register(`lines.${index}.description` as const)}
-                        />
-                        {rowErr?.description?.message ? (
-                          <p className="mt-1 text-sm text-error">
-                            {String(rowErr.description.message)}
-                          </p>
-                        ) : null}
-                      </td>
-
-                      {/* Total */}
-                      <td className="text-right font-medium">
-                        {formatMoney(rowTotal)}
-                      </td>
-
-                      {/* Actions */}
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => {
-                            if (fields.length <= 1) {
-                              // keep at least one row; just clear it
-                              setValue(`lines.0.productVariantId`, "");
-                              setValue(`lines.0.productName`, "");
-                              setValue(`lines.0.quantity`, 1);
-                              setValue(`lines.0.unitPrice`, "");
-                              setValue(`lines.0.description`, "");
-                              setTermRow((p) => ({ ...p, [rowKey]: "" }));
-                              return;
-                            }
-                            remove(index);
-                          }}
-                          aria-label="Eliminar"
-                          title="Eliminar"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {/* Actions */}
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => {
+                              if (fields.length <= 1) {
+                                // keep at least one row; just clear it
+                                setValue(`lines.0.productVariantId`, "");
+                                setValue(`lines.0.productName`, "");
+                                setValue(`lines.0.quantity`, 1);
+                                setValue(`lines.0.unitPrice`, "");
+                                setValue(`lines.0.description`, "");
+                                setTermRow((p) => ({ ...p, [rowKey]: "" }));
+                                return;
+                              }
+                              remove(index);
+                            }}
+                            aria-label="Eliminar"
+                            title="Eliminar"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             {/* Array-level error (min 1) */}
             {typeof linesErrors?.message === "string" ? (

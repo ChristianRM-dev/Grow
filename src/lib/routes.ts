@@ -50,4 +50,11 @@ export const routes = {
         `/supplier-purchases/${enc(id)}/payments/${enc(paymentId)}/edit`,
     },
   },
+
+  quotations: {
+    list: () => "/quotations",
+    details: (id: string) => `/quotations/${id}`,
+    edit: (id: string) => `/quotations/${id}/edit`,
+    new: () => "/quotations/new",
+  },
 } as const;

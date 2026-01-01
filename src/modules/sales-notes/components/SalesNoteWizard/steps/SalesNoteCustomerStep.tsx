@@ -237,11 +237,12 @@ export function SalesNoteCustomerStep({ form }: Props) {
 
                   {open && results.length > 0 ? (
                     <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
-                      <ul className="menu">
+                      <ul className="menu menu-sm w-full">
                         {results.map((p) => (
-                          <li key={p.id}>
+                          <li key={p.id} className="w-full">
                             <button
                               type="button"
+                              className="w-full justify-start text-left"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
                                 setValue("customer.existingPartyId", p.id, {
@@ -257,10 +258,12 @@ export function SalesNoteCustomerStep({ form }: Props) {
                                 setOpen(false);
                               }}
                             >
-                              <div className="flex flex-col items-start">
-                                <span className="font-medium">{p.name}</span>
+                              <div className="flex flex-col items-start min-w-0">
+                                <span className="font-medium truncate">
+                                  {p.name}
+                                </span>
                                 {p.phone ? (
-                                  <span className="text-xs opacity-70">
+                                  <span className="text-xs opacity-70 truncate">
                                     {p.phone}
                                   </span>
                                 ) : null}
