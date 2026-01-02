@@ -68,7 +68,7 @@ export default async function SupplierPurchaseDetailsPage({
 
           <Link
             href={routes.supplierPurchases.edit(dto.id)}
-            className="btn btn-sm"
+            className="btn btn-warning btn-sm"
           >
             Editar compra
           </Link>

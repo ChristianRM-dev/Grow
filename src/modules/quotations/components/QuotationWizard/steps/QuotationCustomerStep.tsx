@@ -232,57 +232,79 @@ export function QuotationCustomerStep({ form }: Props) {
                   </p>
                 ) : null}
 
-                <input type="hidden" {...register("customer.existingPartyId")} />
-                <input type="hidden" {...register("customer.existingPartyName")} />
+                <input
+                  type="hidden"
+                  {...register("customer.existingPartyId")}
+                />
+                <input
+                  type="hidden"
+                  {...register("customer.existingPartyName")}
+                />
               </div>
             ) : null}
 
             {partyMode === "NEW" ? (
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="form-control md:col-span-2">
-                  <label className="label">
-                    <span className="label-text">Nombre</span>
-                  </label>
-                  <input
-                    className={`input input-bordered ${
-                      customerErrors?.newParty?.name ? "input-error" : ""
-                    }`}
-                    placeholder="Nombre del contacto"
-                    {...register("customer.newParty.name")}
-                  />
-                  {customerErrors?.newParty?.name?.message ? (
-                    <p className="mt-1 text-sm text-error">
-                      {String(customerErrors.newParty.name.message)}
-                    </p>
-                  ) : null}
+              <div className="mt-4 space-y-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {/* Name */}
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Nombre</span>
+                    </label>
+                    <input
+                      className={`input input-bordered w-full ${
+                        customerErrors?.newParty?.name ? "input-error" : ""
+                      }`}
+                      placeholder="Ej: Florería San José"
+                      {...register("customer.newParty.name")}
+                    />
+                    {customerErrors?.newParty?.name?.message ? (
+                      <p className="mt-2 text-sm text-error">
+                        {String(customerErrors.newParty.name.message)}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {/* Phone */}
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">
+                        Teléfono (opcional)
+                      </span>
+                    </label>
+                    <input
+                      className={`input input-bordered w-full ${
+                        customerErrors?.newParty?.phone ? "input-error" : ""
+                      }`}
+                      placeholder="Ej: 8112345678"
+                      inputMode="tel"
+                      {...register("customer.newParty.phone")}
+                    />
+                    {customerErrors?.newParty?.phone?.message ? (
+                      <p className="mt-2 text-sm text-error">
+                        {String(customerErrors.newParty.phone.message)}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
 
+                {/* Notes */}
                 <div className="form-control">
                   <label className="label">
-                    <span className="label-text">Teléfono (opcional)</span>
-                  </label>
-                  <input
-                    className={`input input-bordered ${
-                      customerErrors?.newParty?.phone ? "input-error" : ""
-                    }`}
-                    placeholder="Ej: 555-123-4567"
-                    {...register("customer.newParty.phone")}
-                  />
-                </div>
-
-                <div className="form-control md:col-span-2">
-                  <label className="label">
-                    <span className="label-text">Notas (opcional)</span>
+                    <span className="label-text font-medium">
+                      Notas (opcional)
+                    </span>
                   </label>
                   <textarea
-                    className={`textarea textarea-bordered ${
+                    className={`textarea textarea-bordered w-full ${
                       customerErrors?.newParty?.notes ? "textarea-error" : ""
                     }`}
                     placeholder="Información adicional"
+                    rows={4}
                     {...register("customer.newParty.notes")}
                   />
                   {customerErrors?.newParty?.notes?.message ? (
-                    <p className="mt-1 text-sm text-error">
+                    <p className="mt-2 text-sm text-error">
                       {String(customerErrors.newParty.notes.message)}
                     </p>
                   ) : null}

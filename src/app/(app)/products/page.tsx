@@ -4,32 +4,27 @@ import { ListPageLayout } from "@/components/ui/ListPageLayout/ListPageLayout";
 import { routes } from "@/lib/routes";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs";
 
-export const dynamic = "force-dynamic"; // ensure fresh render per navigation
+export const dynamic = "force-dynamic";
 
-type Props = {
+type ProductsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function ProductsPage({ searchParams }: Props) {
+export default async function ProductsPage({
+  searchParams,
+}: ProductsPageProps) {
   const sp = await searchParams;
-  const result = await getProductsTable(sp);
+  const { data, pagination } = await getProductsTable(sp);
 
   return (
     <ListPageLayout
       title="Productos"
       description="Administra el catálogo de productos."
       fabLabel="Nuevo producto"
-      breadcrumbs={
-        <Breadcrumbs
-          items={[
-            { label: "Productos"},
-
-          ]}
-        />
-      }
+      breadcrumbs={<Breadcrumbs items={[{ label: "Productos" }]} />}
       createRoute={routes.products.new()}
     >
-      <ProductsTableClient data={result.data} pagination={result.pagination} />
+      <ProductsTableClient data={data} pagination={pagination} />
     </ListPageLayout>
   );
 }

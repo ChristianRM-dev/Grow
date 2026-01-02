@@ -4,12 +4,15 @@ import { PartiesTableClient } from "./parties-table-client";
 import { getPartiesTableQuery } from "@/modules/parties/queries/getPartiesTable.query";
 import { routes } from "@/lib/routes";
 
-export default async function PartiesPage({
-  searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
-  const { data, pagination } = await getPartiesTableQuery(searchParams);
+export const dynamic = "force-dynamic";
+
+type PartiesPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function PartiesPage({ searchParams }: PartiesPageProps) {
+  const sp = await searchParams;
+  const { data, pagination } = await getPartiesTableQuery(sp);
 
   return (
     <ListPageLayout

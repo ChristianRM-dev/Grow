@@ -56,5 +56,6 @@ export const routes = {
     details: (id: string) => `/quotations/${id}`,
     edit: (id: string) => `/quotations/${id}/edit`,
     new: () => "/quotations/new",
+    pdf: (id: string) => `/quotations/${id}/pdf`,
   },
 } as const;

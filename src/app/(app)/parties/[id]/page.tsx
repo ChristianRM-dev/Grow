@@ -53,7 +53,7 @@ export default async function PartyDetailsPage({
       title={result.party.name}
       subtitle={subtitle}
       headerActions={
-        <Link href={routes.parties.edit(id)} className="btn btn-sm">
+        <Link href={routes.parties.edit(id)} className="btn btn-warning btn-sm">
           Editar
         </Link>
       }

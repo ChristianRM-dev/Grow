@@ -46,10 +46,6 @@ export default async function QuotationDetailsPage({
   const dto = await getQuotationDetailsById(id);
   if (!dto) return notFound();
 
-  const createSalesNoteHref = `${routes.salesNotes.new()}?fromQuotationId=${encodeURIComponent(
-    dto.id
-  )}`;
-
   return (
     <DetailsPageLayout
       backHref={routes.quotations.list()}
@@ -80,11 +76,24 @@ export default async function QuotationDetailsPage({
       }
       headerActions={
         <>
-          <Link href={createSalesNoteHref} className="btn btn-primary btn-sm">
+          <Link
+            href={routes.quotations.new()}
+            className="btn btn-primary btn-sm"
+          >
             Crear nota de venta
           </Link>
 
-          <Link href={routes.quotations.edit(dto.id)} className="btn btn-sm">
+          <Link
+            href={routes.quotations.pdf(dto.id)}
+            target="_new"
+            className={`btn btn-info btn-sm`}
+          >
+            Ver PDF
+          </Link>
+          <Link
+            href={routes.quotations.edit(dto.id)}
+            className="btn btn-warning btn-sm"
+          >
             Editar cotización
           </Link>
         </>

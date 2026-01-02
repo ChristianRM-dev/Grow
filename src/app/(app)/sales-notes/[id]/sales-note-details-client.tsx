@@ -118,10 +118,10 @@ export function SalesNoteDetailsClient({ dto }: { dto: SalesNoteDetailsDto }) {
               <span>Subtotal</span>
               <span className="font-medium">${money(dto.subtotal)}</span>
             </div>
-            <div className="flex justify-between">
+            {/* <div className="flex justify-between">
               <span>Descuento</span>
               <span className="font-medium">${money(dto.discountTotal)}</span>
-            </div>
+            </div> */}
             <div className="flex justify-between text-base">
               <span className="font-semibold">Total</span>
               <span className="font-semibold">${money(dto.total)}</span>
