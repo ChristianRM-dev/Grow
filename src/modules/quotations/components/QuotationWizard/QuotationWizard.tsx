@@ -10,7 +10,6 @@ import {
   prefixIssuePathMapper,
 } from "@/components/ui/MultiStepForm/stepBuilders";
 import {
-  QuotationCustomerSchema,
   QuotationFormSchema,
   QuotationLinesStepSchema,
   QuotationUnregisteredLinesStepSchema,
@@ -47,9 +46,13 @@ export function QuotationWizard({
       Step.withValidator({
         id: "customer",
         title: "Contacto",
-        fieldPaths: ["customer.partyId", "customer.partyName"],
+        fieldPaths: [
+          "customer.mode",
+          "customer.existingPartyId",
+          "customer.existingPartyName",
+        ],
         validator: {
-          schema: QuotationCustomerSchema,
+          schema: QuotationFormSchema.shape.customer,
           getStepValues: (v) => v.customer,
           mapIssuePathToFieldPath:
             prefixIssuePathMapper<QuotationFormValues>("customer"),

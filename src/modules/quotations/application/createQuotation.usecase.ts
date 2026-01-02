@@ -13,6 +13,7 @@ import {
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/descriptionSnapshot";
 import { generateMonthlyFolio } from "@/modules/shared/folio/monthlyFolio";
+import { resolvePartyIdForCustomerSelection } from "@/modules/parties/application/resolvePartyIdForCustomerSelection";
 
 export type QuotationLinePayload = {
   productVariantId: string | null;
@@ -21,19 +22,6 @@ export type QuotationLinePayload = {
   quotedUnitPrice: Prisma.Decimal;
 };
 
-async function ensurePartyExists(tx: Prisma.TransactionClient, partyId: string) {
-  const party = await tx.party.findFirst({
-    where: { id: partyId, isDeleted: false },
-    select: { id: true },
-  });
-
-  if (!party) {
-    throw new Error("El contacto no existe o fue eliminado.");
-  }
-
-  return party.id;
-}
-
 export async function createQuotationUseCase(
   values: QuotationFormValues,
   ctx?: UseCaseContext
@@ -41,7 +29,6 @@ export async function createQuotationUseCase(
   const logger = createScopedLogger("createQuotationUseCase", ctx);
 
   logger.log("start", {
-    partyId: values.customer.partyId,
     lines: values.lines?.length ?? 0,
     unregisteredLines: values.unregisteredLines?.length ?? 0,
   });
@@ -49,7 +36,16 @@ export async function createQuotationUseCase(
   return prisma.$transaction(async (tx) => {
     logger.log("tx_begin");
 
-    const partyId = await ensurePartyExists(tx, values.customer.partyId);
+    const partyId = await resolvePartyIdForCustomerSelection(
+      tx,
+      {
+        mode: values.customer.mode,
+        partyMode: "EXISTING",
+        existingPartyId: values.customer.existingPartyId,
+        newParty: undefined,
+      },
+      logger
+    );
 
     const registeredLines: QuotationLinePayload[] = (values.lines ?? []).map(
       (l) => {

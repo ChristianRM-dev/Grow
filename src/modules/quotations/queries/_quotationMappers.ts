@@ -6,9 +6,10 @@ import {
   splitSnapshot,
   toNumberSafe,
 } from "@/modules/sales-notes/queries/_salesNoteMappers";
+import { inferCustomerModeFromSystemKey } from "@/modules/sales-notes/queries/_salesNoteMappers";
 
 export function mapQuotationRowToFormValues(input: {
-  party: { id: string; name: string } | null;
+  party: { id: string; name: string; systemKey: string | null } | null;
   lines: Array<{
     productVariantId: string | null;
     quantity: unknown;
@@ -25,8 +26,9 @@ export function mapQuotationRowToFormValues(input: {
 }): QuotationFormValues {
   const values: QuotationFormValues = {
     customer: {
-      partyId: input.party?.id ?? "",
-      partyName: input.party?.name ?? "",
+      mode: inferCustomerModeFromSystemKey(input.party?.systemKey),
+      existingPartyId: input.party?.id ?? "",
+      existingPartyName: input.party?.name ?? "",
     },
     lines: [],
     unregisteredLines: [],

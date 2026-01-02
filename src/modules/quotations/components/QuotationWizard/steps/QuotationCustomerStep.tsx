@@ -18,8 +18,9 @@ export function QuotationCustomerStep({ form }: Props) {
     formState: { errors },
   } = form;
 
-  const selectedPartyId = watch("customer.partyId");
-  const selectedPartyName = watch("customer.partyName");
+  const mode = watch("customer.mode");
+  const existingPartyId = watch("customer.existingPartyId");
+  const existingPartyName = watch("customer.existingPartyName");
 
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<PartyLookupDto[]>([]);
@@ -29,18 +30,20 @@ export function QuotationCustomerStep({ form }: Props) {
   const debounceRef = useRef<number | null>(null);
 
   const selectedLabel = useMemo(() => {
-    const label = String(selectedPartyName ?? "").trim();
+    const label = String(existingPartyName ?? "").trim();
     return label || "";
-  }, [selectedPartyName]);
+  }, [existingPartyName]);
 
   useEffect(() => {
-    const label = String(selectedPartyName ?? "").trim();
-    if (selectedPartyId && label && term.trim().length === 0) {
+    const label = String(existingPartyName ?? "").trim();
+    if (existingPartyId && label && term.trim().length === 0) {
       setTerm(label);
     }
-  }, [selectedPartyId, selectedPartyName, term]);
+  }, [existingPartyId, existingPartyName, term]);
 
   useEffect(() => {
+    if (mode !== "PARTY") return;
+
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
 
     debounceRef.current = window.setTimeout(async () => {
@@ -62,7 +65,7 @@ export function QuotationCustomerStep({ form }: Props) {
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [term]);
+  }, [mode, term]);
 
   const customerErrors = errors.customer;
 
@@ -74,103 +77,131 @@ export function QuotationCustomerStep({ form }: Props) {
           Selecciona el contacto para la cotización.
         </p>
 
-        <div className="mt-4">
-          <label className="label">
-            <span className="label-text">Buscar contacto</span>
+        <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center">
+          <label className="label cursor-pointer justify-start gap-3">
+            <input
+              type="radio"
+              className="radio radio-primary"
+              value="PUBLIC"
+              {...register("customer.mode")}
+            />
+            <span className="label-text">Venta al público</span>
           </label>
 
-          <div className="relative">
+          <label className="label cursor-pointer justify-start gap-3">
             <input
-              className={`input input-bordered w-full ${
-                customerErrors?.partyId ? "input-error" : ""
-              }`}
-              placeholder="Escribe al menos 2 letras…"
-              value={term}
-              onChange={(e) => {
-                const next = e.target.value;
-                setTerm(next);
-
-                if (selectedPartyId) {
-                  setValue("customer.partyId", "", {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  });
-                  setValue("customer.partyName", "", {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  });
-                }
-              }}
-              onFocus={() => setOpen(true)}
-              onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-              aria-label="Buscar contacto"
+              type="radio"
+              className="radio radio-primary"
+              value="PARTY"
+              {...register("customer.mode")}
             />
+            <span className="label-text">Con contacto</span>
+          </label>
+        </div>
 
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
-              {loading ? (
-                <span className="loading loading-spinner loading-sm" />
-              ) : (
-                <span>⌄</span>
-              )}
-            </div>
+        {mode === "PARTY" ? (
+          <div className="mt-4">
+            <label className="label">
+              <span className="label-text">Buscar contacto</span>
+            </label>
 
-            {open && results.length > 0 ? (
-              <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
-                <ul className="menu menu-sm w-full">
-                  {results.map((p) => (
-                    <li key={p.id} className="w-full">
-                      <button
-                        type="button"
-                        className="w-full justify-start text-left"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setValue("customer.partyId", p.id, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
-                          setValue("customer.partyName", p.name, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
+            <div className="relative">
+              <input
+                className={`input input-bordered w-full ${
+                  customerErrors?.existingPartyId ? "input-error" : ""
+                }`}
+                placeholder="Escribe al menos 2 letras…"
+                value={term}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setTerm(next);
 
-                          setTerm(p.name);
-                          setOpen(false);
-                        }}
-                      >
-                        <div className="flex flex-col items-start min-w-0">
-                          <span className="font-medium truncate">{p.name}</span>
-                          {p.phone ? (
-                            <span className="text-xs opacity-70 truncate">
-                              {p.phone}
-                            </span>
-                          ) : null}
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                  if (existingPartyId) {
+                    setValue("customer.existingPartyId", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue("customer.existingPartyName", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }
+                }}
+                onFocus={() => setOpen(true)}
+                onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+                aria-label="Buscar contacto"
+              />
+
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
+                {loading ? (
+                  <span className="loading loading-spinner loading-sm" />
+                ) : (
+                  <span>⌄</span>
+                )}
               </div>
-            ) : null}
-          </div>
 
-          {selectedPartyId ? (
-            <div className="mt-3">
-              <span className="badge badge-success">Contacto seleccionado</span>
-              {selectedLabel ? (
-                <span className="ml-2 text-sm opacity-70">{selectedLabel}</span>
+              {open && results.length > 0 ? (
+                <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
+                  <ul className="menu menu-sm w-full">
+                    {results.map((p) => (
+                      <li key={p.id} className="w-full">
+                        <button
+                          type="button"
+                          className="w-full justify-start text-left"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setValue("customer.existingPartyId", p.id, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                            setValue("customer.existingPartyName", p.name, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+
+                            setTerm(p.name);
+                            setOpen(false);
+                          }}
+                        >
+                          <div className="flex flex-col items-start min-w-0">
+                            <span className="font-medium truncate">
+                              {p.name}
+                            </span>
+                            {p.phone ? (
+                              <span className="text-xs opacity-70 truncate">
+                                {p.phone}
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : null}
             </div>
-          ) : null}
 
-          {customerErrors?.partyId?.message ? (
-            <p className="mt-2 text-sm text-error">
-              {String(customerErrors.partyId.message)}
-            </p>
-          ) : null}
+            {existingPartyId ? (
+              <div className="mt-3">
+                <span className="badge badge-success">
+                  Contacto seleccionado
+                </span>
+                {selectedLabel ? (
+                  <span className="ml-2 text-sm opacity-70">{selectedLabel}</span>
+                ) : null}
+              </div>
+            ) : null}
 
-          <input type="hidden" {...register("customer.partyId")} />
-          <input type="hidden" {...register("customer.partyName")} />
-        </div>
+            {customerErrors?.existingPartyId?.message ? (
+              <p className="mt-2 text-sm text-error">
+                {String(customerErrors.existingPartyId.message)}
+              </p>
+            ) : null}
+
+            <input type="hidden" {...register("customer.existingPartyId")} />
+            <input type="hidden" {...register("customer.existingPartyName")} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

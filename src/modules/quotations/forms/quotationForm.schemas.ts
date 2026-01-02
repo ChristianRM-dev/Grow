@@ -1,10 +1,32 @@
 import { z } from "zod";
 import { QuotationStatus } from "@/generated/prisma/client";
 
-export const QuotationCustomerSchema = z.object({
-  partyId: z.string().trim().min(1, "Selecciona un contacto"),
-  partyName: z.string().trim().min(1, "Selecciona un contacto"),
-});
+export const CustomerModeEnum = z.enum(["PUBLIC", "PARTY"]);
+
+export const QuotationCustomerSchema = z
+  .object({
+    mode: CustomerModeEnum,
+    existingPartyId: z.string().trim().optional(),
+    existingPartyName: z.string().trim().optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.mode === "PARTY") {
+      if (!val.existingPartyId || val.existingPartyId.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Selecciona un contacto",
+          path: ["existingPartyId"],
+        });
+      }
+      if (!val.existingPartyName || val.existingPartyName.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Selecciona un contacto",
+          path: ["existingPartyName"],
+        });
+      }
+    }
+  });
 
 const decimalString = z
   .string()
@@ -48,8 +70,9 @@ export const QuotationFormSchema = z.object({
 
 export type QuotationFormValues = {
   customer: {
-    partyId: string;
-    partyName: string;
+    mode: "PUBLIC" | "PARTY";
+    existingPartyId?: string;
+    existingPartyName?: string;
   };
   lines: Array<{
     productVariantId: string;
