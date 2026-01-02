@@ -19,9 +19,8 @@ export default async function QuotationsPage({
       title="Cotizaciones"
       description="Administra el catálogo de cotizaciones."
       breadcrumbs={<Breadcrumbs items={[{ label: "Cotizaciones" }]} />}
-      // Si aún no tienes create, déjalo comentado por ahora:
-      // fabLabel="Nueva cotización"
-      // createRoute={routes.quotations.new()}
+      fabLabel="Nueva cotización"
+      createRoute={routes.quotations.new()}
     >
       <QuotationsTableClient data={data} pagination={pagination} />
     </ListPageLayout>

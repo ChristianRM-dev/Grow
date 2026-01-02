@@ -9,7 +9,13 @@ import { createSalesNoteAction } from "@/modules/sales-notes/actions/createSales
 import { toast } from "@/components/ui/Toast/toast";
 import { routes } from "@/lib/routes";
 
-export function SalesNoteNewClient() {
+export function SalesNoteNewClient({
+  initialValues,
+  sourceQuotation,
+}: {
+  initialValues: SalesNoteFormValues;
+  sourceQuotation?: { id: string; folio: string };
+}) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,28 +39,23 @@ export function SalesNoteNewClient() {
   };
 
   return (
-    <SalesNoteWizard
-      initialValues={{
-        customer: {
-          mode: "PUBLIC",
-          partyMode: "EXISTING",
-          existingPartyName: "",
-          existingPartyId: "",
-          newParty: { name: "", phone: "", notes: "" },
-        },
-        lines: [
-          {
-            productVariantId: "",
-            productName: "",
-            quantity: 1,
-            unitPrice: "",
-            description: "",
-          },
-        ],
-        unregisteredLines: [],
-      }}
-      onSubmit={handleSubmit}
-      submitting={submitting}
-    />
+    <>
+      {sourceQuotation ? (
+        <div className="alert alert-info mb-4">
+          <div>
+            <h4 className="font-semibold">Cotización origen</h4>
+            <p className="text-sm opacity-80">
+              Prefill desde la cotización {sourceQuotation.folio}.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      <SalesNoteWizard
+        initialValues={initialValues}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+      />
+    </>
   );
 }
