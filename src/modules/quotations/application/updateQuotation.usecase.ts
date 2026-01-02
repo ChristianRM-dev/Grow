@@ -39,13 +39,14 @@ export async function updateQuotationUseCase(
       throw new Error("La cotización no existe.");
     }
 
+    const partyMode = values.customer.partyMode ?? "EXISTING";
     const partyId = await resolvePartyIdForCustomerSelection(
       tx,
       {
         mode: values.customer.mode,
-        partyMode: "EXISTING",
+        partyMode,
         existingPartyId: values.customer.existingPartyId,
-        newParty: undefined,
+        newParty: values.customer.newParty,
       },
       logger
     );

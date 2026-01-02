@@ -36,13 +36,14 @@ export async function createQuotationUseCase(
   return prisma.$transaction(async (tx) => {
     logger.log("tx_begin");
 
+    const partyMode = values.customer.partyMode ?? "EXISTING";
     const partyId = await resolvePartyIdForCustomerSelection(
       tx,
       {
         mode: values.customer.mode,
-        partyMode: "EXISTING",
+        partyMode,
         existingPartyId: values.customer.existingPartyId,
-        newParty: undefined,
+        newParty: values.customer.newParty,
       },
       logger
     );

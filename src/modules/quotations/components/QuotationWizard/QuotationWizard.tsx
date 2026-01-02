@@ -48,8 +48,12 @@ export function QuotationWizard({
         title: "Contacto",
         fieldPaths: [
           "customer.mode",
+          "customer.partyMode",
           "customer.existingPartyId",
           "customer.existingPartyName",
+          "customer.newParty.name",
+          "customer.newParty.phone",
+          "customer.newParty.notes",
         ],
         validator: {
           schema: QuotationFormSchema.shape.customer,
