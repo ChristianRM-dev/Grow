@@ -41,7 +41,7 @@ export function QuotationNewClient() {
       }
 
       toast.success("Cotización guardada exitosamente");
-      router.push(routes.quotations.details(res.quotationId));
+      router.replace(routes.quotations.details(res.quotationId));
     } finally {
       setSubmitting(false);
     }

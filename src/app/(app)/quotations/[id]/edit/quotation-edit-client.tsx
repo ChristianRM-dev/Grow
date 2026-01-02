@@ -30,7 +30,7 @@ export function QuotationEditClient({
       }
 
       toast.success("Cotización actualizada exitosamente");
-      router.push(routes.quotations.details(res.quotationId));
+      router.replace(routes.quotations.details(res.quotationId));
     } finally {
       setSubmitting(false);
     }

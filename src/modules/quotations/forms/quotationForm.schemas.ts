@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { QuotationStatus } from "@/generated/prisma/client";
+
+// Define el enum localmente en lugar de importarlo de Prisma
+export const QuotationStatus = z.enum([
+  "DRAFT",
+  "SENT",
+  "CONVERTED",
+  "CANCELLED",
+]);
 
 export const QuotationCustomerSchema = z.object({
   partyId: z.string().trim().min(1, "Selecciona un contacto"),
@@ -43,7 +50,7 @@ export const QuotationFormSchema = z.object({
   customer: QuotationCustomerSchema,
   lines: QuotationLinesStepSchema,
   unregisteredLines: QuotationUnregisteredLinesStepSchema,
-  status: z.nativeEnum(QuotationStatus).optional(),
+  status: QuotationStatus.optional(),
 });
 
 export type QuotationFormValues = {

@@ -24,6 +24,18 @@ function statusVariant(
   }
 }
 
+// Función para traducir los estados a español
+export function statusMessage(status: string): string {
+  const translations: Record<string, string> = {
+    DRAFT: "Borrador",
+    SENT: "Enviado",
+    CONVERTED: "Convertido",
+    CANCELLED: "Cancelado"
+  };
+
+  return translations[status] || status;
+}
+
 export default async function QuotationDetailsPage({
   params,
 }: {
@@ -51,7 +63,7 @@ export default async function QuotationDetailsPage({
       }
       title={dto.folio}
       badge={{
-        label: dto.status,
+        label: statusMessage(dto.status),
         variant: statusVariant(dto.status),
       }}
       subtitle={

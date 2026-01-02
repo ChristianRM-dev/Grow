@@ -32,7 +32,7 @@ export function SalesNoteNewClient({
 
       toast.success("Guardado exitosamente");
 
-      router.push(routes.salesNotes.details(res.salesNoteId)); // si la agregas
+      router.replace(routes.salesNotes.details(res.salesNoteId)); // si la agregas
     } finally {
       setSubmitting(false);
     }
