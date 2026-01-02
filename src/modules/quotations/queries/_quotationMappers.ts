@@ -27,6 +27,7 @@ export function mapQuotationRowToFormValues(input: {
   const values: QuotationFormValues = {
     customer: {
       mode: inferCustomerModeFromSystemKey(input.party?.systemKey),
+      partyMode: "EXISTING",
       existingPartyId: input.party?.id ?? "",
       existingPartyName: input.party?.name ?? "",
     },

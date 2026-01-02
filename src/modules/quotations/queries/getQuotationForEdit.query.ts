@@ -26,6 +26,8 @@ export async function getQuotationForEditById(
           id: true,
           name: true,
           systemKey: true,
+          phone: true,
+          notes: true,
         },
       },
       lines: {

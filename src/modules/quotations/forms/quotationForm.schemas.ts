@@ -2,15 +2,45 @@ import { z } from "zod";
 import { QuotationStatus } from "@/generated/prisma/client";
 
 export const CustomerModeEnum = z.enum(["PUBLIC", "PARTY"]);
+export const PartyModeEnum = z.enum(["EXISTING", "NEW"]);
+
+export const NewPartySchema = z.object({
+  name: z.string().trim().max(120, "Máximo 120 caracteres").optional(),
+  phone: z.string().trim().max(30, "Máximo 30 caracteres").optional(),
+  notes: z.string().trim().max(500, "Máximo 500 caracteres").optional(),
+});
 
 export const QuotationCustomerSchema = z
   .object({
     mode: CustomerModeEnum,
+    partyMode: PartyModeEnum.optional(),
     existingPartyId: z.string().trim().optional(),
     existingPartyName: z.string().trim().optional(),
+    newParty: NewPartySchema.optional(),
   })
   .superRefine((val, ctx) => {
     if (val.mode === "PARTY") {
+      if (!val.partyMode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Selecciona tipo de contacto",
+          path: ["partyMode"],
+        });
+        return;
+      }
+
+      if (val.partyMode === "NEW") {
+        if (!val.newParty?.name || val.newParty.name.trim().length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "El nombre es requerido",
+            path: ["newParty", "name"],
+          });
+        }
+        return;
+      }
+
+      // partyMode === EXISTING
       if (!val.existingPartyId || val.existingPartyId.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -18,7 +48,10 @@ export const QuotationCustomerSchema = z
           path: ["existingPartyId"],
         });
       }
-      if (!val.existingPartyName || val.existingPartyName.trim().length === 0) {
+      if (
+        !val.existingPartyName ||
+        val.existingPartyName.trim().length === 0
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Selecciona un contacto",
@@ -71,8 +104,14 @@ export const QuotationFormSchema = z.object({
 export type QuotationFormValues = {
   customer: {
     mode: "PUBLIC" | "PARTY";
+    partyMode?: "EXISTING" | "NEW";
     existingPartyId?: string;
     existingPartyName?: string;
+    newParty?: {
+      name?: string;
+      phone?: string;
+      notes?: string;
+    };
   };
   lines: Array<{
     productVariantId: string;
