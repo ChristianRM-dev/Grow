@@ -12,19 +12,7 @@ import {
 } from "@/modules/shared/utils/decimals";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/descriptionSnapshot";
-
-async function ensurePartyExists(tx: Prisma.TransactionClient, partyId: string) {
-  const party = await tx.party.findFirst({
-    where: { id: partyId, isDeleted: false },
-    select: { id: true },
-  });
-
-  if (!party) {
-    throw new Error("El contacto no existe o fue eliminado.");
-  }
-
-  return party.id;
-}
+import { resolvePartyIdForCustomerSelection } from "@/modules/parties/application/resolvePartyIdForCustomerSelection";
 
 export async function updateQuotationUseCase(
   quotationId: string,
@@ -35,7 +23,6 @@ export async function updateQuotationUseCase(
 
   logger.log("start", {
     quotationId,
-    partyId: values.customer.partyId,
     lines: values.lines?.length ?? 0,
     unregisteredLines: values.unregisteredLines?.length ?? 0,
   });
@@ -52,7 +39,16 @@ export async function updateQuotationUseCase(
       throw new Error("La cotización no existe.");
     }
 
-    const partyId = await ensurePartyExists(tx, values.customer.partyId);
+    const partyId = await resolvePartyIdForCustomerSelection(
+      tx,
+      {
+        mode: values.customer.mode,
+        partyMode: "EXISTING",
+        existingPartyId: values.customer.existingPartyId,
+        newParty: undefined,
+      },
+      logger
+    );
 
     const registeredLines = (values.lines ?? []).map((l) => {
       const quantity = toDecimal(l.quantity);
