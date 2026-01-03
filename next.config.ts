@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
       "./node_modules/pdfkit/js/data/**/*",
       "./src/assets/fonts/**/*",
     ],
+    "/reports/sales/pdf": [
+      "./node_modules/pdfkit/js/data/**/*",
+      "./src/assets/fonts/**/*",
+    ],
   },
 };
 

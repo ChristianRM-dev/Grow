@@ -2,9 +2,9 @@
  * Formats a numeric string into MX money display with 2 decimals.
  * Returns the original input if it's not a valid number.
  */
-export function money(v: string): string {
+export function money(v: string | number): string {
   const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(2) : v;
+  return Number.isFinite(n) ? n.toFixed(2) : v.toString();
 }
 
 /**

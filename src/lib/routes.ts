@@ -10,6 +10,7 @@ export const routes = {
   home: () => "/",
   login: () => "/login",
   dashboard: () => "/dashboard",
+  reports: () => "/reports",
 
   products: {
     list: () => "/products",

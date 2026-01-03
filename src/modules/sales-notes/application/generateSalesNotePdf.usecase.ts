@@ -188,7 +188,7 @@ export async function generateSalesNotePdf(
   setPdfFont(doc, "regular");
   doc.fontSize(11);
   doc.text(`Subtotal: $${subtotal.toFixed(2)}`, { align: "right" });
-  // doc.text(`Descuento: $${discount.toFixed(2)}`, { align: "right" });
+  doc.text(`Descuento: $${discount.toFixed(2)}`, { align: "right" });
 
   setPdfFont(doc, "bold");
   doc.fontSize(12).text(`Total: $${grandTotal.toFixed(2)}`, { align: "right" });
