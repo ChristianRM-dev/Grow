@@ -16,11 +16,11 @@ export default async function PartiesPage({ searchParams }: PartiesPageProps) {
 
   return (
     <ListPageLayout
-      title="Parties"
+      title="Contactos"
       description="Administra clientes y proveedores."
       fabLabel="Nuevo party"
       createRoute={routes.parties.new()}
-      breadcrumbs={<Breadcrumbs items={[{ label: "Parties" }]} />}
+      breadcrumbs={<Breadcrumbs items={[{ label: "Contactos" }]} />}
     >
       <PartiesTableClient data={data} pagination={pagination} />
     </ListPageLayout>

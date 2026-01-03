@@ -8,7 +8,7 @@ import { PartyNewClient } from "./party-new-client";
 export default function PartyNewPage() {
   return (
     <FormPageLayout
-      title="Nuevo contacto"
+      title="Nuevo Contacto"
       description="Registra un cliente, proveedor o ambos."
       backHref={routes.parties.list()}
       breadcrumbs={

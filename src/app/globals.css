@@ -1,5 +1,4 @@
-
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: light --default, fantasy --prefersdark, dark;
+  themes: light, dark, wireframe, cupcake, corporate, nord, winter;
 }

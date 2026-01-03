@@ -83,13 +83,13 @@ export function ReportsPageClient({
       ) : null}
 
       <div className="rounded-box border border-base-300 bg-base-100 p-4">
-        <label className="form-control w-full max-w-md">
-          <div className="label">
-            <span className="label-text">Tipo de reporte</span>
-          </div>
+        <div className="form-control w-full max-w-md">
+          <label className="label">
+            <span className="label-text font-medium">Tipo de reporte</span>
+          </label>
 
           <select
-            className="select select-bordered"
+            className="select select-bordered w-full"
             value={selectedType}
             onChange={(e) =>
               handleTypeChange((e.target.value as ReportType) || "")
@@ -102,7 +102,7 @@ export function ReportsPageClient({
               </option>
             ))}
           </select>
-        </label>
+        </div>
       </div>
 
       {selectedType === ReportTypeEnum.SALES ? (

@@ -9,6 +9,7 @@ import {
   serializeReportsPageState,
 } from "@/modules/reports/domain/reportSearchParams";
 import { SalesReportFiltersSchema } from "@/modules/reports/domain/salesReportFilters.schema";
+import { monthLabelMX } from "@/modules/shared/utils/formatters";
 
 type Mode = "yearMonth" | "range";
 
@@ -283,13 +284,14 @@ export function SalesReportPanelClient() {
 
       {mode === "yearMonth" ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="form-control">
-            <div className="label">
-              <span className="label-text">Año</span>
-            </div>
+          {/* Year */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Año</span>
+            </label>
 
             <select
-              className="select select-bordered"
+              className="select select-bordered w-full"
               value={draftYear ?? ""}
               onChange={(e) => {
                 const v = e.target.value;
@@ -307,15 +309,16 @@ export function SalesReportPanelClient() {
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="form-control">
-            <div className="label">
-              <span className="label-text">Mes (opcional)</span>
-            </div>
+          {/* Month */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Mes (opcional)</span>
+            </label>
 
             <select
-              className="select select-bordered"
+              className="select select-bordered w-full"
               value={draftMonth ?? ""}
               onChange={(e) => {
                 const v = e.target.value;
@@ -332,40 +335,42 @@ export function SalesReportPanelClient() {
               </option>
 
               {months.map((m) => (
-                <option key={m} value={m}>
-                  {m}
+                <option key={m} value={String(m)}>
+                  {monthLabelMX(m)}
                 </option>
               ))}
             </select>
-          </label>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="form-control">
-            <div className="label">
-              <span className="label-text">Desde</span>
-            </div>
+          {/* From */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Desde</span>
+            </label>
 
             <input
               type="date"
-              className="input input-bordered"
+              className="input input-bordered w-full"
               value={draftFrom}
               onChange={(e) => setDraftFrom(e.target.value)}
             />
-          </label>
+          </div>
 
-          <label className="form-control">
-            <div className="label">
-              <span className="label-text">Hasta</span>
-            </div>
+          {/* To */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Hasta</span>
+            </label>
 
             <input
               type="date"
-              className="input input-bordered"
+              className="input input-bordered w-full"
               value={draftTo}
               onChange={(e) => setDraftTo(e.target.value)}
             />
-          </label>
+          </div>
 
           <div className="md:col-span-2 text-sm opacity-70">
             Usa un rango específico. El reporte incluirá ventas creadas dentro
