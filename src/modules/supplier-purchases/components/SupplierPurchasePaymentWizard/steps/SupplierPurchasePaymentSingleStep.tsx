@@ -123,7 +123,7 @@ export function SupplierPurchasePaymentSingleStep({
             <option value="CASH">Efectivo</option>
             <option value="TRANSFER">Transferencia</option>
             <option value="CREDIT">Crédito</option>
-            <option value="Exchange">Al cambio</option>
+            <option value="EXCHANGE">Al cambio</option>
           </select>
           {errors.paymentType?.message ? (
             <p className="mt-2 text-sm text-error">

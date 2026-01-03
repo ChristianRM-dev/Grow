@@ -24,7 +24,7 @@ export const SupplierPurchasePaymentFinalSchema = z.object({
   supplierFolio: z.string().trim().min(1, "El folio es requerido"),
   partyId: z.string().trim().min(1, "El proveedor es requerido"),
 
-  paymentType: z.enum(["CASH", "TRANSFER", "CREDIT", "Exchange"], {
+  paymentType: z.enum(["CASH", "TRANSFER", "CREDIT", "EXCHANGE"], {
     message: "Selecciona un tipo de pago",
   }),
 

@@ -5,12 +5,7 @@ import { z } from "zod";
  * Do NOT import Prisma enums in files used by Client Components (Turbopack).
  * Keep enum values as string literals.
  */
-export const PaymentTypeEnum = z.enum([
-  "CASH",
-  "TRANSFER",
-  "CREDIT",
-  "Exchange",
-]);
+export const PaymentTypeEnum = z.enum(["CASH", "TRANSFER", "CREDIT", "EXCHANGE"]);
 
 const moneyString = z
   .string()

@@ -4,6 +4,7 @@ import {
   PaymentDirection,
   PaymentType,
 } from "@/generated/prisma/client";
+import { toFormPaymentType } from "@/modules/payments/application/paymentTypeMapping";
 
 function purchaseToken(purchaseId: string) {
   return `SP:${purchaseId}`;
@@ -20,7 +21,7 @@ export type SupplierPurchasePaymentForEditDto = {
 
   payment: {
     id: string;
-    paymentType: PaymentType;
+    paymentType: "CASH" | "TRANSFER" | "CREDIT" | "EXCHANGE";
     amount: string;
     occurredAt: string; // YYYY-MM-DD
     reference: string | null;
@@ -118,7 +119,7 @@ export async function getSupplierPurchasePaymentForEdit(params: {
     },
     payment: {
       id: payment.id,
-      paymentType: payment.paymentType,
+      paymentType: toFormPaymentType(payment.paymentType),
       amount: currentAmount.toString(),
       occurredAt: payment.occurredAt.toISOString().slice(0, 10),
       reference: payment.reference ?? null,

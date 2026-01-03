@@ -11,7 +11,7 @@ CREATE TYPE "SalesNoteStatus" AS ENUM ('DRAFT', 'CONFIRMED', 'CANCELLED');
 CREATE TYPE "PaymentDirection" AS ENUM ('IN', 'OUT');
 
 -- CreateEnum
-CREATE TYPE "PaymentType" AS ENUM ('CASH', 'TRANSFER', 'CREDIT', 'Exchange');
+CREATE TYPE "PaymentType" AS ENUM ('CASH', 'TRANSFER', 'CREDIT', 'EXCHANGE');
 
 -- CreateEnum
 CREATE TYPE "PartyLedgerSide" AS ENUM ('RECEIVABLE', 'PAYABLE');
