@@ -49,62 +49,65 @@ export function SalesReportResult({
 
       {/* ... resto igual ... */}
       {report.salesNotes.map((sn) => (
-        <div
-          key={sn.id}
-          className="rounded-box border border-base-300 bg-base-100"
-        >
-          <div className="border-b border-base-300 p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="text-sm opacity-70">Folio</div>
-                <div className="font-semibold">{sn.folio}</div>
+        <>
+          <div
+            key={sn.id}
+            className="rounded-box border border-base-300 bg-base-100"
+          >
+            <div className="border-b border-base-300 p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-sm opacity-70">Folio</div>
+                  <div className="font-semibold">{sn.folio}</div>
 
-                <div className="mt-2 text-sm opacity-70">Cliente</div>
-                <div>{sn.partyName}</div>
+                  <div className="mt-2 text-sm opacity-70">Cliente</div>
+                  <div>{sn.partyName}</div>
 
-                <div className="mt-2 text-sm opacity-70">Fecha</div>
-                <div>{dateMX(sn.createdAt)}</div>
-              </div>
+                  <div className="mt-2 text-sm opacity-70">Fecha</div>
+                  <div>{dateMX(sn.createdAt)}</div>
+                </div>
 
-              <div className="text-right">
-                <div className="text-sm opacity-70">Total de la venta</div>
-                <div className="text-lg font-semibold">{money(sn.total)}</div>
+                <div className="text-right">
+                  <div className="text-sm opacity-70">Total de la venta</div>
+                  <div className="text-lg font-semibold">{money(sn.total)}</div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="p-4">
-            <div className="overflow-x-auto">
-              <table className="table table-zebra w-full">
-                <thead>
-                  <tr>
-                    <th>Descripción</th>
-                    <th className="text-right">P. Unit.</th>
-                    <th className="text-right">Cant.</th>
-                    <th className="text-right">Importe</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sn.lines.map((l, idx) => (
-                    <tr key={`${sn.id}-line-${idx}`}>
-                      <td>{l.description}</td>
-                      <td className="text-right">{money(l.unitPrice)}</td>
-                      <td className="text-right">{formatQty(l.quantity)}</td>
-                      <td className="text-right">{money(l.lineTotal)}</td>
+            <div className="p-4">
+              <div className="overflow-x-auto">
+                <table className="table table-zebra w-full">
+                  <thead>
+                    <tr>
+                      <th>Descripción</th>
+                      <th className="text-right">P. Unit.</th>
+                      <th className="text-right">Cant.</th>
+                      <th className="text-right">Importe</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {sn.lines.map((l, idx) => (
+                      <tr key={`${sn.id}-line-${idx}`}>
+                        <td>{l.description}</td>
+                        <td className="text-right">{money(l.unitPrice)}</td>
+                        <td className="text-right">{formatQty(l.quantity)}</td>
+                        <td className="text-right">{money(l.lineTotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            <div className="mt-3 flex justify-end">
-              <div className="text-right">
-                <div className="text-sm opacity-70">Total</div>
-                <div className="font-semibold">{money(sn.total)}</div>
+              <div className="mt-3 flex justify-end">
+                <div className="text-right">
+                  <div className="text-sm opacity-70">Total</div>
+                  <div className="font-semibold">{money(sn.total)}</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+          <div className="divider"></div>
+        </>
       ))}
     </div>
   );

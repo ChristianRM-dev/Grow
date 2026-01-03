@@ -261,7 +261,7 @@ export function SalesReportPanelClient() {
       ) : null}
 
       {/* Tabs for mutually exclusive modes */}
-      <div role="tablist" className="tabs tabs-boxed">
+      <div role="tablist" className="tabs tabs-border">
         <button
           role="tab"
           className={`tab ${mode === "yearMonth" ? "tab-active" : ""}`}

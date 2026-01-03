@@ -53,22 +53,24 @@ export default async function ReportsPage({
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Reportes</h1>
-        <p className="text-sm opacity-70">
-          Selecciona un tipo de reporte y define el período.
-        </p>
+    <div className="relative w-full p-4">
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Reportes</h1>
+          <p className="text-sm opacity-70">
+            Selecciona un tipo de reporte y define el período.
+          </p>
+        </div>
+
+        <ReportsPageClient
+          initialState={state ?? { type: undefined }}
+          hasInvalidParams={hasInvalidParams}
+        />
+
+        {salesReport && pdfHref ? (
+          <SalesReportResult report={salesReport} pdfHref={pdfHref} />
+        ) : null}
       </div>
-
-      <ReportsPageClient
-        initialState={state ?? { type: undefined }}
-        hasInvalidParams={hasInvalidParams}
-      />
-
-      {salesReport && pdfHref ? (
-        <SalesReportResult report={salesReport} pdfHref={pdfHref} />
-      ) : null}
     </div>
   );
 }
