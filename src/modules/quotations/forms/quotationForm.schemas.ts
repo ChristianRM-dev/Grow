@@ -34,6 +34,7 @@ export const NewPartySchema = z.object({
 export const QuotationCustomerSchema = z
   .object({
     mode: CustomerModeEnum,
+    partyName: z.string(),
     partyMode: PartyModeEnum.optional(),
     existingPartyId: z.string().trim().optional(),
     existingPartyName: z.string().trim().optional(),
