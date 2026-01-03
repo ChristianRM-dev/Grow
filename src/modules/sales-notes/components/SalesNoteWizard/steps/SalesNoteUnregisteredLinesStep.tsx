@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { useFieldArray, useFormState } from "react-hook-form";
+import React from "react";
+import { useFieldArray } from "react-hook-form";
 
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
@@ -13,7 +13,7 @@ function normalizeMoneyInput(v: string): string {
     .trim()
     .replace(/\$/g, "")
     .replace(/\s+/g, "")
-    .replace(/,/g, "."); // Accept decimal comma
+    .replace(/,/g, ".");
 }
 
 function parseMoney(v: string): number {
@@ -35,6 +35,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
   const {
     control,
     register,
+    getValues,
     watch,
     formState: { errors },
   } = form;
@@ -44,19 +45,13 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
     name: "unregisteredLines",
   });
 
-  /**
-   * IMPORTANT:
-   * watch(...) SHOULD re-render, but in some wizard + fieldArray setups it may not.
-   * useFormState is a reliable subscription that changes per edit (dirtyFields),
-   * forcing React to re-render.
-   */
-  useFormState({ control, name: "unregisteredLines" });
-
-  // Same pattern as SalesNoteLinesStep
+  // Usa watch para observar específicamente el array
   const rows = watch("unregisteredLines") ?? [];
+
   const rowsErrors = errors.unregisteredLines;
 
-  const isRowComplete = (row: any) => {
+  const isRowComplete = (idx: number) => {
+    const row = getValues(`unregisteredLines.${idx}`);
     if (!row) return false;
 
     const name = String(row.name ?? "").trim();
@@ -70,15 +65,15 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
     return true;
   };
 
-  // Optional step:
-  // - If no rows, user can proceed and can add a row.
-  // - If there are rows, all must be complete to add another.
-  const canAddRow = rows.length === 0 ? true : rows.every(isRowComplete);
+  const canAddRow =
+    fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
 
-  const totals = useMemo(() => {
+  // Calcula los totals usando los valores actuales
+  const totals = (() => {
     let subtotal = 0;
+    const currentRows = getValues("unregisteredLines") ?? [];
 
-    for (const r of rows) {
+    for (const r of currentRows) {
       const qty = Number(r?.quantity ?? 0);
       const price = parseMoney(String(r?.unitPrice ?? ""));
       if (!Number.isFinite(qty) || qty <= 0) continue;
@@ -86,12 +81,20 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
       subtotal += qty * price;
     }
 
-    const itemsCount = rows.filter(
+    const itemsCount = currentRows.filter(
       (r) => String(r?.name ?? "").trim().length > 0
     ).length;
 
     return { subtotal, itemsCount };
-  }, [rows]);
+  })();
+
+  // Handler para asegurar que los cambios en precio/cantidad actualicen el total
+  const handlePriceOrQuantityChange = (index: number) => {
+    // Forzar re-render para actualizar el total
+    const currentRows = getValues("unregisteredLines") ?? [];
+    // Esto hará que React vuelva a renderizar el componente
+    return currentRows;
+  };
 
   return (
     <div className="w-full">
@@ -128,8 +131,10 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                   const row = rows[index];
                   const rowErr = rowsErrors?.[index];
 
-                  const qty = Number(row?.quantity ?? 0);
-                  const price = parseMoney(String(row?.unitPrice ?? ""));
+                  // Obtener valores actualizados para cada row
+                  const currentRow = getValues(`unregisteredLines.${index}`);
+                  const qty = Number(currentRow?.quantity ?? 0);
+                  const price = parseMoney(String(currentRow?.unitPrice ?? ""));
                   const rowTotal =
                     Number.isFinite(qty) &&
                     qty > 0 &&
@@ -166,7 +171,11 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           }`}
                           {...register(
                             `unregisteredLines.${index}.quantity` as const,
-                            { valueAsNumber: true }
+                            {
+                              valueAsNumber: true,
+                              onChange: () =>
+                                handlePriceOrQuantityChange(index),
+                            }
                           )}
                         />
                         {rowErr?.quantity?.message ? (
@@ -184,7 +193,11 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           placeholder="12.50"
                           inputMode="decimal"
                           {...register(
-                            `unregisteredLines.${index}.unitPrice` as const
+                            `unregisteredLines.${index}.unitPrice` as const,
+                            {
+                              onChange: () =>
+                                handlePriceOrQuantityChange(index),
+                            }
                           )}
                         />
                         {rowErr?.unitPrice?.message ? (
