@@ -22,20 +22,20 @@ function hasMode(
 export function parseReportsPageState(
   searchParams: URLSearchParams
 ): ReportsPageState | null {
-  const type = searchParams.get("type") as ReportType | null;
+  const type = cleanParam(searchParams.get("type")) as ReportType | undefined;
   if (!type) return { type: undefined };
 
-  const mode = searchParams.get("mode");
-  if (!mode) return { type, mode: undefined };
+  const mode = cleanParam(searchParams.get("mode"));
+  if (!mode) return { type }; // <- si viene "undefined", lo tratamos como que NO hay filtros
 
   if (type === ReportTypeEnum.SALES) {
     const raw: Record<string, unknown> = {
       type,
       mode,
-      year: searchParams.get("year") ?? undefined,
-      month: searchParams.get("month") ?? undefined,
-      from: searchParams.get("from") ?? undefined,
-      to: searchParams.get("to") ?? undefined,
+      year: cleanParam(searchParams.get("year")),
+      month: cleanParam(searchParams.get("month")),
+      from: cleanParam(searchParams.get("from")),
+      to: cleanParam(searchParams.get("to")),
     };
 
     const parsed = SalesReportFiltersSchema.safeParse(raw);
@@ -83,4 +83,11 @@ export function isCompleteSalesReportFilters(
     state.type === ReportTypeEnum.SALES &&
     (state as SalesReportFilters).mode !== undefined
   );
+}
+
+function cleanParam(v: string | null): string | undefined {
+  if (!v) return undefined;
+  const t = v.trim();
+  if (!t || t === "undefined" || t === "null") return undefined;
+  return t;
 }
