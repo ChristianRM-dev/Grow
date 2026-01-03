@@ -2,7 +2,6 @@
 // Creates initial internal users for Credentials login using bcrypt hashes.
 
 import { PrismaClient, UserRole } from "@/generated/prisma/client";
-
 import bcrypt from "bcryptjs";
 
 type SeedUsersOptions = {
@@ -10,8 +9,19 @@ type SeedUsersOptions = {
 };
 
 function getDefaultPassword(): string {
-  // Default dev password (can be overridden by SEED_USERS_DEFAULT_PASSWORD).
+  // Default password (should be overridden in production by SEED_USERS_DEFAULT_PASSWORD).
   return process.env.SEED_USERS_DEFAULT_PASSWORD?.trim() || "Cambiar123!";
+}
+
+function getEmailDomain(): string {
+  // Use a safe, non-real domain by default to avoid accidental emails.
+  // Recommended: loslaureles.test
+  const raw = (process.env.SEED_USERS_EMAIL_DOMAIN || "loslaureles.test")
+    .trim()
+    .toLowerCase();
+
+  // Basic hardening: remove spaces and leading "@"
+  return raw.replace(/\s+/g, "").replace(/^@+/, "");
 }
 
 async function hashPassword(raw: string): Promise<string> {
@@ -30,42 +40,30 @@ export async function seedUsers(prisma: PrismaClient, opts: SeedUsersOptions) {
     }
   }
 
+  const emailDomain = getEmailDomain();
   const password = getDefaultPassword();
   const passwordHash = await hashPassword(password);
 
   const users = [
-    {
-      name: "Juan",
-      email: "juan@grow.local",
-      role: UserRole.ADMIN,
-      isActive: true,
-    },
-    {
-      name: "Paty",
-      email: "paty@grow.local",
-      role: UserRole.OPERATOR,
-      isActive: true,
-    },
+    { name: "Juan", local: "juan", role: UserRole.ADMIN, isActive: true },
+    { name: "Paty", local: "paty", role: UserRole.OPERATOR, isActive: true },
     {
       name: "Sheila",
-      email: "sheila@grow.local",
+      local: "sheila",
       role: UserRole.OPERATOR,
       isActive: true,
     },
-    {
-      name: "Nancy",
-      email: "nancy@grow.local",
-      role: UserRole.READ_ONLY,
-      isActive: true,
-    },
+    { name: "Nancy", local: "nancy", role: UserRole.READ_ONLY, isActive: true },
   ] as const;
 
   for (const u of users) {
+    const email = `${u.local}@${emailDomain}`;
+
     await prisma.user.upsert({
-      where: { email: u.email },
+      where: { email },
       create: {
         name: u.name,
-        email: u.email,
+        email,
         role: u.role,
         isActive: u.isActive,
         passwordHash,
@@ -74,13 +72,18 @@ export async function seedUsers(prisma: PrismaClient, opts: SeedUsersOptions) {
         name: u.name,
         role: u.role,
         isActive: u.isActive,
-        // Only set passwordHash if user doesn't have one yet (avoid accidental resets).
+        // Avoid accidental password resets in production.
         passwordHash: undefined,
       },
     });
   }
 
-  console.log(
-    `SEED: Users done. Default password: ${password} (SEED_USERS_DEFAULT_PASSWORD to override).`
-  );
+  // Do not print the password in production logs.
+  if (process.env.NODE_ENV !== "production") {
+    console.log(
+      `SEED: Users done. Default password: ${password} (SEED_USERS_DEFAULT_PASSWORD to override).`
+    );
+  } else {
+    console.log("SEED: Users done.");
+  }
 }
