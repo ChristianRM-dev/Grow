@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma, PaymentDirection } from "@/generated/prisma/client";
+import {
+  Prisma,
+  PaymentDirection,
+  PaymentType,
+} from "@/generated/prisma/client";
 
 function purchaseToken(purchaseId: string) {
   return `SP:${purchaseId}`;
@@ -16,7 +20,7 @@ export type SupplierPurchasePaymentForEditDto = {
 
   payment: {
     id: string;
-    paymentType: "CASH" | "TRANSFER" | "CREDIT" | "Exchange";
+    paymentType: PaymentType;
     amount: string;
     occurredAt: string; // YYYY-MM-DD
     reference: string | null;
