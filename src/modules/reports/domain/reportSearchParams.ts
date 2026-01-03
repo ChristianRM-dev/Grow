@@ -75,3 +75,12 @@ export function serializeReportsPageState(
   return sp;
 }
 
+export function isCompleteSalesReportFilters(
+  state: ReportsPageState | null
+): state is SalesReportFilters {
+  return (
+    !!state &&
+    state.type === ReportTypeEnum.SALES &&
+    (state as SalesReportFilters).mode !== undefined
+  );
+}

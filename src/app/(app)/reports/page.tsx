@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
 import {
+  isCompleteSalesReportFilters,
   parseReportsPageState,
   serializeReportsPageState,
 } from "@/modules/reports/domain/reportSearchParams";
@@ -42,14 +43,13 @@ export default async function ReportsPage({
 
   let pdfHref: string | null = null;
 
-  if (state && state.type === ReportTypeEnum.SALES && "mode" in state) {
+  if (isCompleteSalesReportFilters(state)) {
     salesReport = await getSalesReport(state);
 
     const pdfParams = serializeReportsPageState(state).toString();
     pdfHref = pdfParams
       ? `/reports/sales/pdf?${pdfParams.replace(/^type=sales&?/, "")}`
       : "/reports/sales/pdf";
-    // NOTE: Our PDF route expects only mode/year/month/from/to. We strip type=sales.
   }
 
   return (
