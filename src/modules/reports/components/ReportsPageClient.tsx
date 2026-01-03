@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -25,25 +25,15 @@ export function ReportsPageClient({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Keep local state, but URL is source of truth.
-  const [selectedType, setSelectedType] = useState<ReportType | "">(
-    initialState.type ?? ""
-  );
-
   const currentUrlState = useMemo(() => {
     const sp = new URLSearchParams(searchParams.toString());
     return parseReportsPageState(sp);
   }, [searchParams]);
 
-  // If URL changes externally (back/forward), sync dropdown.
-  useEffect(() => {
-    if (currentUrlState && currentUrlState.type !== undefined) {
-      setSelectedType(currentUrlState.type);
-    }
-    if (currentUrlState && currentUrlState.type === undefined) {
-      setSelectedType("");
-    }
-  }, [currentUrlState]);
+  // URL is source of truth. If URL params are invalid (null), fall back to initialState.
+  const effectiveState: ReportsPageState = currentUrlState ?? initialState;
+
+  const selectedType: ReportType | "" = effectiveState.type ?? "";
 
   function updateUrlState(next: ReportsPageState) {
     const sp = serializeReportsPageState(next);
@@ -52,23 +42,18 @@ export function ReportsPageClient({
   }
 
   function handleTypeChange(nextType: ReportType | "") {
-    setSelectedType(nextType);
-
     if (!nextType) {
-      // Clear params entirely
       updateUrlState({ type: undefined });
       return;
     }
 
-    // When selecting a type for the first time, set a sensible default mode.
     if (nextType === ReportTypeEnum.SALES) {
-      // Default to yearMonth without choosing year yet (we will pick after loading years in Phase 2)
-      // We cannot validate SalesReportFilters without a year, so keep only {type} in URL for now.
-      updateUrlState({ type: nextType } as any);
+      // Keep only type until user generates valid filters.
+      updateUrlState({ type: nextType, mode: undefined });
       return;
     }
 
-    updateUrlState({ type: nextType } as any);
+    updateUrlState({ type: nextType, mode: undefined });
   }
 
   return (

@@ -6,10 +6,12 @@ import { ReportTypeEnum, type ReportType } from "./reportTypes";
 
 export type ReportsPageState =
   | { type?: undefined } // no report selected yet
-  | { type: ReportType } // report selected, but filters not generated yet
+  | { type: ReportType; mode?: undefined } // report selected, filters not generated yet
   | SalesReportFilters; // valid filters (currently only sales)
 
-function hasMode(value: unknown): value is { mode: string } {
+function hasMode(
+  value: ReportsPageState
+): value is Extract<ReportsPageState, { mode: string }> {
   return typeof value === "object" && value !== null && "mode" in value;
 }
 
@@ -23,9 +25,8 @@ export function parseReportsPageState(
   const type = searchParams.get("type") as ReportType | null;
   if (!type) return { type: undefined };
 
-  // If type exists but no mode yet, treat as a valid "incomplete" selection.
   const mode = searchParams.get("mode");
-  if (!mode) return { type };
+  if (!mode) return { type, mode: undefined };
 
   if (type === ReportTypeEnum.SALES) {
     const raw: Record<string, unknown> = {
@@ -57,7 +58,6 @@ export function serializeReportsPageState(
 
   sp.set("type", state.type);
 
-  // If filters are not complete yet, only keep the type.
   if (!hasMode(state)) return sp;
 
   if (state.type === ReportTypeEnum.SALES) {
@@ -74,3 +74,4 @@ export function serializeReportsPageState(
 
   return sp;
 }
+
