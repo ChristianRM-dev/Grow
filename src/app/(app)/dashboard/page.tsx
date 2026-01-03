@@ -31,10 +31,13 @@ function parseYearMonth(searchParams?: DashboardPageProps["searchParams"]) {
   return { year, month };
 }
 
+
+
 export default async function DashboardPage({
   searchParams,
 }: DashboardPageProps) {
-  const { year, month } = parseYearMonth(searchParams);
+    const sp = await searchParams;
+    const { year, month } = parseYearMonth(sp);
   const asOf = new Date();
 
   const [monthlySales, receivables, topDelinquents] = await Promise.all([

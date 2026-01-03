@@ -1,15 +1,23 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useFieldArray } from "react-hook-form";
+import { useFieldArray, useFormState } from "react-hook-form";
 
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 
 type Props = StepComponentProps<SalesNoteFormValues>;
 
+function normalizeMoneyInput(v: string): string {
+  return String(v ?? "")
+    .trim()
+    .replace(/\$/g, "")
+    .replace(/\s+/g, "")
+    .replace(/,/g, "."); // Accept decimal comma
+}
+
 function parseMoney(v: string): number {
-  const n = Number(String(v ?? "").trim());
+  const n = Number(normalizeMoneyInput(v));
   return Number.isFinite(n) ? n : NaN;
 }
 
@@ -19,7 +27,7 @@ function formatMoney(n: number): string {
 }
 
 function isPriceLike(v: string) {
-  const s = String(v ?? "").trim();
+  const s = normalizeMoneyInput(v);
   return /^\d+(\.\d{1,2})?$/.test(s) && Number(s) > 0;
 }
 
@@ -27,8 +35,6 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
   const {
     control,
     register,
-    getValues,
-    setValue,
     watch,
     formState: { errors },
   } = form;
@@ -38,12 +44,19 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
     name: "unregisteredLines",
   });
 
-  // Re-render on user edits
+  /**
+   * IMPORTANT:
+   * watch(...) SHOULD re-render, but in some wizard + fieldArray setups it may not.
+   * useFormState is a reliable subscription that changes per edit (dirtyFields),
+   * forcing React to re-render.
+   */
+  useFormState({ control, name: "unregisteredLines" });
+
+  // Same pattern as SalesNoteLinesStep
   const rows = watch("unregisteredLines") ?? [];
   const rowsErrors = errors.unregisteredLines;
 
-  const isRowComplete = (idx: number) => {
-    const row = getValues(`unregisteredLines.${idx}`);
+  const isRowComplete = (row: any) => {
     if (!row) return false;
 
     const name = String(row.name ?? "").trim();
@@ -60,11 +73,9 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
   // Optional step:
   // - If no rows, user can proceed and can add a row.
   // - If there are rows, all must be complete to add another.
-  const canAddRow =
-    fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
+  const canAddRow = rows.length === 0 ? true : rows.every(isRowComplete);
 
-  // Compute on every render to avoid stale memo with RHF stable refs.
-  const totals = (() => {
+  const totals = useMemo(() => {
     let subtotal = 0;
 
     for (const r of rows) {
@@ -75,8 +86,12 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
       subtotal += qty * price;
     }
 
-    return { subtotal, itemsCount: rows.length };
-  })();
+    const itemsCount = rows.filter(
+      (r) => String(r?.name ?? "").trim().length > 0
+    ).length;
+
+    return { subtotal, itemsCount };
+  }, [rows]);
 
   return (
     <div className="w-full">
@@ -151,9 +166,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           }`}
                           {...register(
                             `unregisteredLines.${index}.quantity` as const,
-                            {
-                              valueAsNumber: true,
-                            }
+                            { valueAsNumber: true }
                           )}
                         />
                         {rowErr?.quantity?.message ? (
@@ -219,13 +232,14 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
               </tbody>
             </table>
 
-            {/* Totals (optional section) */}
+            {/* Totals */}
             <div className="mt-4 flex justify-end">
               <div className="w-full max-w-sm rounded-box border border-base-300 bg-base-100 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm opacity-70">Productos</span>
                   <span className="font-medium">{totals.itemsCount}</span>
                 </div>
+
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-sm opacity-70">Subtotal</span>
                   <span className="text-lg font-semibold">

@@ -205,7 +205,7 @@ export function PartyDetailsClient({
           <div className="stat-value text-info">
             {formatMoney(summary.receivableTotal)}
           </div>
-          <div className="stat-desc">Movimientos RECEIVABLE</div>
+          {/* <div className="stat-desc">Movimientos RECEIVABLE</div> */}
         </div>
 
         <div className="stat bg-base-100 shadow-sm rounded-box">
@@ -213,7 +213,7 @@ export function PartyDetailsClient({
           <div className="stat-value text-warning">
             {formatMoney(summary.payableTotal)}
           </div>
-          <div className="stat-desc">Movimientos PAYABLE</div>
+          {/* <div className="stat-desc">Movimientos PAYABLE</div> */}
         </div>
 
         <div className="stat bg-base-100 shadow-sm rounded-box">
