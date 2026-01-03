@@ -45,7 +45,7 @@ export function SalesNoteWizard({
 }: SalesNoteWizardProps) {
   const form = useForm<SalesNoteFormValues>({
     resolver: zodResolver(SalesNoteFormSchema),
-    shouldUnregister: false, // ✅ wizard
+    shouldUnregister: false,
     defaultValues: initialValues,
     mode: "onSubmit",
   });
