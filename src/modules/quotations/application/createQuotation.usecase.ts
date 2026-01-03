@@ -101,6 +101,7 @@ export async function createQuotationUseCase(
       data: {
         folio,
         partyId,
+        status: values.status ?? "DRAFT",
         total,
         ...(values.status ? { status: values.status } : {}),
       },

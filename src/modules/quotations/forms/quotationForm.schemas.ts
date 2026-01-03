@@ -1,16 +1,30 @@
+// src/modules/quotations/forms/quotationForm.schemas.ts
 import { z } from "zod";
 
-// Define el enum localmente en lugar de importarlo de Prisma
-export const QuotationStatus = z.enum([
+// Keep enum values as const arrays so we can reuse them for typing and UI.
+// User-visible messages remain in Spanish.
+export const QuotationStatusValues = [
   "DRAFT",
   "SENT",
   "CONVERTED",
   "CANCELLED",
-]);
+] as const;
+
+export type QuotationStatusValue = (typeof QuotationStatusValues)[number];
+
+export const QuotationStatusSchema = z.enum(QuotationStatusValues, {
+  message: "Selecciona un estatus",
+});
 
 export const CustomerModeEnum = z.enum(["PUBLIC", "PARTY"]);
 export const PartyModeEnum = z.enum(["EXISTING", "NEW"]);
 
+/**
+ * NOTE:
+ * This schema is intentionally permissive because form defaultValues
+ * may include newParty even when not in NEW mode.
+ * Required fields are enforced via superRefine in the customer schema.
+ */
 export const NewPartySchema = z.object({
   name: z.string().trim().max(120, "Máximo 120 caracteres").optional(),
   phone: z.string().trim().max(30, "Máximo 30 caracteres").optional(),
@@ -26,45 +40,47 @@ export const QuotationCustomerSchema = z
     newParty: NewPartySchema.optional(),
   })
   .superRefine((val, ctx) => {
-    if (val.mode === "PARTY") {
-      if (!val.partyMode) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Selecciona tipo de contacto",
-          path: ["partyMode"],
-        });
-        return;
-      }
+    if (val.mode !== "PARTY") return;
 
-      if (val.partyMode === "NEW") {
-        if (!val.newParty?.name || val.newParty.name.trim().length === 0) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "El nombre es requerido",
-            path: ["newParty", "name"],
-          });
-        }
-        return;
-      }
+    if (!val.partyMode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona tipo de contacto",
+        path: ["partyMode"],
+      });
+      return;
+    }
 
-      // partyMode === EXISTING
-      if (!val.existingPartyId || val.existingPartyId.trim().length === 0) {
+    if (val.partyMode === "NEW") {
+      const name = val.newParty?.name?.trim() ?? "";
+      if (name.length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Selecciona un contacto",
-          path: ["existingPartyId"],
+          message: "El nombre es requerido",
+          path: ["newParty", "name"],
         });
       }
-      if (
-        !val.existingPartyName ||
-        val.existingPartyName.trim().length === 0
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Selecciona un contacto",
-          path: ["existingPartyName"],
-        });
-      }
+      return;
+    }
+
+    // partyMode === "EXISTING"
+    const id = val.existingPartyId?.trim() ?? "";
+    const name = val.existingPartyName?.trim() ?? "";
+
+    if (id.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona un contacto",
+        path: ["existingPartyId"],
+      });
+    }
+
+    if (name.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecciona un contacto",
+        path: ["existingPartyName"],
+      });
     }
   });
 
@@ -105,33 +121,8 @@ export const QuotationFormSchema = z.object({
   customer: QuotationCustomerSchema,
   lines: QuotationLinesStepSchema,
   unregisteredLines: QuotationUnregisteredLinesStepSchema,
-  status: QuotationStatus.optional(),
+  status: QuotationStatusSchema.optional(),
 });
 
-export type QuotationFormValues = {
-  customer: {
-    mode: "PUBLIC" | "PARTY";
-    partyMode?: "EXISTING" | "NEW";
-    existingPartyId?: string;
-    existingPartyName?: string;
-    newParty?: {
-      name?: string;
-      phone?: string;
-      notes?: string;
-    };
-  };
-  lines: Array<{
-    productVariantId: string;
-    productName: string;
-    quantity: number;
-    quotedUnitPrice: string;
-    description?: string;
-  }>;
-  unregisteredLines: Array<{
-    name: string;
-    quantity: number;
-    quotedUnitPrice: string;
-    description?: string;
-  }>;
-  status?: (typeof QuotationStatus)[keyof typeof QuotationStatus];
-};
+// ✅ Single source of truth for "values" typing.
+export type QuotationFormValues = z.infer<typeof QuotationFormSchema>;
