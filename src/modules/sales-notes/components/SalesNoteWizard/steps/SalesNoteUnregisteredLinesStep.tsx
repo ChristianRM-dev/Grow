@@ -9,6 +9,7 @@ import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteF
 type Props = StepComponentProps<SalesNoteFormValues>;
 
 function normalizeMoneyInput(v: string): string {
+  // Accept inputs like "$ 12,50" and normalize to "12.50"
   return String(v ?? "")
     .trim()
     .replace(/\$/g, "")
@@ -35,8 +36,9 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
   const {
     control,
     register,
-    getValues,
+    setValue,
     watch,
+    getValues,
     formState: { errors },
   } = form;
 
@@ -45,9 +47,8 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
     name: "unregisteredLines",
   });
 
-  // Usa watch para observar específicamente el array
+  // Match the working pattern from SalesNoteLinesStep
   const rows = watch("unregisteredLines") ?? [];
-
   const rowsErrors = errors.unregisteredLines;
 
   const isRowComplete = (idx: number) => {
@@ -65,15 +66,15 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
     return true;
   };
 
+  // Optional step behavior (same logic you already had)
   const canAddRow =
     fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
 
-  // Calcula los totals usando los valores actuales
-  const totals = (() => {
+  // Compute on every render (same approach as SalesNoteLinesStep)
+  const computedTotals = (() => {
     let subtotal = 0;
-    const currentRows = getValues("unregisteredLines") ?? [];
 
-    for (const r of currentRows) {
+    for (const r of rows) {
       const qty = Number(r?.quantity ?? 0);
       const price = parseMoney(String(r?.unitPrice ?? ""));
       if (!Number.isFinite(qty) || qty <= 0) continue;
@@ -81,20 +82,15 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
       subtotal += qty * price;
     }
 
-    const itemsCount = currentRows.filter(
+    const itemsCount = (rows ?? []).filter(
       (r) => String(r?.name ?? "").trim().length > 0
     ).length;
 
-    return { subtotal, itemsCount };
+    return {
+      subtotal,
+      itemsCount,
+    };
   })();
-
-  // Handler para asegurar que los cambios en precio/cantidad actualicen el total
-  const handlePriceOrQuantityChange = (index: number) => {
-    // Forzar re-render para actualizar el total
-    const currentRows = getValues("unregisteredLines") ?? [];
-    // Esto hará que React vuelva a renderizar el componente
-    return currentRows;
-  };
 
   return (
     <div className="w-full">
@@ -131,10 +127,8 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                   const row = rows[index];
                   const rowErr = rowsErrors?.[index];
 
-                  // Obtener valores actualizados para cada row
-                  const currentRow = getValues(`unregisteredLines.${index}`);
-                  const qty = Number(currentRow?.quantity ?? 0);
-                  const price = parseMoney(String(currentRow?.unitPrice ?? ""));
+                  const qty = Number(row?.quantity ?? 0);
+                  const price = parseMoney(String(row?.unitPrice ?? ""));
                   const rowTotal =
                     Number.isFinite(qty) &&
                     qty > 0 &&
@@ -171,11 +165,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           }`}
                           {...register(
                             `unregisteredLines.${index}.quantity` as const,
-                            {
-                              valueAsNumber: true,
-                              onChange: () =>
-                                handlePriceOrQuantityChange(index),
-                            }
+                            { valueAsNumber: true }
                           )}
                         />
                         {rowErr?.quantity?.message ? (
@@ -195,8 +185,20 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           {...register(
                             `unregisteredLines.${index}.unitPrice` as const,
                             {
-                              onChange: () =>
-                                handlePriceOrQuantityChange(index),
+                              onChange: (e) => {
+                                // Keep the raw input in the UI, but normalize for internal logic if user types "$" or ","
+                                const raw = String(e.target.value ?? "");
+                                const normalized = normalizeMoneyInput(raw);
+
+                                // If normalization changes the value, sync it back so getValues/watch behave consistently.
+                                if (normalized !== raw) {
+                                  setValue(
+                                    `unregisteredLines.${index}.unitPrice`,
+                                    normalized,
+                                    { shouldDirty: true }
+                                  );
+                                }
+                              },
                             }
                           )}
                         />
@@ -245,18 +247,19 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
               </tbody>
             </table>
 
-            {/* Totals */}
             <div className="mt-4 flex justify-end">
               <div className="w-full max-w-sm rounded-box border border-base-300 bg-base-100 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm opacity-70">Productos</span>
-                  <span className="font-medium">{totals.itemsCount}</span>
+                  <span className="font-medium">
+                    {computedTotals.itemsCount}
+                  </span>
                 </div>
 
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-sm opacity-70">Subtotal</span>
                   <span className="text-lg font-semibold">
-                    {formatMoney(totals.subtotal)}
+                    {formatMoney(computedTotals.subtotal)}
                   </span>
                 </div>
               </div>
