@@ -83,7 +83,6 @@ export async function getSalesReport(
     where: {
       createdAt: { gte: from, lt: toExclusive },
       // Recommended for real "sales" reporting:
-      status: "CONFIRMED",
       // If you prefer: status: { not: "CANCELLED" }
     },
     select: {

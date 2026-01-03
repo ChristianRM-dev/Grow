@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getSalesNoteAvailableYears } from "@/modules/reports/queries/getSalesNoteAvailableYears.query";
+import { getSalesReportAvailableYearsQuery } from "@/modules/reports/queries/getSalesReportAvailableYears.query";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +11,6 @@ export async function GET() {
     return NextResponse.json({ message: "No autorizado" }, { status: 401 });
   }
 
-  const years = await getSalesNoteAvailableYears();
+  const years = await getSalesReportAvailableYearsQuery();
   return NextResponse.json({ years });
 }

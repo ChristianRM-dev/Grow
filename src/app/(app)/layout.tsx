@@ -42,6 +42,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       icon: "supplierPurchases",
     },
     { label: "Productos", href: routes.products.list(), icon: "products" },
+    { label: "Reportes", href: routes.reports(), icon: "reports" },
   ];
 
   return (

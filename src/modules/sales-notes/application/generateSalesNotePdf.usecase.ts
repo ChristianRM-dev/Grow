@@ -1,9 +1,9 @@
-import PDFDocument from "pdfkit";
 import { PrismaClient } from "@/generated/prisma/client";
 
 import { toNumber } from "@/modules/shared/utils/toNumber";
 import { parseDescriptionSnapshotName } from "@/modules/shared/snapshots/parseDescriptionSnapshotName";
-import { createInterPdfDoc, setPdfFont } from "@/modules/shared/pdf/pdfDoc";
+import { createPdfDocument, useBold, useRegular } from "@/modules/shared/pdf";
+import { safeFileNamePart } from "@/modules/shared/pdf/pdfFileName";
 
 type PdfResult = { doc: PDFKit.PDFDocument; fileName: string };
 
@@ -106,15 +106,16 @@ export async function generateSalesNotePdf(
     throw err;
   }
 
-  // Create PDF (Inter as default font to avoid Helvetica.afm)
-  const { doc } = createInterPdfDoc({ size: "A4", margin: 40 });
+  // Create PDF (shared core: Inter fonts + defaults)
+  const doc = createPdfDocument();
 
   // Header
-  setPdfFont(doc, "bold");
+  useBold(doc);
   doc.fontSize(16).text("Nota de venta", { align: "center" });
+  useRegular(doc);
+
   doc.moveDown(0.5);
 
-  setPdfFont(doc, "regular");
   doc.fontSize(10);
   doc.text(`Folio: ${salesNote.folio}`);
   doc.text(`Estado: ${salesNote.status}`);
@@ -135,12 +136,12 @@ export async function generateSalesNotePdf(
   const colUnit = startX + 360;
   const colTotal = startX + 460;
 
-  setPdfFont(doc, "bold");
-  doc.fontSize(10);
-  doc.text("Cant.", colQty, y);
+  useBold(doc);
+  doc.fontSize(10).text("Cant.", colQty, y);
   doc.text("Descripción", colDesc, y);
   doc.text("P. Unit.", colUnit, y, { width: 80, align: "right" });
   doc.text("Importe", colTotal, y, { width: 80, align: "right" });
+  useRegular(doc);
 
   y += 14;
   doc
@@ -150,9 +151,7 @@ export async function generateSalesNotePdf(
   y += 8;
 
   // Lines
-  setPdfFont(doc, "regular");
   doc.fontSize(10);
-
   for (const line of salesNote.lines) {
     const qty = toNumber(line.quantity);
     const unit = toNumber(line.unitPrice);
@@ -173,27 +172,24 @@ export async function generateSalesNotePdf(
     if (y > 740) {
       doc.addPage();
       y = doc.y;
-      setPdfFont(doc, "regular");
-      doc.fontSize(10);
     }
   }
 
   doc.moveDown();
 
-  // Totals block
+  // Totals
   const subtotal = toNumber(salesNote.subtotal);
   const discount = toNumber(salesNote.discountTotal);
   const grandTotal = toNumber(salesNote.total);
 
-  setPdfFont(doc, "regular");
+  useBold(doc);
   doc.fontSize(11);
   doc.text(`Subtotal: $${subtotal.toFixed(2)}`, { align: "right" });
   doc.text(`Descuento: $${discount.toFixed(2)}`, { align: "right" });
-
-  setPdfFont(doc, "bold");
   doc.fontSize(12).text(`Total: $${grandTotal.toFixed(2)}`, { align: "right" });
+  useRegular(doc);
 
-  // Payments summary (only IN for sales notes)
+  // Payments summary (only IN)
   const paymentsIn = (salesNote.payments ?? []).filter(
     (p: any) => p.direction === "IN"
   );
@@ -203,20 +199,16 @@ export async function generateSalesNotePdf(
   );
   const pending = Math.max(0, grandTotal - paid);
 
-  setPdfFont(doc, "regular");
   doc.moveDown(0.5);
   doc.fontSize(11).text(`Pagado: $${paid.toFixed(2)}`, { align: "right" });
   doc.text(`Pendiente: $${pending.toFixed(2)}`, { align: "right" });
 
   if (paymentsIn.length > 0) {
     doc.moveDown();
-
-    setPdfFont(doc, "bold");
+    useBold(doc);
     doc.fontSize(10).text("Pagos", { underline: true });
+    useRegular(doc);
     doc.moveDown(0.25);
-
-    setPdfFont(doc, "regular");
-    doc.fontSize(10);
 
     for (const p of paymentsIn) {
       const amount = toNumber(p.amount);
@@ -226,14 +218,15 @@ export async function generateSalesNotePdf(
     }
   }
 
-  // Footer
   doc.moveDown(1.5);
-  setPdfFont(doc, "regular");
   doc.fontSize(9).text("Gracias por su compra.", { align: "center" });
 
   doc.end();
 
-  const fileName = `nota-venta-${salesNote.folio}.pdf`;
+  const fileName = `nota-venta-${safeFileNamePart(
+    String(salesNote.folio)
+  )}.pdf`;
+
   console.info(`${logPrefix} pdf generated`, { fileName });
 
   return { doc, fileName };

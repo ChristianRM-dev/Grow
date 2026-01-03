@@ -1,5 +1,6 @@
-import PDFDocument from "pdfkit";
 import type { SalesReportDto } from "@/modules/reports/queries/getSalesReport.dto";
+import { createPdfDocument, useBold, useRegular } from "@/modules/shared/pdf";
+import { safeFileNamePart } from "@/modules/shared/pdf/pdfFileName";
 import { money, dateMX } from "@/modules/shared/utils/formatters";
 
 type PdfResult = { doc: PDFKit.PDFDocument; fileName: string };
@@ -8,37 +9,62 @@ function formatQty(qty: number) {
   return qty.toFixed(3).replace(/\.?0+$/, "");
 }
 
-function safeFileName(value: string) {
-  // Keep filename stable and filesystem-safe
-  return value
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w\-]+/g, "")
-    .slice(0, 80);
+function resetCursor(doc: PDFKit.PDFDocument) {
+  // PDFKit keeps doc.x after absolute positioned writes.
+  // We force it back to the left margin for "normal flow" text.
+  doc.x = doc.page.margins.left;
+}
+
+function contentWidth(doc: PDFKit.PDFDocument) {
+  return doc.page.width - doc.page.margins.left - doc.page.margins.right;
 }
 
 export function generateSalesReportPdf(report: SalesReportDto): PdfResult {
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const doc = createPdfDocument();
+
+  const left = doc.page.margins.left;
+  const width = contentWidth(doc);
 
   // Header
-  doc.fontSize(16).text("Reporte de ventas", { align: "center" });
-  doc.moveDown(0.5);
+  resetCursor(doc);
+  useBold(doc);
+  doc
+    .fontSize(16)
+    .text("Reporte de ventas", left, doc.y, { width, align: "center" });
+  useRegular(doc);
 
-  doc.fontSize(10);
-  doc.text(`Período: ${report.rangeLabel}`);
+  doc.moveDown(0.5);
+  resetCursor(doc);
+  doc
+    .fontSize(10)
+    .text(`Período: ${report.rangeLabel}`, left, doc.y, { width });
+
   doc.moveDown(0.75);
 
   let grandTotal = 0;
 
   for (const sn of report.salesNotes) {
-    // Sale header block
-    doc.fontSize(12).text(`Folio: ${sn.folio}`, { continued: true });
-    doc.fontSize(10).text(`  •  ${dateMX(sn.createdAt)}`);
-    doc.fontSize(10).text(`Cliente: ${sn.partyName}`);
+    // Page break cushion before a new sale block
+    if (doc.y > 720) {
+      doc.addPage();
+    }
+
+    resetCursor(doc);
+
+    // Use a single line to avoid continued/width quirks
+    const headerLine = `Folio: ${sn.folio} • ${dateMX(sn.createdAt)}`;
+
+    useBold(doc);
+    doc.fontSize(12).text(headerLine, left, doc.y, { width });
+    useRegular(doc);
+
+    doc.fontSize(10).text(`Cliente: ${sn.partyName}`, left, doc.y, { width });
     doc.moveDown(0.25);
 
     // Table header
-    const startX = doc.x;
+    resetCursor(doc);
+
+    const startX = left;
     let y = doc.y;
 
     const colDesc = startX;
@@ -46,10 +72,12 @@ export function generateSalesReportPdf(report: SalesReportDto): PdfResult {
     const colQty = startX + 390;
     const colTotal = startX + 460;
 
+    useBold(doc);
     doc.fontSize(10).text("Descripción", colDesc, y);
     doc.text("P. Unit.", colUnit, y, { width: 80, align: "right" });
     doc.text("Cant.", colQty, y, { width: 60, align: "right" });
     doc.text("Importe", colTotal, y, { width: 80, align: "right" });
+    useRegular(doc);
 
     y += 14;
     doc
@@ -60,7 +88,35 @@ export function generateSalesReportPdf(report: SalesReportDto): PdfResult {
 
     // Lines
     doc.fontSize(10);
+
     for (const line of sn.lines) {
+      // Compute dynamic row height (wrapping-safe)
+      const descHeight = doc.heightOfString(line.description, { width: 290 });
+      const rowHeight = Math.max(12, descHeight); // 12 ~ one line
+
+      // Page break BEFORE writing the row
+      if (y + rowHeight + 10 > 740) {
+        doc.addPage();
+        resetCursor(doc);
+        y = doc.y;
+
+        // Re-draw table header on new page
+        useBold(doc);
+        doc.fontSize(10).text("Descripción", colDesc, y);
+        doc.text("P. Unit.", colUnit, y, { width: 80, align: "right" });
+        doc.text("Cant.", colQty, y, { width: 60, align: "right" });
+        doc.text("Importe", colTotal, y, { width: 80, align: "right" });
+        useRegular(doc);
+
+        y += 14;
+        doc
+          .moveTo(startX, y)
+          .lineTo(startX + 520, y)
+          .stroke();
+        y += 8;
+      }
+
+      // Draw row at y
       doc.text(line.description, colDesc, y, { width: 290 });
       doc.text(money(line.unitPrice), colUnit, y, {
         width: 80,
@@ -75,42 +131,44 @@ export function generateSalesReportPdf(report: SalesReportDto): PdfResult {
         align: "right",
       });
 
-      y = doc.y + 6;
-
-      // Page break safety
-      if (y > 740) {
-        doc.addPage();
-        y = doc.y;
-      }
+      // Advance y safely and keep doc.y in sync
+      y += rowHeight + 6;
+      doc.y = y;
+      resetCursor(doc);
     }
 
     // Sale total
     doc.moveDown(0.25);
+    resetCursor(doc);
+
+    useBold(doc);
     doc
       .fontSize(11)
-      .text(`Total de la venta: ${money(sn.total)}`, { align: "right" });
+      .text(`Total de la venta: ${money(sn.total)}`, left, doc.y, {
+        width,
+        align: "right",
+      });
+    useRegular(doc);
 
     grandTotal += sn.total;
 
     doc.moveDown(0.9);
-
-    // Extra page break cushion between notes
-    if (doc.y > 740) {
-      doc.addPage();
-    }
   }
 
   // Grand total
-  doc.moveDown(0.5);
-  doc.fontSize(12).text(`Gran total: ${money(grandTotal)}`, { align: "right" });
+  resetCursor(doc);
+  useBold(doc);
+  doc.fontSize(12).text(`Gran total: ${money(grandTotal)}`, left, doc.y, {
+    width,
+    align: "right",
+  });
+  useRegular(doc);
 
-  // Footer
   doc.moveDown(1);
-  doc.fontSize(9).text("Generado por Grow.", { align: "center" });
+  resetCursor(doc);
 
   doc.end();
 
-  const fileName = `reporte-ventas-${safeFileName(report.rangeLabel)}.pdf`;
-
+  const fileName = `reporte-ventas-${safeFileNamePart(report.rangeLabel)}.pdf`;
   return { doc, fileName };
 }

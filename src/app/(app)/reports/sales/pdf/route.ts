@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { ReadableStream } from "node:stream/web";
 
 import { auth } from "@/auth";
 import { SalesReportFiltersSchema } from "@/modules/reports/domain/salesReportFilters.schema";
 import { getSalesReport } from "@/modules/reports/queries/getSalesReport.query";
 import { generateSalesReportPdf } from "@/modules/reports/application/generateSalesReportPdf.usecase";
+import { pdfKitToReadableStream } from "@/modules/shared/pdf/pdfStream";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,18 +38,11 @@ export async function GET(req: Request) {
     const report = await getSalesReport(parsed.data);
     const { doc, fileName } = generateSalesReportPdf(report);
 
-    const stream = new ReadableStream({
-      start(controller) {
-        doc.on("data", (chunk: Buffer) => controller.enqueue(chunk));
-        doc.on("end", () => controller.close());
-        doc.on("error", (err: unknown) => controller.error(err));
-      },
-    });
+    const stream = pdfKitToReadableStream(doc);
 
     return new NextResponse(stream as any, {
       headers: {
         "Content-Type": "application/pdf",
-        // inline so it opens in a new tab and renders directly
         "Content-Disposition": `inline; filename="${fileName}"`,
         "Cache-Control": "no-store",
       },
@@ -58,10 +51,7 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         message: "Error generando PDF",
-        error: {
-          name: e?.name,
-          message: e?.message,
-        },
+        error: { name: e?.name, message: e?.message, meta: e?.meta },
       },
       { status: 500 }
     );
