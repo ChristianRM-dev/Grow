@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateSalesNotePdf } from "@/modules/sales-notes/application/generateSalesNotePdf.usecase";
+import { pdfKitToReadableStream } from "@/modules/shared/pdf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,9 +23,9 @@ export async function GET(
   const { doc, fileName } = await generateSalesNotePdf(prisma, id);
 
   // PDFKit doc is a Node Readable stream
-  const webStream = Readable.toWeb(doc as any);
+  const stream = pdfKitToReadableStream(doc);
 
-  return new NextResponse(webStream as any, {
+  return new NextResponse(stream as any, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${fileName}"`,

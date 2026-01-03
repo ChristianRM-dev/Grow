@@ -12,7 +12,11 @@ import type {
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
 import type { QuotationRowDto } from "@/modules/quotations/queries/getQuotationsTable.query";
 
-import { EyeIcon, PencilSquareIcon } from "@heroicons/react/16/solid";
+import {
+  DocumentIcon,
+  EyeIcon,
+  PencilSquareIcon,
+} from "@heroicons/react/16/solid";
 import { routes } from "@/lib/routes";
 import { dateMX, money } from "@/modules/shared/utils/formatters";
 
@@ -63,6 +67,12 @@ export function QuotationsTableClient({
       tooltip: "Editar cotización",
       icon: <PencilSquareIcon className="h-5 w-5" />,
     },
+    {
+      type: "pdf",
+      label: "Ver PDF",
+      tooltip: "Ver PDF",
+      icon: <DocumentIcon className="h-5 w-5" />,
+    },
   ];
 
   return (
@@ -81,6 +91,11 @@ export function QuotationsTableClient({
           case "edit":
             router.push(routes.quotations.edit(e.row.id));
             break;
+          case "pdf": {
+            const url = routes.quotations.pdf(e.row.id); // /sales-notes/[id]/pdf (route.ts)
+            window.open(url, "_blank", "noopener,noreferrer");
+            break;
+          }
         }
       }}
       searchPlaceholder="Buscar por folio o contacto…"

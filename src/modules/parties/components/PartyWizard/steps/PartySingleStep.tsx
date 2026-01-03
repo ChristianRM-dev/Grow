@@ -79,9 +79,9 @@ export function PartySingleStep({ form }: StepComponentProps<PartyFormValues>) {
           </div>
 
           {/* The refine error is attached to roles */}
-          {(errors.roles as any)?.message ? (
+          {errors.roles?.message ? (
             <p className="mt-2 text-sm text-error">
-              {String((errors.roles as any).message)}
+              {String(errors.roles.message)}
             </p>
           ) : null}
         </div>

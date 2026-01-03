@@ -12,6 +12,7 @@ import {
   UserCircleIcon,
   BanknotesIcon,
   TableCellsIcon,
+  DocumentChartBarIcon,
 } from "@heroicons/react/16/solid";
 
 export type AppNavIcon =
@@ -20,7 +21,8 @@ export type AppNavIcon =
   | "salesNotes"
   | "parties"
   | "supplierPurchases"
-  | "quotations";
+  | "quotations"
+  | "reports";
 
 export type AppNavItem = {
   label: string; // Spanish UI
@@ -39,6 +41,7 @@ const ICONS: Record<
   parties: UserCircleIcon,
   supplierPurchases: BanknotesIcon,
   quotations: TableCellsIcon,
+  reports: DocumentChartBarIcon,
 };
 
 function isActivePath(pathname: string, href: string, exact?: boolean) {

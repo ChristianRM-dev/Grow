@@ -72,7 +72,7 @@ export function ListPageLayout({
           <div className="tooltip tooltip-left" data-tip={fabLabel}>
             <button
               type="button"
-              className="btn btn-primary btn-circle shadow-lg"
+              className="btn btn-primary btn-xl btn-circle shadow-lg"
               onClick={handleCreate}
               aria-label={fabLabel}
               title={fabLabel}

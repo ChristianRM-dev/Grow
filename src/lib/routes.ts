@@ -10,6 +10,7 @@ export const routes = {
   home: () => "/",
   login: () => "/login",
   dashboard: () => "/dashboard",
+  reports: () => "/reports",
 
   products: {
     list: () => "/products",
@@ -56,5 +57,6 @@ export const routes = {
     details: (id: string) => `/quotations/${id}`,
     edit: (id: string) => `/quotations/${id}/edit`,
     new: () => "/quotations/new",
+    pdf: (id: string) => `/quotations/${id}/pdf`,
   },
 } as const;

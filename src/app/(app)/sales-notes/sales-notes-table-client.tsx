@@ -85,7 +85,6 @@ export function SalesNotesTableClient({
       label: "Ver PDF",
       tooltip: "Ver PDF",
       icon: <DocumentIcon className="h-5 w-5" />,
-      disabled: (row) => row.isFullyPaid,
     },
   ];
 

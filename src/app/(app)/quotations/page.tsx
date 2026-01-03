@@ -6,22 +6,21 @@ import { getQuotationsTableQuery } from "@/modules/quotations/queries/getQuotati
 import { QuotationsTableClient } from "./quotations-table-client";
 
 export const dynamic = "force-dynamic";
+type QuotationsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default async function QuotationsPage({
-  searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
-  const { data, pagination } = await getQuotationsTableQuery(searchParams);
+export default async function QuotationsPage({ searchParams }: QuotationsPageProps) {
+  const sp = await searchParams;
+  const { data, pagination } = await getQuotationsTableQuery(sp);
 
   return (
     <ListPageLayout
       title="Cotizaciones"
       description="Administra el catálogo de cotizaciones."
       breadcrumbs={<Breadcrumbs items={[{ label: "Cotizaciones" }]} />}
-      // Si aún no tienes create, déjalo comentado por ahora:
-      // fabLabel="Nueva cotización"
-      // createRoute={routes.quotations.new()}
+      fabLabel="Nueva cotización"
+      createRoute={routes.quotations.new()}
     >
       <QuotationsTableClient data={data} pagination={pagination} />
     </ListPageLayout>

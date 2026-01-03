@@ -5,14 +5,17 @@ import { routes } from "@/lib/routes";
 import { SupplierPurchasesTableClient } from "./supplier-purchases-table-client";
 import { getSupplierPurchasesTableQuery } from "@/modules/supplier-purchases/queries/getSupplierPurchasesTable.query";
 
+export const dynamic = "force-dynamic";
+
+type SupplierPurchasesPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
 export default async function SupplierPurchasesPage({
   searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
-  const { data, pagination } = await getSupplierPurchasesTableQuery(
-    searchParams
-  );
+}: SupplierPurchasesPageProps) {
+  const sp = await searchParams;
+  const { data, pagination } = await getSupplierPurchasesTableQuery(sp);
 
   return (
     <ListPageLayout

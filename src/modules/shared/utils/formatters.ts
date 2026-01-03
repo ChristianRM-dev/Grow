@@ -2,9 +2,9 @@
  * Formats a numeric string into MX money display with 2 decimals.
  * Returns the original input if it's not a valid number.
  */
-export function money(v: string): string {
+export function money(v: string | number): string {
   const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(2) : v;
+  return Number.isFinite(n) ? n.toFixed(2) : v.toString();
 }
 
 /**
@@ -65,3 +65,42 @@ export function phoneMX(v: string | null | undefined): string {
 
   return raw;
 }
+
+const MONTHS_ES_MX = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+] as const;
+
+/**
+ * Converts a month number (1-12) into a Spanish month name (es-MX).
+ * If invalid, returns the original input as string.
+ *
+ * Examples:
+ * monthNameMX(1) -> "enero"
+ * monthNameMX("12") -> "diciembre"
+ */
+export function monthNameMX(month: number | string): string {
+  const n = Number(month);
+  if (!Number.isInteger(n) || n < 1 || n > 12) return String(month);
+  return MONTHS_ES_MX[n - 1];
+}
+
+/**
+ * Optional: returns the month label with capitalization for UI.
+ * Example: "Enero"
+ */
+export function monthLabelMX(month: number | string): string {
+  const name = monthNameMX(month);
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : name;
+}
+

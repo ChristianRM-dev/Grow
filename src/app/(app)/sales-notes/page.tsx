@@ -4,12 +4,15 @@ import { SalesNotesTableClient } from "./sales-notes-table-client";
 import { routes } from "@/lib/routes";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs";
 
-export default async function SalesNotesPage({
-  searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
-  const { data, pagination } = await getSalesNotesTableQuery(searchParams);
+export const dynamic = "force-dynamic";
+
+type SalesNotesPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function SalesNotesPage({ searchParams }: SalesNotesPageProps) {
+  const sp = await searchParams;
+  const { data, pagination } = await getSalesNotesTableQuery(sp);
 
   return (
     <ListPageLayout

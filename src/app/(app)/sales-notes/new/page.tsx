@@ -1,9 +1,59 @@
 import { FormPageLayout } from "@/components/ui/FormPageLayout/FormPageLayout";
-import { SalesNoteNewClient } from "./sales-note-new-client";
-import { routes } from "@/lib/routes";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs";
+import { routes } from "@/lib/routes";
+import { getQuotationForSalesNoteDraft } from "@/modules/quotations/queries/getQuotationForSalesNoteDraft.query";
+import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
+import { SalesNoteNewClient } from "./sales-note-new-client";
 
-export default function SalesNoteNewPage() {
+const baseValues: SalesNoteFormValues = {
+  customer: {
+    mode: "PUBLIC",
+    partyMode: "EXISTING",
+    existingPartyName: "",
+    existingPartyId: "",
+    newParty: { name: "", phone: "", notes: "" },
+  },
+  lines: [
+    {
+      productVariantId: "",
+      productName: "",
+      quantity: 1,
+      unitPrice: "",
+      description: "",
+    },
+  ],
+  unregisteredLines: [],
+};
+
+function cloneDefaultValues(): SalesNoteFormValues {
+  return JSON.parse(JSON.stringify(baseValues)) as SalesNoteFormValues;
+}
+
+export default async function SalesNoteNewPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const fromQuotationId =
+    typeof params?.fromQuotationId === "string" ? params.fromQuotationId : null;
+
+  let initialValues = cloneDefaultValues();
+  let sourceQuotation:
+    | {
+        id: string;
+        folio: string;
+      }
+    | undefined;
+
+  if (fromQuotationId) {
+    const draft = await getQuotationForSalesNoteDraft(fromQuotationId);
+    if (draft) {
+      initialValues = draft.values;
+      sourceQuotation = { id: draft.quotationId, folio: draft.folio };
+    }
+  }
+
   return (
     <FormPageLayout
       title="Nueva nota de venta"
@@ -18,7 +68,10 @@ export default function SalesNoteNewPage() {
         />
       }
     >
-      <SalesNoteNewClient />
+      <SalesNoteNewClient
+        initialValues={initialValues}
+        sourceQuotation={sourceQuotation}
+      />
     </FormPageLayout>
   );
 }

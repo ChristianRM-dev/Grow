@@ -62,7 +62,18 @@ export default async function SalesNoteDetailsPage({
             Registrar pago
           </Link>
 
-          <Link href={routes.salesNotes.edit(dto.id)} className="btn btn-sm">
+          <Link
+            href={routes.salesNotes.pdf(dto.id)}
+            target="_new"
+            className={`btn btn-info btn-sm`}
+          >
+            Ver PDF
+          </Link>
+
+          <Link
+            href={routes.salesNotes.edit(dto.id)}
+            className="btn btn-warning btn-sm"
+          >
             Editar nota
           </Link>
         </>
