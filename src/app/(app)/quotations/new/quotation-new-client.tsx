@@ -12,6 +12,7 @@ import { routes } from "@/lib/routes";
 const defaultValues: QuotationFormValues = {
   customer: {
     mode: "PARTY",
+    partyName: "",
     partyMode: "EXISTING",
     existingPartyId: "",
     existingPartyName: "",
