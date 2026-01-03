@@ -58,5 +58,8 @@ export const routes = {
     edit: (id: string) => `/quotations/${id}/edit`,
     new: () => "/quotations/new",
     pdf: (id: string) => `/quotations/${id}/pdf`,
+    // Nuevo método para crear nota de venta desde una cotización
+    createSalesNote: (quotationId: Id) =>
+      `${routes.salesNotes.new()}?fromQuotationId=${enc(quotationId)}`,
   },
 } as const;

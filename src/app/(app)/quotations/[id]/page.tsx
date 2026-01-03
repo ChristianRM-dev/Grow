@@ -77,7 +77,7 @@ export default async function QuotationDetailsPage({
       headerActions={
         <>
           <Link
-            href={routes.quotations.new()}
+            href={routes.quotations.createSalesNote(dto.id)}
             className="btn btn-primary btn-sm"
           >
             Crear nota de venta
