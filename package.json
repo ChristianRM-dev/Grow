@@ -2,6 +2,15 @@
   "name": "grow",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "sharp"
+    ]
+  },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
