@@ -17,23 +17,23 @@ export const SalesNoteCustomerStepSchema = z.object({
   newParty: NewPartySchema.optional(),
 });
 
-const decimalString = z.preprocess(
-  (v) =>
-    String(v ?? "")
-      .trim()
-      .replace(/\$/g, "")
-      .replace(/\s+/g, "")
-      .replace(/,/g, "."),
-  z
-    .string()
+const normalizeMoneyString = (v: string) =>
+  String(v ?? "")
     .trim()
-    .min(1, "El precio es requerido")
-    .refine(
-      (v) => /^\d+(\.\d{1,2})?$/.test(v),
-      "Formato inválido (ej: 12 o 12.50)"
-    )
-    .refine((v) => Number(v) > 0, "El precio debe ser mayor a 0")
-);
+    .replace(/\$/g, "")
+    .replace(/\s+/g, "")
+    .replace(/,/g, ".");
+
+const decimalString = z
+  .string()
+  .transform((v) => normalizeMoneyString(v))
+  .refine((v) => v.length > 0, "El precio es requerido")
+  .refine(
+    (v) => /^\d+(\.\d{1,2})?$/.test(v),
+    "Formato inválido (ej: 12 o 12.50)"
+  )
+  .refine((v) => Number(v) > 0, "El precio debe ser mayor a 0");
+
 
 
 export const SalesNoteLineSchema = z.object({
