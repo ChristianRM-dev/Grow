@@ -1,0 +1,212 @@
+[
+  {
+    "id": "b505fe57-3e1c-4ce2-a561-21784b0e5d93",
+    "name": "VENTA AL PUBLICO",
+    "phone": null,
+    "email": null,
+    "address": null,
+    "createdAt": "2025-05-04T23:41:24.803Z",
+    "updatedAt": "2025-05-06T01:28:24.307Z",
+    "deletedAt": null
+  },
+  {
+    "id": "6b7062fb-ced8-4d3d-8bbb-1f9fb9f5c691",
+    "name": "MARIA VARGAS",
+    "phone": "6677910822",
+    "email": null,
+    "address": "Culiacan, Sinaloa",
+    "createdAt": "2025-05-06T01:29:04.333Z",
+    "updatedAt": "2025-05-06T02:26:35.555Z",
+    "deletedAt": null
+  },
+  {
+    "id": "58c4ac9a-24e4-4b20-b522-6bd9125bb217",
+    "name": "JOEL ARCE",
+    "phone": "6681634232",
+    "email": null,
+    "address": "LOS MOCHIS, SINALOA",
+    "createdAt": "2025-05-06T01:29:54.842Z",
+    "updatedAt": "2025-05-07T00:05:18.377Z",
+    "deletedAt": null
+  },
+  {
+    "id": "e5e88659-27d0-4eb8-9273-cf32cde0ab21",
+    "name": "LUIS GUASAVE",
+    "phone": "6871922130",
+    "email": null,
+    "address": "GUASAVE, SINALOA",
+    "createdAt": "2025-05-06T01:38:11.339Z",
+    "updatedAt": "2025-05-07T00:05:32.399Z",
+    "deletedAt": null
+  },
+  {
+    "id": "c7b90c3b-5dd4-4795-af2a-aadb04722ad5",
+    "name": "ABEL SANCHEZ",
+    "phone": "3121997779",
+    "email": null,
+    "address": "COLIMA",
+    "createdAt": "2025-05-06T01:33:35.227Z",
+    "updatedAt": "2025-05-07T00:05:47.507Z",
+    "deletedAt": null
+  },
+  {
+    "id": "5e5078e5-e741-4e80-8a7f-09d9f973dff4",
+    "name": "JOSE LUIS (CHIMINO)",
+    "phone": "6681905446",
+    "email": null,
+    "address": "LOS MOCHIS, SINALOA",
+    "createdAt": "2025-05-06T01:33:00.340Z",
+    "updatedAt": "2025-05-07T00:06:02.455Z",
+    "deletedAt": null
+  },
+  {
+    "id": "b54c9dc5-66bb-4be5-a84a-5d563586fce1",
+    "name": "VICTOR ARMENTA",
+    "phone": "6672695633",
+    "email": null,
+    "address": "CULIACAN, SINALOA",
+    "createdAt": "2025-05-06T01:28:05.363Z",
+    "updatedAt": "2025-05-07T00:06:24.516Z",
+    "deletedAt": null
+  },
+  {
+    "id": "183f44a5-d0d3-4580-bc2b-e8b2367618bb",
+    "name": "JAVIER CASAS",
+    "phone": "6688828410",
+    "email": null,
+    "address": "LOS MOCHIS, SINALOA",
+    "createdAt": "2025-05-07T00:07:18.597Z",
+    "updatedAt": "2025-05-07T00:07:18.597Z",
+    "deletedAt": null
+  },
+  {
+    "id": "1e872bc8-a807-45ba-86be-7becd30037b5",
+    "name": "HERMEREGILDO (MERE)",
+    "phone": "6981087284",
+    "email": null,
+    "address": "LOS MOCHIS, SINALOA",
+    "createdAt": "2025-05-07T00:08:41.158Z",
+    "updatedAt": "2025-05-07T00:08:41.158Z",
+    "deletedAt": null
+  },
+  {
+    "id": "9462cd3b-e0bf-431d-81ee-21ebce7d4ec6",
+    "name": "ELEAZAR LOPEZ SANTOS",
+    "phone": "6871783469",
+    "email": null,
+    "address": "LOS MOCHIS, SINALOA",
+    "createdAt": "2025-05-07T00:09:49.560Z",
+    "updatedAt": "2025-05-07T00:09:49.560Z",
+    "deletedAt": null
+  },
+  {
+    "id": "e21653ad-02e6-4bcd-aa70-6c8dcfef0287",
+    "name": "FERNANDO LOPEZ SANTOS",
+    "phone": "6471188757",
+    "email": null,
+    "address": "MAZATLAN, SINALOA",
+    "createdAt": "2025-05-07T00:38:26.503Z",
+    "updatedAt": "2025-05-07T00:38:26.503Z",
+    "deletedAt": null
+  },
+  {
+    "id": "411d06a6-4ae3-4979-968d-7b60d5e1391b",
+    "name": "HERIBERTO RUIZ",
+    "phone": "3131474773",
+    "email": null,
+    "address": "COLIMA",
+    "createdAt": "2025-05-07T00:39:34.854Z",
+    "updatedAt": "2025-05-07T00:39:34.854Z",
+    "deletedAt": null
+  },
+  {
+    "id": "adb7f386-1fd0-4532-851f-00715772cafd",
+    "name": "ALFREDO (LOS MOCHIS)",
+    "phone": "6681112372",
+    "email": null,
+    "address": "LOS MOCHIS, SINALOA",
+    "createdAt": "2025-05-07T00:40:17.755Z",
+    "updatedAt": "2025-05-07T00:40:17.755Z",
+    "deletedAt": null
+  },
+  {
+    "id": "15e9f198-2d76-48f0-b0f4-28e7d5b74edd",
+    "name": "ARACELY (GUADALAJARA)",
+    "phone": "3312952387",
+    "email": null,
+    "address": "GUADALAJARA",
+    "createdAt": "2025-05-07T00:40:51.375Z",
+    "updatedAt": "2025-05-07T00:40:51.375Z",
+    "deletedAt": null
+  },
+  {
+    "id": "a0edf631-0326-414c-9771-488469f292fb",
+    "name": "VIVERO VALLES VERDE",
+    "phone": "3126900538",
+    "email": null,
+    "address": "COLIMA",
+    "createdAt": "2025-05-07T00:41:23.095Z",
+    "updatedAt": "2025-05-07T00:41:23.095Z",
+    "deletedAt": null
+  },
+  {
+    "id": "b4c099ef-6831-4b16-9a6e-5ff9048fa167",
+    "name": "NICOLAS LOPEZ",
+    "phone": "3347948295",
+    "email": null,
+    "address": "COLIMA",
+    "createdAt": "2025-05-07T00:41:58.021Z",
+    "updatedAt": "2025-05-07T00:41:58.021Z",
+    "deletedAt": null
+  },
+  {
+    "id": "7d4839d0-8cc0-44e0-bbb7-59da672ba520",
+    "name": "RUBEN SANTOS",
+    "phone": "6681302333",
+    "email": null,
+    "address": "LOS MOCHIS, SINALOA",
+    "createdAt": "2025-05-07T00:42:25.700Z",
+    "updatedAt": "2025-05-07T00:42:25.700Z",
+    "deletedAt": null
+  },
+  {
+    "id": "fc57f557-58f3-431e-aca5-6785ad33f70e",
+    "name": "JUAN CULIACAN",
+    "phone": "6672264003",
+    "email": null,
+    "address": "CULIACAN, SINALOA",
+    "createdAt": "2025-05-07T00:43:04.144Z",
+    "updatedAt": "2025-05-07T00:43:04.144Z",
+    "deletedAt": null
+  },
+  {
+    "id": "01c14359-22d3-4c18-880d-035f91d3b0df",
+    "name": "VICTOR VARGAS",
+    "phone": "6692673245",
+    "email": null,
+    "address": "MAZATLAN, SINALOA",
+    "createdAt": "2025-05-07T00:43:42.822Z",
+    "updatedAt": "2025-05-07T00:43:42.822Z",
+    "deletedAt": null
+  },
+  {
+    "id": "3c6012db-c383-4a23-af54-6c5bb12ab89d",
+    "name": "SANTOS VARGAS",
+    "phone": "6737395035",
+    "email": null,
+    "address": null,
+    "createdAt": "2025-05-07T00:44:52.294Z",
+    "updatedAt": "2025-05-07T00:44:52.294Z",
+    "deletedAt": null
+  },
+  {
+    "id": "4c1803d1-eb40-4c8e-9205-71efeb97b7f1",
+    "name": "VENTA AL PUBLICO",
+    "phone": null,
+    "email": null,
+    "address": null,
+    "createdAt": "2025-06-19T03:28:36.530Z",
+    "updatedAt": "2025-06-19T03:28:36.530Z",
+    "deletedAt": null
+  }
+]
