@@ -1,10 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
 
-function purchaseToken(purchaseId: string) {
-  return `SP:${purchaseId}`;
-}
-
 export type SupplierPurchaseForPaymentDto = {
   id: string; // supplierPurchaseId
   party: { id: string; name: string };
@@ -32,13 +28,10 @@ export async function getSupplierPurchaseForPaymentById(id: string) {
 
   if (!row) return null;
 
-  const token = purchaseToken(row.id);
-
   const paidAgg = await prisma.payment.aggregate({
     where: {
       direction: PaymentDirection.OUT,
-      partyId: row.party.id,
-      reference: { contains: token, mode: "insensitive" },
+      supplierPurchaseId: row.id, // ✅ FK
     },
     _sum: { amount: true },
   });

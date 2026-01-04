@@ -4,6 +4,9 @@ import {
   Prisma,
   PartyLedgerSide,
   PartyLedgerSourceType,
+  AuditAction,
+  AuditEntityType,
+  AuditChangeKey,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -23,6 +26,8 @@ import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/description
 import { generateMonthlyFolio } from "@/modules/shared/folio/monthlyFolio";
 import { resolvePartyIdForCustomerSelection } from "@/modules/parties/application/resolvePartyIdForCustomerSelection";
 import { ensureSingleLedgerEntryForSource } from "@/modules/shared/ledger/partyLedger";
+import { createAuditLog } from "@/modules/shared/audit/createAuditLog.helper";
+import { auditDecimalChange } from "@/modules/shared/audit/auditChanges";
 
 type LinePayload = {
   productVariantId: string | null;
@@ -128,6 +133,42 @@ export async function createSalesNoteUseCase(
       },
       select: { id: true, folio: true, createdAt: true },
     });
+
+    await createAuditLog(
+      tx,
+      {
+        action: AuditAction.CREATE,
+        eventKey: "salesNote.created",
+        entityType: AuditEntityType.SALES_NOTE,
+        entityId: created.id,
+        rootEntityType: AuditEntityType.SALES_NOTE,
+        rootEntityId: created.id,
+        reference: created.folio,
+        occurredAt: created.createdAt,
+        changes: [
+          auditDecimalChange(
+            AuditChangeKey.SALES_NOTE_SUBTOTAL,
+            null,
+            subtotal
+          ),
+          auditDecimalChange(
+            AuditChangeKey.SALES_NOTE_DISCOUNT_TOTAL,
+            null,
+            discountTotal
+          ),
+          auditDecimalChange(AuditChangeKey.SALES_NOTE_TOTAL, null, total),
+          auditDecimalChange(
+            AuditChangeKey.SALES_NOTE_BALANCE_DUE,
+            null,
+            total
+          ),
+        ],
+        meta: {
+          linesCount: allLines.length,
+        },
+      },
+      ctx
+    );
 
     logger.log("salesNote_created", { id: created.id, folio: created.folio });
 

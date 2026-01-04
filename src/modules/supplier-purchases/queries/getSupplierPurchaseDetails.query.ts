@@ -5,10 +5,6 @@ import {
   PaymentType,
 } from "@/generated/prisma/client";
 
-function purchaseToken(supplierPurchaseId: string) {
-  return `SP:${supplierPurchaseId}`;
-}
-
 export type SupplierPurchasePaymentRowDto = {
   id: string;
   paymentType: PaymentType;
@@ -57,13 +53,10 @@ export async function getSupplierPurchaseDetailsById(id: string) {
 
   if (!purchase) return null;
 
-  const token = purchaseToken(purchase.id);
-
   const payments = await prisma.payment.findMany({
     where: {
       direction: PaymentDirection.OUT,
-      partyId: purchase.party.id,
-      reference: { contains: token, mode: "insensitive" },
+      supplierPurchaseId: purchase.id,
     },
     orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     select: {
@@ -79,8 +72,7 @@ export async function getSupplierPurchaseDetailsById(id: string) {
   const agg = await prisma.payment.aggregate({
     where: {
       direction: PaymentDirection.OUT,
-      partyId: purchase.party.id,
-      reference: { contains: token, mode: "insensitive" },
+      supplierPurchaseId: purchase.id,
     },
     _sum: { amount: true },
   });

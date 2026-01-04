@@ -4,10 +4,148 @@ import React from "react";
 import Link from "next/link";
 
 import type { SalesNoteDetailsDto } from "@/modules/sales-notes/queries/getSalesNoteDetails.query";
+import type { SalesNoteAuditLogRowDto } from "@/modules/sales-notes/queries/getSalesNoteAuditLog.query";
+
 import { routes } from "@/lib/routes";
 import { dateMX, money } from "@/modules/shared/utils/formatters";
+import {
+  auditChangeLabel,
+  auditEventTitle,
+  auditFormatMoney,
+  auditFormatText,
+} from "@/modules/shared/audit/auditUi";
 
-export function SalesNoteDetailsClient({ dto }: { dto: SalesNoteDetailsDto }) {
+function renderAuditChange(change: SalesNoteAuditLogRowDto["changes"][number]) {
+  const hasDecimal =
+    change.decimalBefore !== null || change.decimalAfter !== null;
+
+  if (hasDecimal) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span className="opacity-70">{auditChangeLabel(change.key)}</span>
+        <span className="font-medium">
+          {auditFormatMoney(change.decimalBefore)} →{" "}
+          {auditFormatMoney(change.decimalAfter)}
+        </span>
+      </div>
+    );
+  }
+
+  const hasString = change.stringBefore !== null || change.stringAfter !== null;
+
+  if (hasString) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span className="opacity-70">{auditChangeLabel(change.key)}</span>
+        <span className="font-medium">
+          {auditFormatText(change.stringBefore)} →{" "}
+          {auditFormatText(change.stringAfter)}
+        </span>
+      </div>
+    );
+  }
+
+  const beforeJson =
+    change.jsonBefore == null ? "—" : JSON.stringify(change.jsonBefore);
+  const afterJson =
+    change.jsonAfter == null ? "—" : JSON.stringify(change.jsonAfter);
+
+  return (
+    <div className="space-y-1 text-sm">
+      <div className="opacity-70">{auditChangeLabel(change.key)}</div>
+      <div className="break-all font-mono text-xs opacity-80">
+        {beforeJson} → {afterJson}
+      </div>
+    </div>
+  );
+}
+
+function AuditLogSection({
+  auditLog,
+}: {
+  auditLog: SalesNoteAuditLogRowDto[];
+}) {
+  return (
+    <div className="card bg-base-100 shadow-sm">
+      <div className="card-body">
+        <div className="collapse collapse-arrow bg-base-200">
+          <input type="checkbox" />
+
+          <div className="collapse-title text-lg font-semibold">
+            Historial de movimientos
+          </div>
+
+          <div className="collapse-content">
+            {auditLog.length === 0 ? (
+              <div className="py-4 text-sm opacity-70">
+                No hay movimientos registrados.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {auditLog.map((e) => {
+                  const when = e.occurredAt ?? e.createdAt;
+                  const actor = e.actorNameSnapshot ?? "Sistema";
+                  const role = e.actorRoleSnapshot
+                    ? ` · ${e.actorRoleSnapshot}`
+                    : "";
+
+                  return (
+                    <div
+                      key={e.id}
+                      className="rounded-xl border border-base-300 bg-base-100 p-3"
+                    >
+                      <div className="flex flex-col gap-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-semibold">
+                            {auditEventTitle(e.eventKey)}
+                          </div>
+                          <div className="text-sm opacity-70">
+                            {dateMX(when)}
+                          </div>
+                        </div>
+
+                        <div className="text-sm opacity-70">
+                          {actor}
+                          {role}
+                          {e.reference ? ` · Ref: ${e.reference}` : ""}
+                        </div>
+
+                        {e.changes.length > 0 ? (
+                          <div className="mt-2 space-y-2">
+                            {e.changes.map((c, idx) => (
+                              <div
+                                key={`${e.id}_${idx}`}
+                                className="rounded-lg bg-base-200 p-2"
+                              >
+                                {renderAuditChange(c)}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-sm opacity-70">
+                            Sin cambios detallados.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SalesNoteDetailsClient({
+  dto,
+  auditLog,
+}: {
+  dto: SalesNoteDetailsDto;
+  auditLog: SalesNoteAuditLogRowDto[];
+}) {
   const canAddPayment = !dto.isFullyPaid;
 
   return (
@@ -118,10 +256,7 @@ export function SalesNoteDetailsClient({ dto }: { dto: SalesNoteDetailsDto }) {
               <span>Subtotal</span>
               <span className="font-medium">${money(dto.subtotal)}</span>
             </div>
-            {/* <div className="flex justify-between">
-              <span>Descuento</span>
-              <span className="font-medium">${money(dto.discountTotal)}</span>
-            </div> */}
+
             <div className="flex justify-between text-base">
               <span className="font-semibold">Total</span>
               <span className="font-semibold">${money(dto.total)}</span>
@@ -204,6 +339,9 @@ export function SalesNoteDetailsClient({ dto }: { dto: SalesNoteDetailsDto }) {
           )}
         </div>
       </div>
+
+      {/* Audit log */}
+      <AuditLogSection auditLog={auditLog} />
     </>
   );
 }

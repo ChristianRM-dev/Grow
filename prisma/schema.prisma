@@ -34,10 +34,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts Account[]
-  sessions Session[]
+  accounts  Account[]
+  sessions  Session[]
+  auditLogs AuditLog[]
 }
-
 
 model Account {
   id                String  @id @default(cuid())
@@ -146,34 +146,65 @@ enum FolioType {
   QUOTATION
 }
 
+// ----------------------------
+// Audit log (money  traceability)
+// ----------------------------
+
+enum AuditEntityType {
+  SALES_NOTE
+  SUPPLIER_PURCHASE
+  PAYMENT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+}
+
+enum AuditChangeKey {
+  // Sales note totals
+  SALES_NOTE_SUBTOTAL
+  SALES_NOTE_DISCOUNT_TOTAL
+  SALES_NOTE_TOTAL
+  SALES_NOTE_BALANCE_DUE
+
+  // Supplier purchase totals
+  SUPPLIER_PURCHASE_TOTAL
+  SUPPLIER_PURCHASE_BALANCE_DUE
+
+  // Payment
+  PAYMENT_AMOUNT
+  PAYMENT_OCCURRED_AT
+}
+
 model Party {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // systemKey is reserved for special system parties (e.g. walk-in public).
   // It must be unique if present.
-  systemKey String?  @unique
+  systemKey String? @unique
 
   // Main contact identification
-  name      String
-  phone     String?
-  notes     String?
+  name  String
+  phone String?
+  notes String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   updatedAt DateTime?
 
   // Soft-delete so we can preserve references and historical documents.
-  isDeleted Boolean  @default(false)
+  isDeleted Boolean   @default(false)
   deletedAt DateTime?
 
   // Roles are modeled via PartyRole (many-to-many-ish over a single Party).
   // A Party can be both customer and supplier.
-  roles     PartyRole[]
+  roles PartyRole[]
 
   // Document relations (history)
-  salesNotes SalesNote[]
-  payments  Payment[]
+  salesNotes        SalesNote[]
+  payments          Payment[]
   supplierPurchases SupplierPurchase[]
-  quotations Quotation[]
+  quotations        Quotation[]
 
   // Derived ledger entries (accounting projection)
   ledgerEntries PartyLedgerEntry[]
@@ -190,32 +221,31 @@ model PartyRole {
 
   // A party cannot have duplicated roles.
   @@unique([partyId, role])
-
   // Useful for filtering customers vs suppliers.
   @@index([role])
 }
 
 model ProductVariant {
-  id           String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Minimal product identification.
   // This is used to build descriptionSnapshot in documents.
-  speciesName  String
-  variantName  String?
-  bagSize      String?
-  color        String?
+  speciesName String
+  variantName String?
+  bagSize     String?
+  color       String?
 
   // Base price reference (not necessarily the final sale price).
-  defaultPrice Decimal  @db.Decimal(18, 2)
+  defaultPrice Decimal @db.Decimal(18, 2)
 
-  isActive     Boolean  @default(true)
+  isActive Boolean @default(true)
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Soft-delete for catalog integrity.
-  isDeleted    Boolean  @default(false)
-  deletedAt    DateTime?
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
 
   // Lines reference product variants, but can be nullable to support "external items"
   // or preserve historical documents if the variant is deleted later.
@@ -227,31 +257,31 @@ model ProductVariant {
 }
 
 model SalesNote {
-  id            String          @id @default(cuid())
+  id String @id @default(cuid())
 
   // Human-friendly unique folio (generated using FolioSequence type SALES_NOTE).
-  folio         String          @unique
+  folio String @unique
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Customer reference; onDelete is Restrict to protect history.
-  partyId       String
-  party         Party           @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  partyId String
+  party   Party  @relation(fields: [partyId], references: [id], onDelete: Restrict)
 
-  status        SalesNoteStatus @default(DRAFT)
+  status SalesNoteStatus @default(DRAFT)
 
   // Totals are stored as decimals to avoid float issues.
   // subtotal / discountTotal / total should remain consistent with lines and business rules.
-  subtotal      Decimal         @db.Decimal(18, 2)
-  discountTotal Decimal         @db.Decimal(18, 2)
-  total         Decimal         @db.Decimal(18, 2)
+  subtotal      Decimal @db.Decimal(18, 2)
+  discountTotal Decimal @db.Decimal(18, 2)
+  total         Decimal @db.Decimal(18, 2)
 
   // SalesNote owns its lines; deleting a note deletes lines.
-  lines         SalesNoteLine[]
+  lines SalesNoteLine[]
 
   // Payments attached to this note (direction IN).
-  payments      Payment[]
+  payments Payment[]
 
   @@index([partyId])
   @@index([createdAt])
@@ -259,24 +289,24 @@ model SalesNote {
 }
 
 model SalesNoteLine {
-  id                  String   @id @default(cuid())
-  salesNoteId         String
+  id          String @id @default(cuid())
+  salesNoteId String
 
   // Optional: allows unregistered/external products or historic preservation after deletion.
-  productVariantId    String?
+  productVariantId String?
 
   // Snapshot of the item description at the time of sale.
   // IMPORTANT: do not depend on ProductVariant current name for historical views.
   descriptionSnapshot String
 
   // Decimal quantity supports partial units/weights.
-  quantity            Decimal  @db.Decimal(18, 3)
+  quantity Decimal @db.Decimal(18, 3)
 
   // Unit price and line total are stored to preserve pricing at time of transaction.
-  unitPrice           Decimal  @db.Decimal(18, 2)
-  lineTotal           Decimal  @db.Decimal(18, 2)
+  unitPrice Decimal @db.Decimal(18, 2)
+  lineTotal Decimal @db.Decimal(18, 2)
 
-  salesNote      SalesNote      @relation(fields: [salesNoteId], references: [id], onDelete: Cascade)
+  salesNote      SalesNote       @relation(fields: [salesNoteId], references: [id], onDelete: Cascade)
   productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
 
   @@index([salesNoteId])
@@ -284,121 +314,126 @@ model SalesNoteLine {
 }
 
 model Payment {
-  id          String           @id @default(cuid())
+  id String @id @default(cuid())
 
   // Payments can be linked to a SalesNote (customer payments).
   // When a sales note is deleted (rare), keep the payment but detach it (SetNull).
   salesNoteId String?
-  salesNote   SalesNote?       @relation(fields: [salesNoteId], references: [id], onDelete: SetNull)
+  salesNote   SalesNote? @relation(fields: [salesNoteId], references: [id], onDelete: SetNull)
+
+  // Optional: links OUT payments to a specific supplier purchase for precise traceability.
+  supplierPurchaseId String?
+  supplierPurchase   SupplierPurchase? @relation(fields: [supplierPurchaseId], references: [id], onDelete: SetNull)
 
   // Payments can also be linked directly to a Party (supplier payments or other movements).
   // We keep historical payments even if a party is soft-deleted; relation is SetNull.
-  partyId     String?
-  party       Party?           @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  partyId String?
+  party   Party?  @relation(fields: [partyId], references: [id], onDelete: SetNull)
 
   direction   PaymentDirection
   paymentType PaymentType
 
   // amount is nullable to allow drafts or partial flows, but business logic should enforce it when saving.
-  amount      Decimal?         @db.Decimal(18, 2)
+  amount Decimal? @db.Decimal(18, 2)
 
   // reference can carry external identifiers (bank transfer folio)
   // and can be used as a token to link payments to SupplierPurchase if needed.
-  reference   String?
-  notes       String?
+  reference String?
+  notes     String?
 
-  occurredAt  DateTime
+  occurredAt DateTime
 
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([salesNoteId])
   @@index([partyId])
+  @@index([supplierPurchaseId])
   @@index([occurredAt])
 }
 
 model SupplierPurchase {
-  id            String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Supplier reference; onDelete Restrict to preserve purchase history.
-  partyId       String
+  partyId String
 
   // Supplier-provided folio/reference number (not the system folio).
   supplierFolio String
 
   // occurredAt is the real purchase date (can differ from createdAt).
-  occurredAt    DateTime
+  occurredAt DateTime
 
   // Total purchase amount (debt we owe to supplier before payments).
-  total         Decimal  @db.Decimal(18, 2)
+  total Decimal @db.Decimal(18, 2)
 
-  notes         String?
+  notes String?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  party Party @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  party    Party     @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  payments Payment[]
 
   @@index([partyId])
   @@index([occurredAt])
 }
 
 model PartyLedgerEntry {
-  id         String              @id @default(cuid())
-  partyId    String
+  id      String @id @default(cuid())
+  partyId String
 
   // RECEIVABLE: party owes the business (e.g. SalesNote)
   // PAYABLE: business owes the party (e.g. SupplierPurchase)
-  side       PartyLedgerSide
+  side PartyLedgerSide
 
   // Source document type that created this entry (derived).
   sourceType PartyLedgerSourceType
 
   // ID of the source document (SalesNote.id, SupplierPurchase.id, Payment.id, etc).
   // Nullable for ADJUSTMENT or future cases.
-  sourceId   String?
+  sourceId String?
 
   // Human readable reference (folio) used for audit/traceability.
-  reference  String
+  reference String
 
   // Effective date of the movement.
   occurredAt DateTime
 
   // Signed amount is not used; we keep amount positive and interpret meaning via side.
-  amount     Decimal             @db.Decimal(18, 2)
+  amount Decimal @db.Decimal(18, 2)
 
-  notes      String?
-  createdAt  DateTime            @default(now())
+  notes     String?
+  createdAt DateTime @default(now())
 
   party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
-
-  @@index([partyId])
-  @@index([occurredAt])
-  @@index([sourceType, sourceId])
 
   // Enforces "1 derived ledger entry per source document".
   // This makes ledger idempotent and safe to upsert from use cases.
   @@unique([sourceType, sourceId])
+  @@index([partyId])
+  @@index([occurredAt])
+  @@index([sourceType, sourceId])
 }
 
 model Quotation {
-  id        String          @id @default(cuid())
+  id String @id @default(cuid())
 
   // Human-friendly unique folio (generated using FolioSequence type QUOTATION).
   // IMPORTANT: Quotations do NOT generate ledger entries directly.
-  folio     String          @unique
+  folio String @unique
 
   // Contact/party for the quotation (customer or lead stored as Party).
-  partyId   String
+  partyId String
 
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  status    QuotationStatus @default(DRAFT)
+  status QuotationStatus @default(DRAFT)
 
   // Total can be stored to optimize reads; should be kept consistent with lines.
   // Nullable to allow drafts during migration; business logic should compute it.
-  total     Decimal?        @db.Decimal(18, 2)
+  total Decimal? @db.Decimal(18, 2)
 
   party Party @relation(fields: [partyId], references: [id], onDelete: Restrict)
 
@@ -411,21 +446,21 @@ model Quotation {
 }
 
 model QuotationLine {
-  id                  String   @id @default(cuid())
-  quotationId         String
+  id          String @id @default(cuid())
+  quotationId String
 
   // Optional, supports external/manual line items or historical preservation.
-  productVariantId    String?
+  productVariantId String?
 
   // Snapshot of the item description at the time of quoting.
   descriptionSnapshot String
 
-  quantity            Decimal  @db.Decimal(18, 3)
+  quantity Decimal @db.Decimal(18, 3)
 
   // Quoted unit price (does not have to match ProductVariant.defaultPrice).
-  quotedUnitPrice     Decimal  @db.Decimal(18, 2)
+  quotedUnitPrice Decimal @db.Decimal(18, 2)
 
-  quotation      Quotation      @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  quotation      Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
 
   @@index([quotationId])
@@ -433,18 +468,79 @@ model QuotationLine {
 }
 
 model FolioSequence {
-  id         String    @id @default(cuid())
+  id String @id @default(cuid())
 
   // Folio type (e.g. SALES_NOTE, QUOTATION)
-  type       FolioType
+  type FolioType
 
   // Sequence is partitioned by year and month to keep folios readable and reset monthly.
-  year       Int
-  month      Int
+  year  Int
+  month Int
 
   // Next number to use within (type, year, month)
   nextNumber Int
 
   // Ensures there is a single sequence row per month per folio type.
   @@unique([type, year, month])
+}
+
+// ----------------------------
+// Audit log (append-only events  typed before/after changes)
+// ----------------------------
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Optional actor (works even if some flows don't pass user context yet).
+  actorUserId       String?
+  actorUser         User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorNameSnapshot String?
+  actorRoleSnapshot UserRole?
+
+  action   AuditAction
+  eventKey String
+
+  // The entity directly affected by the event
+  entityType AuditEntityType
+  entityId   String
+
+  // Timeline grouping (always SalesNote or SupplierPurchase)
+  rootEntityType AuditEntityType
+  rootEntityId   String
+
+  // Helpful UI info (folio, supplierFolio, bank reference, etc.)
+  reference  String?
+  occurredAt DateTime?
+
+  // Free-form extra info (traceId, line summary, etc.)
+  meta Json?
+
+  changes AuditLogChange[]
+
+  @@index([rootEntityType, rootEntityId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([eventKey, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model AuditLogChange {
+  id         String @id @default(cuid())
+  auditLogId String
+
+  key AuditChangeKey
+
+  decimalBefore Decimal? @db.Decimal(18, 2)
+  decimalAfter  Decimal? @db.Decimal(18, 2)
+
+  stringBefore String?
+  stringAfter  String?
+
+  jsonBefore Json?
+  jsonAfter  Json?
+
+  auditLog AuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+
+  @@index([auditLogId])
+  @@index([key])
 }

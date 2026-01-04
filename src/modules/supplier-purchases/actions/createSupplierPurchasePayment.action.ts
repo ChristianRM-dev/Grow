@@ -4,22 +4,17 @@ import { safeTrim } from "@/modules/shared/utils/strings";
 import { createPartyPaymentOutUseCase } from "@/modules/payments/application/createPartyPaymentOut.usecase";
 import { SupplierPurchasePaymentFinalSchema } from "@/modules/supplier-purchases/forms/supplierPurchasePaymentForm.schemas";
 
-function purchaseToken(purchaseId: string) {
-  return `SP:${purchaseId}`;
-}
-
 function buildPurchasePaymentReference(args: {
   supplierFolio: string;
   supplierPurchaseId: string;
   userReference?: string;
 }) {
-  const token = purchaseToken(args.supplierPurchaseId);
   const prefix = `Compra ${
     safeTrim(args.supplierFolio) || args.supplierPurchaseId
   }`;
   const extra = safeTrim(args.userReference);
 
-  return extra ? `${prefix} · ${extra} · ${token}` : `${prefix} · ${token}`;
+  return extra ? `${prefix} · ${extra}` : prefix;
 }
 
 export async function createSupplierPurchasePaymentAction(
@@ -39,6 +34,7 @@ export async function createSupplierPurchasePaymentAction(
 
   const res = await createPartyPaymentOutUseCase({
     partyId: values.partyId,
+    supplierPurchaseId: values.supplierPurchaseId, // ✅ NEW FK
     paymentType: values.paymentType,
     amount: values.amount,
     reference,

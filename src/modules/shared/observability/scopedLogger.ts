@@ -1,6 +1,15 @@
 // src/modules/shared/observability/scopedLogger.ts
 
-export type UseCaseContext = { traceId?: string };
+import { UserRole } from "@/generated/prisma/client";
+
+export type UseCaseContext = {
+  traceId?: string;
+  user?: {
+    id: string;
+    name?: string | null;
+    role?: UserRole | null;
+  };
+};
 
 export type Logger = {
   log: (message: string, extra?: unknown) => void;

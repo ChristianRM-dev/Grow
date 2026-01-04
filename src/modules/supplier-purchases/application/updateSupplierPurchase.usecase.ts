@@ -1,7 +1,9 @@
 import {
-  Prisma,
   PartyLedgerSide,
   PartyLedgerSourceType,
+  AuditAction,
+  AuditEntityType,
+  AuditChangeKey,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -12,6 +14,10 @@ import {
 import { toDecimal } from "@/modules/shared/utils/decimals";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { upsertPartyLedgerEntry } from "@/modules/shared/ledger/upsertPartyLedgerEntry";
+
+import { createAuditLog } from "@/modules/shared/audit/createAuditLog.helper";
+import { auditDecimalChange } from "@/modules/shared/audit/auditChanges";
+import { computeSupplierPurchaseBalance } from "./computeSupplierPurchaseBalance";
 
 export type UpdateSupplierPurchaseInput = {
   partyId: string;
@@ -32,11 +38,19 @@ export async function updateSupplierPurchaseUseCase(
     const id = safeTrim(supplierPurchaseId);
     if (!id) throw new Error("supplierPurchaseId es requerido.");
 
-    const existing = await tx.supplierPurchase.findUnique({
+    const before = await tx.supplierPurchase.findUnique({
       where: { id },
-      select: { id: true },
+      select: {
+        id: true,
+        partyId: true,
+        supplierFolio: true,
+        occurredAt: true,
+        total: true,
+      },
     });
-    if (!existing) throw new Error("La compra no existe.");
+    if (!before) throw new Error("La compra no existe.");
+
+    const balanceBefore = await computeSupplierPurchaseBalance(tx, before.id);
 
     const partyId = safeTrim(input.partyId);
     const supplierFolio = safeTrim(input.supplierFolio);
@@ -71,7 +85,6 @@ export async function updateSupplierPurchaseUseCase(
       },
     });
 
-    // Ledger stays in sync (same sourceId)
     await upsertPartyLedgerEntry(tx, {
       partyId: updated.partyId,
       side: PartyLedgerSide.PAYABLE,
@@ -79,9 +92,38 @@ export async function updateSupplierPurchaseUseCase(
       sourceId: updated.id,
       reference: `Compra ${updated.supplierFolio}`,
       occurredAt: updated.occurredAt,
-      amount: updated.total, // ✅ positive debt
+      amount: updated.total, // positive debt
       notes: updated.notes,
     });
+
+    const balanceAfter = await computeSupplierPurchaseBalance(tx, updated.id);
+
+    await createAuditLog(
+      tx,
+      {
+        action: AuditAction.UPDATE,
+        eventKey: "supplierPurchase.updated",
+        entityType: AuditEntityType.SUPPLIER_PURCHASE,
+        entityId: updated.id,
+        rootEntityType: AuditEntityType.SUPPLIER_PURCHASE,
+        rootEntityId: updated.id,
+        reference: updated.supplierFolio,
+        occurredAt: updated.occurredAt,
+        changes: [
+          auditDecimalChange(
+            AuditChangeKey.SUPPLIER_PURCHASE_TOTAL,
+            before.total,
+            updated.total
+          ),
+          auditDecimalChange(
+            AuditChangeKey.SUPPLIER_PURCHASE_BALANCE_DUE,
+            balanceBefore.balance,
+            balanceAfter.balance
+          ),
+        ],
+      },
+      ctx
+    );
 
     logger.log("updated", { supplierPurchaseId: updated.id });
     return { supplierPurchaseId: updated.id };

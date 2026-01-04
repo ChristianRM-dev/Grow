@@ -9,6 +9,7 @@ import { routes } from "@/lib/routes";
 import { dateMX } from "@/modules/shared/utils/formatters";
 import { SalesNoteDetailsClient } from "./sales-note-details-client";
 import { InlineEntityLink } from "@/components/ui/InlineEntityLink/InlineEntityLink";
+import { getSalesNoteAuditLogById } from "@/modules/sales-notes/queries/getSalesNoteAuditLog.query";
 
 export default async function SalesNoteDetailsPage({
   params,
@@ -19,7 +20,8 @@ export default async function SalesNoteDetailsPage({
 
   const dto = await getSalesNoteDetailsById(id);
   if (!dto) return notFound();
-
+  const auditLog = await getSalesNoteAuditLogById(dto.id);
+  console.log("auditLog", auditLog);
   const canAddPayment = !dto.isFullyPaid;
 
   return (
@@ -79,7 +81,7 @@ export default async function SalesNoteDetailsPage({
         </>
       }
     >
-      <SalesNoteDetailsClient dto={dto} />
+      <SalesNoteDetailsClient dto={dto} auditLog={auditLog} />
     </DetailsPageLayout>
   );
 }

@@ -4,6 +4,9 @@ import {
   PartyLedgerSourceType,
   Prisma,
   PaymentType,
+  AuditAction,
+  AuditEntityType,
+  AuditChangeKey,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -14,12 +17,16 @@ import {
 import { toDecimal } from "@/modules/shared/utils/decimals";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { upsertPartyLedgerEntry } from "@/modules/shared/ledger/upsertPartyLedgerEntry";
+import { computeSupplierPurchaseBalance } from "@/modules/supplier-purchases/application/computeSupplierPurchaseBalance";
+import { createAuditLog } from "@/modules/shared/audit/createAuditLog.helper";
+import { auditDecimalChange } from "@/modules/shared/audit/auditChanges";
 
 export type CreatePartyPaymentOutInput = {
   partyId: string;
-  paymentType: PaymentType; // <- pon tu PaymentType importado donde corresponda
-  amount: string; // decimal string
-  reference?: string; // folio/ref
+  paymentType: PaymentType;
+  supplierPurchaseId?: string; // ✅ optional FK
+  amount: string;
+  reference?: string;
   notes?: string;
   occurredAt?: Date;
 };
@@ -34,20 +41,34 @@ export async function createPartyPaymentOutUseCase(
     const partyId = safeTrim(input.partyId);
     if (!partyId) throw new Error("partyId es requerido.");
 
+    const supplierPurchaseIdRaw = safeTrim(input.supplierPurchaseId);
+    const supplierPurchaseId = supplierPurchaseIdRaw || null;
+
     const party = await tx.party.findFirst({
       where: { id: partyId, isDeleted: false },
       select: { id: true, name: true },
     });
     if (!party) throw new Error("El proveedor no existe o está eliminado.");
 
+    // ✅ If linked to a purchase, validate it belongs to this supplier.
+    if (supplierPurchaseId) {
+      const purchase = await tx.supplierPurchase.findUnique({
+        where: { id: supplierPurchaseId },
+        select: { id: true, partyId: true },
+      });
+      if (!purchase) throw new Error("La compra del proveedor no existe.");
+      if (purchase.partyId !== partyId)
+        throw new Error("La compra no pertenece al proveedor indicado.");
+    }
+
     const occurredAt = input.occurredAt ?? new Date();
     const amount = toDecimal(input.amount);
 
-    // Payment OUT (salida)
     const payment = await tx.payment.create({
       data: {
         salesNoteId: null,
         partyId,
+        supplierPurchaseId, // ✅ FK stored
         direction: PaymentDirection.OUT,
         paymentType: input.paymentType,
         amount,
@@ -58,6 +79,7 @@ export async function createPartyPaymentOutUseCase(
       select: {
         id: true,
         partyId: true,
+        supplierPurchaseId: true,
         amount: true,
         reference: true,
         notes: true,
@@ -65,16 +87,12 @@ export async function createPartyPaymentOutUseCase(
       },
     });
 
-    if (payment.amount == null) {
+    if (payment.amount == null)
       throw new Error("El monto del pago es requerido.");
-    }
-
-    if (payment.amount.lte(new Prisma.Decimal(0))) {
+    if (payment.amount.lte(new Prisma.Decimal(0)))
       throw new Error("El monto del pago debe ser mayor a 0.");
-    }
 
-    // Ledger: proveedor => PAYABLE (le debemos) -amount (reduce payable)
-    const ledgerAmount = payment?.amount.mul(new Prisma.Decimal(-1));
+    const ledgerAmount = payment.amount.mul(new Prisma.Decimal(-1));
 
     await upsertPartyLedgerEntry(tx, {
       partyId: payment.partyId!,
@@ -85,11 +103,56 @@ export async function createPartyPaymentOutUseCase(
         ? `Pago ${payment.reference}`
         : "Pago a proveedor",
       occurredAt: payment.occurredAt,
-      amount: ledgerAmount, // ✅ negative reduces debt
+      amount: ledgerAmount,
       notes: payment.notes,
     });
 
-    logger.log("created", { paymentId: payment.id });
+    const balanceBefore = supplierPurchaseId
+      ? await computeSupplierPurchaseBalance(tx, supplierPurchaseId)
+      : null;
+
+    if (supplierPurchaseId) {
+      const balanceAfter = await computeSupplierPurchaseBalance(
+        tx,
+        supplierPurchaseId
+      );
+
+      await createAuditLog(
+        tx,
+        {
+          action: AuditAction.CREATE,
+          eventKey: "supplierPurchase.payment.created",
+          entityType: AuditEntityType.PAYMENT,
+          entityId: payment.id,
+          rootEntityType: AuditEntityType.SUPPLIER_PURCHASE,
+          rootEntityId: supplierPurchaseId,
+          reference: safeTrim(payment.reference ?? "") || null,
+          occurredAt: payment.occurredAt,
+          changes: [
+            auditDecimalChange(
+              AuditChangeKey.PAYMENT_AMOUNT,
+              null,
+              payment.amount ?? null
+            ),
+            auditDecimalChange(
+              AuditChangeKey.SUPPLIER_PURCHASE_BALANCE_DUE,
+              balanceBefore?.balance ?? null,
+              balanceAfter.balance
+            ),
+          ],
+          meta: {
+            partyId: payment.partyId,
+          },
+        },
+        ctx
+      );
+    }
+
+    logger.log("created", {
+      paymentId: payment.id,
+      supplierPurchaseId: payment.supplierPurchaseId ?? null,
+    });
+
     return { paymentId: payment.id };
   });
 }

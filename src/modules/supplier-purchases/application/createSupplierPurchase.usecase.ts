@@ -1,5 +1,7 @@
 import {
-  Prisma,
+  AuditAction,
+  AuditChangeKey,
+  AuditEntityType,
   PartyLedgerSide,
   PartyLedgerSourceType,
 } from "@/generated/prisma/client";
@@ -12,6 +14,8 @@ import {
 import { toDecimal } from "@/modules/shared/utils/decimals";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { upsertPartyLedgerEntry } from "@/modules/shared/ledger/upsertPartyLedgerEntry";
+import { createAuditLog } from "@/modules/shared/audit/createAuditLog.helper";
+import { auditDecimalChange } from "@/modules/shared/audit/auditChanges";
 
 export type CreateSupplierPurchaseInput = {
   partyId: string;
@@ -75,6 +79,35 @@ export async function createSupplierPurchaseUseCase(
     });
 
     logger.log("created", { supplierPurchaseId: created.id });
+
+    // after create purchase (select id, supplierFolio, occurredAt, total)
+    await createAuditLog(
+      tx,
+      {
+        action: AuditAction.CREATE,
+        eventKey: "supplierPurchase.created",
+        entityType: AuditEntityType.SUPPLIER_PURCHASE,
+        entityId: created.id,
+        rootEntityType: AuditEntityType.SUPPLIER_PURCHASE,
+        rootEntityId: created.id,
+        reference: created.supplierFolio,
+        occurredAt: created.occurredAt,
+        changes: [
+          auditDecimalChange(
+            AuditChangeKey.SUPPLIER_PURCHASE_TOTAL,
+            null,
+            created.total
+          ),
+          auditDecimalChange(
+            AuditChangeKey.SUPPLIER_PURCHASE_BALANCE_DUE,
+            null,
+            created.total
+          ),
+        ],
+      },
+      ctx
+    );
+
     return { supplierPurchaseId: created.id };
   });
 }

@@ -1,14 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import {
-  Prisma,
-  PaymentDirection,
-  PaymentType,
-} from "@/generated/prisma/client";
+import { Prisma, PaymentDirection } from "@/generated/prisma/client";
 import { toFormPaymentType } from "@/modules/payments/application/paymentTypeMapping";
-
-function purchaseToken(purchaseId: string) {
-  return `SP:${purchaseId}`;
-}
 
 export type SupplierPurchasePaymentForEditDto = {
   supplierPurchase: {
@@ -28,9 +20,8 @@ export type SupplierPurchasePaymentForEditDto = {
     notes: string | null;
   };
 
-  // For header + max amount logic (EDIT mode)
   paidWithoutThisPayment: string;
-  maxAllowedAmount: string; // remaining + currentAmount
+  maxAllowedAmount: string;
   isLocked: boolean;
 };
 
@@ -54,13 +45,12 @@ export async function getSupplierPurchasePaymentForEdit(params: {
   });
   if (!purchase) return null;
 
-  const token = purchaseToken(purchase.id);
-
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
     select: {
       id: true,
       partyId: true,
+      supplierPurchaseId: true, // ✅ NEW
       direction: true,
       paymentType: true,
       amount: true,
@@ -71,21 +61,20 @@ export async function getSupplierPurchasePaymentForEdit(params: {
   });
   if (!payment) return null;
 
-  // Must be OUT + same party + reference contains token (linked to this purchase)
-  const sameParty = payment.partyId === purchase.party.id;
+  // Must be OUT + linked to this purchase
   const isOut = payment.direction === PaymentDirection.OUT;
-  const hasToken =
-    typeof payment.reference === "string" &&
-    payment.reference.toLowerCase().includes(token.toLowerCase());
+  const isLinkedToPurchase = payment.supplierPurchaseId === purchase.id;
 
-  if (!sameParty || !isOut || !hasToken) return null;
+  // Optional safety: keep party consistency too
+  const sameParty = payment.partyId === purchase.party.id;
 
-  // Sum all OUT payments for this purchase token
+  if (!isOut || !isLinkedToPurchase || !sameParty) return null;
+
+  // Sum all OUT payments linked to this purchase
   const agg = await prisma.payment.aggregate({
     where: {
       direction: PaymentDirection.OUT,
-      partyId: purchase.party.id,
-      reference: { contains: token, mode: "insensitive" },
+      supplierPurchaseId: purchase.id, // ✅ FK
     },
     _sum: { amount: true },
   });

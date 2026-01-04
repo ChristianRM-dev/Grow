@@ -3,6 +3,9 @@ import {
   PartyLedgerSide,
   PartyLedgerSourceType,
   PaymentDirection,
+  AuditAction,
+  AuditEntityType,
+  AuditChangeKey,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
@@ -23,6 +26,9 @@ import {
   ensureSingleLedgerEntryForSource,
   reassignLedgerPartyBySourceIds,
 } from "@/modules/shared/ledger/partyLedger";
+import { createAuditLog } from "@/modules/shared/audit/createAuditLog.helper";
+import { auditDecimalChange } from "@/modules/shared/audit/auditChanges";
+import { computeSalesNoteBalance } from "./computeSalesNoteBalance";
 
 type LinePayload = {
   productVariantId: string | null;
@@ -199,6 +205,76 @@ export async function updateSalesNoteUseCase(
         _count: { select: { lines: true } },
       },
     });
+
+    const before = await tx.salesNote.findUnique({
+      where: { id: salesNoteId },
+      select: {
+        id: true,
+        folio: true,
+        total: true,
+        subtotal: true,
+        discountTotal: true,
+        createdAt: true,
+      },
+    });
+    if (!before) throw new Error("La nota de venta no existe.");
+
+    const balanceBefore = await computeSalesNoteBalance(tx, before.id);
+
+    // ... tu lógica de update (lines, totals, ledger, etc.)
+
+    const after = await tx.salesNote.findUnique({
+      where: { id: before.id },
+      select: {
+        id: true,
+        folio: true,
+        total: true,
+        subtotal: true,
+        discountTotal: true,
+        updatedAt: true,
+      },
+    });
+    if (!after)
+      throw new Error("No se pudo leer la nota de venta actualizada.");
+
+    const balanceAfter = await computeSalesNoteBalance(tx, after.id);
+
+    await createAuditLog(
+      tx,
+      {
+        action: AuditAction.UPDATE,
+        eventKey: "salesNote.updated",
+        entityType: AuditEntityType.SALES_NOTE,
+        entityId: after.id,
+        rootEntityType: AuditEntityType.SALES_NOTE,
+        rootEntityId: after.id,
+        reference: after.folio,
+        occurredAt: after.updatedAt,
+        changes: [
+          auditDecimalChange(
+            AuditChangeKey.SALES_NOTE_SUBTOTAL,
+            before.subtotal,
+            after.subtotal
+          ),
+          auditDecimalChange(
+            AuditChangeKey.SALES_NOTE_DISCOUNT_TOTAL,
+            before.discountTotal,
+            after.discountTotal
+          ),
+          auditDecimalChange(
+            AuditChangeKey.SALES_NOTE_TOTAL,
+            before.total,
+            after.total
+          ),
+          auditDecimalChange(
+            AuditChangeKey.SALES_NOTE_BALANCE_DUE,
+            balanceBefore.balance,
+            balanceAfter.balance
+          ),
+        ],
+      },
+      ctx
+    );
 
     logger.log("tx_end_written_snapshot", written);
 
