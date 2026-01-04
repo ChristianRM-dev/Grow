@@ -1,6 +1,13 @@
 // src/modules/shared/observability/scopedLogger.ts
 
-export type UseCaseContext = { traceId?: string };
+export type UseCaseContext = {
+  traceId?: string;
+  user?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+  };
+};
 
 export type Logger = {
   log: (message: string, extra?: unknown) => void;

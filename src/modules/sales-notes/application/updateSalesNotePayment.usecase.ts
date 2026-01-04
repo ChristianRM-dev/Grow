@@ -1,4 +1,7 @@
 import {
+  AuditAction,
+  AuditChangeKey,
+  AuditEntityType,
   PaymentDirection,
   Prisma,
   PartyLedgerSide,
@@ -9,12 +12,20 @@ import type { SalesNotePaymentFormValues } from "@/modules/sales-notes/forms/sal
 import { toDecimal, zeroDecimal } from "@/modules/shared/utils/decimals";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { ensureSingleLedgerEntryForSource } from "@/modules/shared/ledger/partyLedger";
+import {
+  auditDecimalChange,
+  createAuditLog,
+} from "@/modules/shared/audit/createAuditLog.helper";
+import { type UseCaseContext } from "@/modules/shared/observability/scopedLogger";
 
-export async function updateSalesNotePaymentUseCase(params: {
-  salesNoteId: string;
-  paymentId: string;
-  values: SalesNotePaymentFormValues;
-}) {
+export async function updateSalesNotePaymentUseCase(
+  params: {
+    salesNoteId: string;
+    paymentId: string;
+    values: SalesNotePaymentFormValues;
+  },
+  ctx?: UseCaseContext
+) {
   const { salesNoteId, paymentId, values } = params;
 
   return prisma.$transaction(async (tx) => {
@@ -31,6 +42,7 @@ export async function updateSalesNotePaymentUseCase(params: {
         salesNoteId: true,
         direction: true,
         occurredAt: true,
+        amount: true,
       },
     });
 
@@ -59,6 +71,12 @@ export async function updateSalesNotePaymentUseCase(params: {
       throw new Error("El monto excede el saldo pendiente.");
     }
 
+    const clampToZero = (value: Prisma.Decimal) =>
+      value.lt(0) ? zeroDecimal() : value;
+
+    const paidBefore = paidWithout.add(payment.amount ?? zeroDecimal());
+    const balanceBefore = clampToZero(note.total.sub(paidBefore));
+
     const updated = await tx.payment.update({
       where: { id: payment.id },
       data: {
@@ -81,6 +99,41 @@ export async function updateSalesNotePaymentUseCase(params: {
       occurredAt: payment.occurredAt, // keep original occurredAt
       amount: updated.amount ? updated.amount.mul(-1) : toDecimal(0),
       notes: safeTrim(values.notes) || null,
+    });
+
+    const actor =
+      ctx?.user && ctx.user.id
+        ? {
+            userId: ctx.user.id,
+            name: ctx.user.name,
+            email: ctx.user.email,
+          }
+        : undefined;
+
+    const paidAfter = paidWithout.add(updated.amount ?? zeroDecimal());
+    const balanceAfter = clampToZero(note.total.sub(paidAfter));
+
+    await createAuditLog(tx, {
+      eventKey: "salesNote.payment.updated",
+      action: AuditAction.UPDATE,
+      entity: { type: AuditEntityType.PAYMENT, id: updated.id },
+      rootEntity: { type: AuditEntityType.SALES_NOTE, id: note.id },
+      reference: note.folio,
+      occurredAt: payment.occurredAt,
+      traceId: ctx?.traceId,
+      actor,
+      changes: [
+        auditDecimalChange(
+          AuditChangeKey.PAYMENT_AMOUNT,
+          payment.amount,
+          updated.amount
+        ),
+        auditDecimalChange(
+          AuditChangeKey.SALES_NOTE_BALANCE_DUE,
+          balanceBefore,
+          balanceAfter
+        ),
+      ],
     });
 
     return { paymentId: updated.id };

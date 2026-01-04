@@ -1,8 +1,10 @@
 // src/modules/shared/utils/decimals.ts
 import { Prisma } from "@/generated/prisma/client";
 
-export function toDecimal(value: string | number): Prisma.Decimal {
-  return new Prisma.Decimal(value);
+export function toDecimal(
+  value: string | number | Prisma.Decimal
+): Prisma.Decimal {
+  return value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value);
 }
 
 export function zeroDecimal(): Prisma.Decimal {

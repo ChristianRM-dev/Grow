@@ -19,6 +19,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "tsx --test",
     "db:seed": "prisma db seed",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev ",

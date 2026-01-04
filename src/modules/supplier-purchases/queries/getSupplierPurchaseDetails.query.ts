@@ -59,12 +59,21 @@ export async function getSupplierPurchaseDetailsById(id: string) {
 
   const token = purchaseToken(purchase.id);
 
-  const payments = await prisma.payment.findMany({
-    where: {
-      direction: PaymentDirection.OUT,
-      partyId: purchase.party.id,
-      reference: { contains: token, mode: "insensitive" },
-    },
+  const primaryWhere = {
+    direction: PaymentDirection.OUT,
+    supplierPurchaseId: purchase.id,
+  } satisfies Prisma.PaymentWhereInput;
+
+  const legacyWhere = {
+    direction: PaymentDirection.OUT,
+    partyId: purchase.party.id,
+    reference: { contains: token, mode: "insensitive" },
+  } satisfies Prisma.PaymentWhereInput;
+
+  let paymentWhere: Prisma.PaymentWhereInput = primaryWhere;
+
+  let payments = await prisma.payment.findMany({
+    where: paymentWhere,
     orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     select: {
       id: true,
@@ -76,12 +85,25 @@ export async function getSupplierPurchaseDetailsById(id: string) {
     },
   });
 
+  // Legacy fallback: old payments linked via reference token instead of FK.
+  if (payments.length === 0) {
+    paymentWhere = legacyWhere;
+    payments = await prisma.payment.findMany({
+      where: paymentWhere,
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        paymentType: true,
+        amount: true,
+        occurredAt: true,
+        reference: true,
+        notes: true,
+      },
+    });
+  }
+
   const agg = await prisma.payment.aggregate({
-    where: {
-      direction: PaymentDirection.OUT,
-      partyId: purchase.party.id,
-      reference: { contains: token, mode: "insensitive" },
-    },
+    where: paymentWhere,
     _sum: { amount: true },
   });
 

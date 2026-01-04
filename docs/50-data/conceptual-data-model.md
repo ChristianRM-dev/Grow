@@ -60,6 +60,7 @@ If you prefer stricter separation, split into `IncomingPayments` and `OutgoingPa
 - `Amount` (Money, nullable for barter if needed)
 - `Reference` (string, optional; transfer ref)
 - `Notes` (string, optional)
+- `SupplierPurchaseId` (nullable FK, used for supplier payments; prefer FK over legacy reference tokens)
 - `OccurredAt` (Business Time Zone; recommended)
 - `CreatedAt` (UTC)
 
@@ -73,6 +74,7 @@ Purchases from suppliers (Accounts Payable side). No internal folio; store suppl
 - `Total` (Money)
 - `Notes` (optional)
 - `CreatedAt` (UTC)
+- `Payments` (OUT) link via `Payment.SupplierPurchaseId`. Legacy data can still be parsed via the `Reference` token `SP:<SupplierPurchaseId>` as a fallback.
 
 ### PartyLedgerEntries (recommended)
 A unified movement history for the Party statement (Receivable/Payable + Net). This supports “all vs all” netting without linking note-to-note.
@@ -90,6 +92,13 @@ A unified movement history for the Party statement (Receivable/Payable + Net). T
 
 > You can either (A) persist ledger entries, or (B) compute a statement from SalesNotes/SupplierPurchases/Payments.  
 > Persisting a ledger simplifies “Historial” and auditability.
+
+### AuditLog (append-only)
+Captures business events with before/after snapshots.
+
+- `AuditLog` rows store `EventKey` (e.g., `salesNote.created`), `Action` (Create/Update), `EntityType/EntityId`, optional `RootEntity*`, `Reference`, actor snapshots, `OccurredAt`, `Meta` (stores `traceId` when present), and `CreatedAt`.
+- `AuditLogChange` rows are children holding typed before/after values (`Decimal`, `String`, `Json`) keyed by `AuditChangeKey` (totals, balances, payment amounts).
+- Writes happen inside use case transactions right after obtaining the “after” state to keep audit aligned with domain writes.
 
 ### Quotations
 - `QuotationId` (GUID)

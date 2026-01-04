@@ -56,6 +56,7 @@ export async function updateSupplierPurchasePaymentAction(params: {
     partyId: values.partyId,
     paymentType: values.paymentType,
     amount: values.amount,
+    supplierPurchaseId: values.supplierPurchaseId,
     reference,
     notes: safeTrim(values.notes) || undefined,
     occurredAt,

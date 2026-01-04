@@ -1,4 +1,7 @@
 import {
+  AuditAction,
+  AuditChangeKey,
+  AuditEntityType,
   Prisma,
   PartyLedgerSide,
   PartyLedgerSourceType,
@@ -23,6 +26,10 @@ import {
   ensureSingleLedgerEntryForSource,
   reassignLedgerPartyBySourceIds,
 } from "@/modules/shared/ledger/partyLedger";
+import {
+  auditDecimalChange,
+  createAuditLog,
+} from "@/modules/shared/audit/createAuditLog.helper";
 
 type LinePayload = {
   productVariantId: string | null;
@@ -52,7 +59,15 @@ export async function updateSalesNoteUseCase(
 
     const existing = await tx.salesNote.findUnique({
       where: { id: salesNoteId },
-      select: { id: true, partyId: true, folio: true, createdAt: true },
+      select: {
+        id: true,
+        partyId: true,
+        folio: true,
+        createdAt: true,
+        subtotal: true,
+        discountTotal: true,
+        total: true,
+      },
     });
 
     if (!existing) throw new Error("La nota de venta no existe.");
@@ -162,6 +177,18 @@ export async function updateSalesNoteUseCase(
       notes: null,
     });
 
+    const paymentsAgg = await tx.payment.aggregate({
+      where: { salesNoteId, direction: PaymentDirection.IN },
+      _sum: { amount: true },
+    });
+
+    const paidTotal = paymentsAgg._sum.amount ?? zeroDecimal();
+    const clampToZero = (value: Prisma.Decimal) =>
+      value.lt(0) ? zeroDecimal() : value;
+
+    const beforeBalance = clampToZero(existing.total.sub(paidTotal));
+    const afterBalance = clampToZero(total.sub(paidTotal));
+
     // 7) If party changed, move Payments and their ledger entries (recommended for statement consistency)
     if (existing.partyId !== nextPartyId) {
       logger.log("party_changed_move_payments", {
@@ -187,6 +214,48 @@ export async function updateSalesNoteUseCase(
         newPartyId: nextPartyId,
       });
     }
+
+    const actor =
+      ctx?.user && ctx.user.id
+        ? {
+            userId: ctx.user.id,
+            name: ctx.user.name,
+            email: ctx.user.email,
+          }
+        : undefined;
+
+    await createAuditLog(tx, {
+      eventKey: "salesNote.updated",
+      action: AuditAction.UPDATE,
+      entity: { type: AuditEntityType.SALES_NOTE, id: salesNoteId },
+      rootEntity: { type: AuditEntityType.SALES_NOTE, id: salesNoteId },
+      reference: existing.folio,
+      occurredAt: existing.createdAt,
+      traceId: ctx?.traceId,
+      actor,
+      changes: [
+        auditDecimalChange(
+          AuditChangeKey.SALES_NOTE_SUBTOTAL,
+          existing.subtotal,
+          subtotal
+        ),
+        auditDecimalChange(
+          AuditChangeKey.SALES_NOTE_DISCOUNT_TOTAL,
+          existing.discountTotal,
+          discountTotal
+        ),
+        auditDecimalChange(
+          AuditChangeKey.SALES_NOTE_TOTAL,
+          existing.total,
+          total
+        ),
+        auditDecimalChange(
+          AuditChangeKey.SALES_NOTE_BALANCE_DUE,
+          beforeBalance,
+          afterBalance
+        ),
+      ],
+    });
 
     // 8) Optional debug snapshot
     const written = await tx.salesNote.findUnique({

@@ -111,6 +111,30 @@ enum PaymentType {
   EXCHANGE // Al cambio
 }
 
+// Audit logging entity types
+enum AuditEntityType {
+  SALES_NOTE
+  PAYMENT
+  SUPPLIER_PURCHASE
+}
+
+// Audit logging action types
+enum AuditAction {
+  CREATE
+  UPDATE
+}
+
+// Audit logging change keys
+enum AuditChangeKey {
+  SALES_NOTE_SUBTOTAL
+  SALES_NOTE_DISCOUNT_TOTAL
+  SALES_NOTE_TOTAL
+  SALES_NOTE_BALANCE_DUE
+  PAYMENT_AMOUNT
+  SUPPLIER_PURCHASE_TOTAL
+  SUPPLIER_PURCHASE_BALANCE_DUE
+}
+
 // PartyLedgerEntry is a derived accounting-style ledger per Party.
 // It tracks how much the party owes us (RECEIVABLE) or we owe them (PAYABLE).
 enum PartyLedgerSide {
@@ -291,6 +315,11 @@ model Payment {
   salesNoteId String?
   salesNote   SalesNote?       @relation(fields: [salesNoteId], references: [id], onDelete: SetNull)
 
+  // Payments can be linked to a SupplierPurchase (supplier debt settlement).
+  // Nullable for backwards compatibility; SetNull to preserve history if purchase is removed.
+  supplierPurchaseId String?
+  supplierPurchase   SupplierPurchase? @relation(fields: [supplierPurchaseId], references: [id], onDelete: SetNull)
+
   // Payments can also be linked directly to a Party (supplier payments or other movements).
   // We keep historical payments even if a party is soft-deleted; relation is SetNull.
   partyId     String?
@@ -313,6 +342,7 @@ model Payment {
   updatedAt   DateTime         @updatedAt
 
   @@index([salesNoteId])
+  @@index([supplierPurchaseId])
   @@index([partyId])
   @@index([occurredAt])
 }
@@ -338,9 +368,62 @@ model SupplierPurchase {
   updatedAt     DateTime @updatedAt
 
   party Party @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  payments Payment[]
 
   @@index([partyId])
   @@index([occurredAt])
+}
+
+// Append-only audit log for key business events.
+model AuditLog {
+  id              String           @id @default(cuid())
+  eventKey        String
+  action          AuditAction
+
+  entityType      AuditEntityType
+  entityId        String
+
+  // Root entity is the main business object affected by the event (e.g., SalesNote for its payments).
+  rootEntityType  AuditEntityType?
+  rootEntityId    String?
+
+  reference       String?
+
+  actorUserId     String?
+  actorUserName   String?
+  actorUserEmail  String?
+
+  occurredAt      DateTime
+  meta            Json?
+
+  createdAt       DateTime        @default(now())
+  changes         AuditLogChange[]
+
+  @@index([rootEntityType, rootEntityId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([eventKey, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model AuditLogChange {
+  id            String         @id @default(cuid())
+  auditLogId    String
+  key           AuditChangeKey
+
+  decimalBefore Decimal?       @db.Decimal(18, 2)
+  decimalAfter  Decimal?       @db.Decimal(18, 2)
+
+  stringBefore  String?
+  stringAfter   String?
+
+  jsonBefore    Json?
+  jsonAfter     Json?
+
+  createdAt     DateTime       @default(now())
+
+  auditLog      AuditLog       @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+
+  @@index([auditLogId])
 }
 
 model PartyLedgerEntry {

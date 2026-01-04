@@ -1,5 +1,8 @@
 // src/modules/sales-notes/application/createSalesNote.usecase.ts
 import {
+  AuditAction,
+  AuditChangeKey,
+  AuditEntityType,
   FolioType,
   Prisma,
   PartyLedgerSide,
@@ -23,6 +26,10 @@ import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/description
 import { generateMonthlyFolio } from "@/modules/shared/folio/monthlyFolio";
 import { resolvePartyIdForCustomerSelection } from "@/modules/parties/application/resolvePartyIdForCustomerSelection";
 import { ensureSingleLedgerEntryForSource } from "@/modules/shared/ledger/partyLedger";
+import {
+  auditDecimalChange,
+  createAuditLog,
+} from "@/modules/shared/audit/createAuditLog.helper";
 
 type LinePayload = {
   productVariantId: string | null;
@@ -160,6 +167,37 @@ export async function createSalesNoteUseCase(
     } else {
       logger.log("lines_skipped_empty");
     }
+
+    await createAuditLog(tx, {
+      eventKey: "salesNote.created",
+      action: AuditAction.CREATE,
+      entity: { type: AuditEntityType.SALES_NOTE, id: created.id },
+      rootEntity: { type: AuditEntityType.SALES_NOTE, id: created.id },
+      reference: created.folio,
+      occurredAt: created.createdAt,
+      traceId: ctx?.traceId,
+      actor: ctx?.user
+        ? {
+            userId: ctx.user.id,
+            name: ctx.user.name,
+            email: ctx.user.email,
+          }
+        : undefined,
+      meta: { linesCount: allLines.length },
+      changes: [
+        auditDecimalChange(
+          AuditChangeKey.SALES_NOTE_SUBTOTAL,
+          null,
+          subtotal
+        ),
+        auditDecimalChange(
+          AuditChangeKey.SALES_NOTE_DISCOUNT_TOTAL,
+          null,
+          discountTotal
+        ),
+        auditDecimalChange(AuditChangeKey.SALES_NOTE_TOTAL, null, total),
+      ],
+    });
 
     // 6) Optional: verify snapshot
     const written = await tx.salesNote.findUnique({

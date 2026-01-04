@@ -1,4 +1,7 @@
 import {
+  AuditAction,
+  AuditChangeKey,
+  AuditEntityType,
   Prisma,
   PartyLedgerSide,
   PartyLedgerSourceType,
@@ -12,6 +15,10 @@ import {
 import { toDecimal } from "@/modules/shared/utils/decimals";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { upsertPartyLedgerEntry } from "@/modules/shared/ledger/upsertPartyLedgerEntry";
+import {
+  auditDecimalChange,
+  createAuditLog,
+} from "@/modules/shared/audit/createAuditLog.helper";
 
 export type CreateSupplierPurchaseInput = {
   partyId: string;
@@ -72,6 +79,38 @@ export async function createSupplierPurchaseUseCase(
       occurredAt: created.occurredAt,
       amount: created.total, // ✅ positive debt
       notes: created.notes,
+    });
+
+    const actor =
+      ctx?.user && ctx.user.id
+        ? {
+            userId: ctx.user.id,
+            name: ctx.user.name,
+            email: ctx.user.email,
+          }
+        : undefined;
+
+    await createAuditLog(tx, {
+      eventKey: "supplierPurchase.created",
+      action: AuditAction.CREATE,
+      entity: { type: AuditEntityType.SUPPLIER_PURCHASE, id: created.id },
+      rootEntity: { type: AuditEntityType.SUPPLIER_PURCHASE, id: created.id },
+      reference: created.supplierFolio,
+      occurredAt: created.occurredAt,
+      traceId: ctx?.traceId,
+      actor,
+      changes: [
+        auditDecimalChange(
+          AuditChangeKey.SUPPLIER_PURCHASE_TOTAL,
+          null,
+          created.total
+        ),
+        auditDecimalChange(
+          AuditChangeKey.SUPPLIER_PURCHASE_BALANCE_DUE,
+          null,
+          created.total
+        ),
+      ],
     });
 
     logger.log("created", { supplierPurchaseId: created.id });
