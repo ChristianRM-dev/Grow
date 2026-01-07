@@ -13,15 +13,7 @@ const baseValues: SalesNoteFormValues = {
     existingPartyId: "",
     newParty: { name: "", phone: "", notes: "" },
   },
-  lines: [
-    {
-      productVariantId: "",
-      productName: "",
-      quantity: 1,
-      unitPrice: "",
-      description: "",
-    },
-  ],
+  lines: [],
   unregisteredLines: [],
 };
 

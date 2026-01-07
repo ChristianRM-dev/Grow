@@ -44,7 +44,9 @@ export const SalesNoteLineSchema = z.object({
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
 });
 
-export const SalesNoteLinesStepSchema = z.array(SalesNoteLineSchema);
+export const SalesNoteLinesStepSchema = z
+  .array(SalesNoteLineSchema)
+  .default([]);
 
 export const SalesNoteUnregisteredLineSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido"),
