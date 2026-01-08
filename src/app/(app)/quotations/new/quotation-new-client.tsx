@@ -17,15 +17,7 @@ const defaultValues: QuotationFormValues = {
     existingPartyId: "",
     existingPartyName: "",
   },
-  lines: [
-    {
-      productVariantId: "",
-      productName: "",
-      quantity: 1,
-      quotedUnitPrice: "",
-      description: "",
-    },
-  ],
+  lines: [],
   unregisteredLines: [],
 };
 

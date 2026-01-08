@@ -103,10 +103,6 @@ export const QuotationLineSchema = z.object({
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
 });
 
-export const QuotationLinesStepSchema = z
-  .array(QuotationLineSchema)
-  .min(1, "Agrega al menos un producto");
-
 export const QuotationUnregisteredLineSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido"),
   quantity: z.number().int().min(1, "Cantidad mínima 1"),
@@ -114,16 +110,21 @@ export const QuotationUnregisteredLineSchema = z.object({
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
 });
 
-export const QuotationUnregisteredLinesStepSchema = z.array(
-  QuotationUnregisteredLineSchema
-);
+export const QuotationLinesStepSchema = z
+  .array(QuotationLineSchema)
+  .default([]);
 
+export const QuotationUnregisteredLinesStepSchema = z
+  .array(QuotationUnregisteredLineSchema)
+  .default([]);
+
+// ✅ NO uses .optional() cuando ya tienes .default()
 export const QuotationFormSchema = z.object({
   customer: QuotationCustomerSchema,
-  lines: QuotationLinesStepSchema,
-  unregisteredLines: QuotationUnregisteredLinesStepSchema,
+  lines: QuotationLinesStepSchema, // ✅ Quita .optional().default([])
+  unregisteredLines: QuotationUnregisteredLinesStepSchema, // ✅ Agrega .default([])
   status: QuotationStatusSchema.optional(),
 });
 
-// ✅ Single source of truth for "values" typing.
 export type QuotationFormValues = z.infer<typeof QuotationFormSchema>;
+

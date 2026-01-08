@@ -34,11 +34,16 @@ const decimalString = z
   )
   .refine((v) => Number(v) > 0, "El precio debe ser mayor a 0");
 
-
-
 export const SalesNoteLineSchema = z.object({
   productVariantId: z.string().trim().min(1, "Selecciona un producto"),
   productName: z.string().trim().min(1, "Selecciona un producto"),
+  quantity: z.number().int().min(1, "Cantidad mínima 1"),
+  unitPrice: decimalString,
+  description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
+});
+
+export const SalesNoteUnregisteredLineSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es requerido"),
   quantity: z.number().int().min(1, "Cantidad mínima 1"),
   unitPrice: decimalString,
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
@@ -48,48 +53,17 @@ export const SalesNoteLinesStepSchema = z
   .array(SalesNoteLineSchema)
   .default([]);
 
-export const SalesNoteUnregisteredLineSchema = z.object({
-  name: z.string().trim().min(1, "El nombre es requerido"),
-  quantity: z.number().int().min(1, "Cantidad mínima 1"),
-  unitPrice: decimalString,
-  description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
-});
-
-export const SalesNoteUnregisteredLinesStepSchema = z.array(
-  SalesNoteUnregisteredLineSchema
-);
+export const SalesNoteUnregisteredLinesStepSchema = z
+  .array(SalesNoteUnregisteredLineSchema)
+  .default([]);
 
 // Define el esquema sin transformaciones complejas
 export const SalesNoteFormSchema = z.object({
   customer: SalesNoteCustomerStepSchema,
-  lines: SalesNoteLinesStepSchema,
-  unregisteredLines: SalesNoteUnregisteredLinesStepSchema,
+  lines: SalesNoteLinesStepSchema, // ✅ Quita .optional().default([])
+  unregisteredLines: SalesNoteUnregisteredLinesStepSchema, // ✅ Agrega .default([])
 });
 
 // Define un tipo TypeScript manualmente para evitar problemas de inferencia
-export type SalesNoteFormValues = {
-  customer: {
-    mode: "PUBLIC" | "PARTY";
-    partyMode?: "EXISTING" | "NEW";
-    existingPartyId?: string;
-    existingPartyName?: string;
-    newParty?: {
-      name?: string;
-      phone?: string;
-      notes?: string;
-    };
-  };
-  lines: Array<{
-    productVariantId: string;
-    productName: string;
-    quantity: number;
-    unitPrice: string;
-    description?: string;
-  }>;
-  unregisteredLines: Array<{
-    name: string;
-    quantity: number;
-    unitPrice: string;
-    description?: string;
-  }>;
-};
+// Elimina el tipo manual y usa el inferido de Zod
+export type SalesNoteFormValues = z.infer<typeof SalesNoteFormSchema>;
