@@ -5,11 +5,13 @@ import { getDashboardMonthlySales } from "@/modules/dashboard/queries/getDashboa
 import { getDashboardReceivablesSummary } from "@/modules/dashboard/queries/getDashboardReceivablesSummary.query";
 import { getDashboardTopDelinquentCustomers } from "@/modules/dashboard/queries/getDashboardTopDelinquentCustomers.query";
 
+type RangeParams = { year?: string; month?: string };
+
 type DashboardPageProps = {
-  searchParams?: { year?: string; month?: string };
+  searchParams: Promise<RangeParams>;
 };
 
-function parseYearMonth(searchParams?: DashboardPageProps["searchParams"]) {
+function parseYearMonth(searchParams: RangeParams) {
   const now = new Date();
   const defaultYear = now.getUTCFullYear();
   const defaultMonth = now.getUTCMonth() + 1;
@@ -31,13 +33,11 @@ function parseYearMonth(searchParams?: DashboardPageProps["searchParams"]) {
   return { year, month };
 }
 
-
-
 export default async function DashboardPage({
   searchParams,
 }: DashboardPageProps) {
-    const sp = await searchParams;
-    const { year, month } = parseYearMonth(sp);
+  const sp = await searchParams;
+  const { year, month } = parseYearMonth(sp);
   const asOf = new Date();
 
   const [monthlySales, receivables, topDelinquents] = await Promise.all([

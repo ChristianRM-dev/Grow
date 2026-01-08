@@ -24,24 +24,26 @@ function statusVariant(
   }
 }
 
-// Función para traducir los estados a español
-export function statusMessage(status: string): string {
-  const translations: Record<string, string> = {
-    DRAFT: "Borrador",
-    SENT: "Enviado",
-    CONVERTED: "Convertido",
-    CANCELLED: "Cancelado"
-  };
-
-  return translations[status] || status;
-}
+type QuotationDetailsPageProps = {
+  params: Promise<{ id: string }>;
+};
 
 export default async function QuotationDetailsPage({
   params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+}: QuotationDetailsPageProps) {
   const { id } = await params;
+
+  // Función para traducir los estados a español
+  const statusMessage = (status: string): string => {
+    const translations: Record<string, string> = {
+      DRAFT: "Borrador",
+      SENT: "Enviado",
+      CONVERTED: "Convertido",
+      CANCELLED: "Cancelado",
+    };
+
+    return translations[status] || status;
+  };
 
   const dto = await getQuotationDetailsById(id);
   if (!dto) return notFound();
