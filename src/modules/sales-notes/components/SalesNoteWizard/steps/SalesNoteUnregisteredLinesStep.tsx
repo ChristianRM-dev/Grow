@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useFieldArray } from "react-hook-form";
+import { useFieldArray, useWatch } from "react-hook-form";
 
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
@@ -9,7 +9,6 @@ import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteF
 type Props = StepComponentProps<SalesNoteFormValues>;
 
 function normalizeMoneyInput(v: string): string {
-  // Accept inputs like "$ 12,50" and normalize to "12.50"
   return String(v ?? "")
     .trim()
     .replace(/\$/g, "")
@@ -32,13 +31,25 @@ function isPriceLike(v: string) {
   return /^\d+(\.\d{1,2})?$/.test(s) && Number(s) > 0;
 }
 
+function isRowComplete(row: SalesNoteFormValues["unregisteredLines"][number] | undefined) {
+  if (!row) return false;
+
+  const name = String(row.name ?? "").trim();
+  if (!name) return false;
+
+  const qty = Number(row.quantity);
+  if (!Number.isFinite(qty) || qty < 1) return false;
+
+  if (!isPriceLike(String(row.unitPrice ?? ""))) return false;
+
+  return true;
+}
+
 export function SalesNoteUnregisteredLinesStep({ form }: Props) {
   const {
     control,
     register,
     setValue,
-    watch,
-    getValues,
     formState: { errors },
   } = form;
 
@@ -47,31 +58,15 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
     name: "unregisteredLines",
   });
 
-  // Match the working pattern from SalesNoteLinesStep
-  const rows = watch("unregisteredLines") ?? [];
+  // ✅ This guarantees re-render when any value inside unregisteredLines changes
+  const rows = useWatch({ control, name: "unregisteredLines" }) ?? [];
+
   const rowsErrors = errors.unregisteredLines;
 
-  const isRowComplete = (idx: number) => {
-    const row = getValues(`unregisteredLines.${idx}`);
-    if (!row) return false;
-
-    const name = String(row.name ?? "").trim();
-    if (!name) return false;
-
-    const qty = Number(row.quantity);
-    if (!Number.isFinite(qty) || qty < 1) return false;
-
-    if (!isPriceLike(String(row.unitPrice ?? ""))) return false;
-
-    return true;
-  };
-
-  // Optional step behavior (same logic you already had)
   const canAddRow =
-    fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
+    rows.length === 0 ? true : rows.every((r) => isRowComplete(r));
 
-  // Compute on every render (same approach as SalesNoteLinesStep)
-  const computedTotals = (() => {
+  const computedTotals = React.useMemo(() => {
     let subtotal = 0;
 
     for (const r of rows) {
@@ -82,15 +77,12 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
       subtotal += qty * price;
     }
 
-    const itemsCount = (rows ?? []).filter(
+    const itemsCount = rows.filter(
       (r) => String(r?.name ?? "").trim().length > 0
     ).length;
 
-    return {
-      subtotal,
-      itemsCount,
-    };
-  })();
+    return { subtotal, itemsCount };
+  }, [rows]);
 
   return (
     <div className="w-full">
@@ -145,9 +137,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                             rowErr?.name ? "input-error" : ""
                           }`}
                           placeholder="Ej: Tierra preparada"
-                          {...register(
-                            `unregisteredLines.${index}.name` as const
-                          )}
+                          {...register(`unregisteredLines.${index}.name` as const)}
                         />
                         {rowErr?.name?.message ? (
                           <p className="mt-1 text-sm text-error">
@@ -163,10 +153,9 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           className={`input input-bordered w-24 ${
                             rowErr?.quantity ? "input-error" : ""
                           }`}
-                          {...register(
-                            `unregisteredLines.${index}.quantity` as const,
-                            { valueAsNumber: true }
-                          )}
+                          {...register(`unregisteredLines.${index}.quantity` as const, {
+                            valueAsNumber: true,
+                          })}
                         />
                         {rowErr?.quantity?.message ? (
                           <p className="mt-1 text-sm text-error">
@@ -182,25 +171,21 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           }`}
                           placeholder="12.50"
                           inputMode="decimal"
-                          {...register(
-                            `unregisteredLines.${index}.unitPrice` as const,
-                            {
-                              onChange: (e) => {
-                                // Keep the raw input in the UI, but normalize for internal logic if user types "$" or ","
-                                const raw = String(e.target.value ?? "");
-                                const normalized = normalizeMoneyInput(raw);
+                          {...register(`unregisteredLines.${index}.unitPrice` as const, {
+                            onChange: (e) => {
+                              const raw = String(e.target.value ?? "");
+                              const normalized = normalizeMoneyInput(raw);
 
-                                // If normalization changes the value, sync it back so getValues/watch behave consistently.
-                                if (normalized !== raw) {
-                                  setValue(
-                                    `unregisteredLines.${index}.unitPrice`,
-                                    normalized,
-                                    { shouldDirty: true }
-                                  );
-                                }
-                              },
-                            }
-                          )}
+                              if (normalized !== raw) {
+                                setValue(
+                                  `unregisteredLines.${index}.unitPrice`,
+                                  normalized,
+                                  // ✅ helps keep validation/errors in sync too
+                                  { shouldDirty: true, shouldValidate: true }
+                                );
+                              }
+                            },
+                          })}
                         />
                         {rowErr?.unitPrice?.message ? (
                           <p className="mt-1 text-sm text-error">
@@ -251,9 +236,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
               <div className="w-full max-w-sm rounded-box border border-base-300 bg-base-100 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm opacity-70">Productos</span>
-                  <span className="font-medium">
-                    {computedTotals.itemsCount}
-                  </span>
+                  <span className="font-medium">{computedTotals.itemsCount}</span>
                 </div>
 
                 <div className="mt-2 flex items-center justify-between">

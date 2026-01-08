@@ -69,15 +69,7 @@ export function mapQuotationRowToFormValues(input: {
     }
   }
 
-  if (values.lines.length === 0) {
-    values.lines.push({
-      productVariantId: "",
-      productName: "",
-      quantity: 1,
-      quotedUnitPrice: "",
-      description: "",
-    });
-  }
+
 
   return values;
 }

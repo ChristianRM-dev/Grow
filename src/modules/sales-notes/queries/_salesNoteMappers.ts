@@ -167,16 +167,6 @@ export function mapSalesNoteRowToFormValues(input: {
     }
   }
 
-  // Schema requires min(1) registered line.
-  if (values.lines.length === 0) {
-    values.lines.push({
-      productVariantId: "",
-      productName: "",
-      quantity: 1,
-      unitPrice: "",
-      description: "",
-    });
-  }
 
   return values;
 }

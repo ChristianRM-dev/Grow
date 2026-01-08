@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useFieldArray } from "react-hook-form";
+import { useFieldArray, useWatch } from "react-hook-form";
 
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
@@ -21,15 +21,29 @@ function isPriceLike(v: string) {
   return /^\d+(\.\d{1,2})?$/.test(s) && Number(s) > 0;
 }
 
+function isRowComplete(
+  row: QuotationFormValues["unregisteredLines"][number] | undefined
+) {
+  if (!row) return false;
+
+  const name = String(row.name ?? "").trim();
+  if (!name) return false;
+
+  const qty = Number(row.quantity);
+  if (!Number.isFinite(qty) || qty < 1) return false;
+
+  if (!isPriceLike(String(row.quotedUnitPrice ?? ""))) return false;
+
+  return true;
+}
+
 type Props = StepComponentProps<QuotationFormValues>;
 
 export function QuotationUnregisteredLinesStep({ form }: Props) {
   const {
     control,
     register,
-    getValues,
     setValue,
-    watch,
     formState: { errors },
   } = form;
 
@@ -38,28 +52,14 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
     name: "unregisteredLines",
   });
 
-  const rows = watch("unregisteredLines") ?? [];
+  // ✅ ensures re-render when any value inside unregisteredLines changes
+  const rows = useWatch({ control, name: "unregisteredLines" }) ?? [];
   const rowsErrors = errors.unregisteredLines;
 
-  const isRowComplete = (idx: number) => {
-    const row = getValues(`unregisteredLines.${idx}`);
-    if (!row) return false;
-
-    const name = String(row.name ?? "").trim();
-    if (!name) return false;
-
-    const qty = Number(row.quantity);
-    if (!Number.isFinite(qty) || qty < 1) return false;
-
-    if (!isPriceLike(String(row.quotedUnitPrice ?? ""))) return false;
-
-    return true;
-  };
-
   const canAddRow =
-    fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
+    rows.length === 0 ? true : rows.every((r) => isRowComplete(r));
 
-  const totals = (() => {
+  const totals = React.useMemo(() => {
     let subtotal = 0;
 
     for (const r of rows) {
@@ -70,8 +70,14 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
       subtotal += qty * price;
     }
 
-    return { subtotal, itemsCount: rows.length };
-  })();
+    // If you want "Productos" to match the SalesNote behavior:
+    // count only rows with a name, not empty drafts.
+    const itemsCount = rows.filter(
+      (r) => String(r?.name ?? "").trim().length > 0
+    ).length;
+
+    return { subtotal, itemsCount };
+  }, [rows]);
 
   return (
     <div className="w-full">
@@ -146,9 +152,7 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
                           }`}
                           {...register(
                             `unregisteredLines.${index}.quantity` as const,
-                            {
-                              valueAsNumber: true,
-                            }
+                            { valueAsNumber: true }
                           )}
                         />
                         {rowErr?.quantity?.message ? (
@@ -166,7 +170,18 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
                           placeholder="12.50"
                           inputMode="decimal"
                           {...register(
-                            `unregisteredLines.${index}.quotedUnitPrice` as const
+                            `unregisteredLines.${index}.quotedUnitPrice` as const,
+                            {
+                              onChange: (e) => {
+                                // If later you normalize $ or comma, do it here.
+                                // For now we just ensure validation recalculations are kept in sync.
+                                setValue(
+                                  `unregisteredLines.${index}.quotedUnitPrice`,
+                                  String(e.target.value ?? ""),
+                                  { shouldDirty: true, shouldValidate: true }
+                                );
+                              },
+                            }
                           )}
                         />
                         {rowErr?.quotedUnitPrice?.message ? (

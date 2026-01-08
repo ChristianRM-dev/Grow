@@ -41,7 +41,9 @@ export default async function SalesNoteNewPage({
   if (fromQuotationId) {
     const draft = await getQuotationForSalesNoteDraft(fromQuotationId);
     if (draft) {
+      console.log("salenotes:draft", draft);
       initialValues = draft.values;
+       console.log("salenotes:initialValues", initialValues);
       sourceQuotation = { id: draft.quotationId, folio: draft.folio };
     }
   }
