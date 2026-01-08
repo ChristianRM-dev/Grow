@@ -126,5 +126,6 @@ export const QuotationFormSchema = z.object({
   status: QuotationStatusSchema.optional(),
 });
 
-export type QuotationFormValues = z.infer<typeof QuotationFormSchema>;
 
+export type QuotationFormInput = z.input<typeof QuotationFormSchema>;
+export type QuotationFormValues = z.output<typeof QuotationFormSchema>;

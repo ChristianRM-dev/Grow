@@ -13,9 +13,10 @@ import {
 import {
   SalesNoteFormSchema,
   SalesNoteCustomerStepSchema,
-  type SalesNoteFormValues,
   SalesNoteLinesStepSchema,
   SalesNoteUnregisteredLinesStepSchema,
+  type SalesNoteFormInput,
+  type SalesNoteFormValues,
 } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 
 import { SalesNoteCustomerStep } from "./steps/SalesNoteCustomerStep";
@@ -24,17 +25,8 @@ import { SalesNoteUnregisteredLinesStep } from "./steps/SalesNoteUnregisteredLin
 import { SalesNoteSummaryStep } from "./steps/SalesNoteSummaryStep";
 
 type SalesNoteWizardProps = {
-  /**
-   * Optional initial values (for edit forms).
-   */
-  initialValues: Partial<SalesNoteFormValues>;
-
-  /**
-   * Called when user submits the wizard.
-   * Typically this will call a server action.
-   */
+  initialValues: Partial<SalesNoteFormInput>;
   onSubmit: (values: SalesNoteFormValues) => Promise<void> | void;
-
   submitting: boolean;
 };
 
@@ -43,14 +35,18 @@ export function SalesNoteWizard({
   onSubmit,
   submitting,
 }: SalesNoteWizardProps) {
-  const form = useForm<SalesNoteFormValues>({
+  const form = useForm<SalesNoteFormInput>({
     resolver: zodResolver(SalesNoteFormSchema),
     shouldUnregister: false,
-    defaultValues: initialValues,
+    defaultValues: {
+      ...initialValues,
+      lines: initialValues?.lines ?? [],
+      unregisteredLines: initialValues?.unregisteredLines ?? [],
+    },
     mode: "onSubmit",
   });
 
-  const Step = defineFormStep<SalesNoteFormValues>();
+  const Step = defineFormStep<SalesNoteFormInput>();
 
   const steps = useMemo(() => {
     return [
@@ -69,7 +65,7 @@ export function SalesNoteWizard({
           schema: SalesNoteCustomerStepSchema,
           getStepValues: (v) => v.customer,
           mapIssuePathToFieldPath:
-            prefixIssuePathMapper<SalesNoteFormValues>("customer"),
+            prefixIssuePathMapper<SalesNoteFormInput>("customer"),
         },
         Component: SalesNoteCustomerStep,
       }),
@@ -79,7 +75,7 @@ export function SalesNoteWizard({
         fieldPaths: ["lines"],
         validator: {
           schema: SalesNoteLinesStepSchema,
-          getStepValues: (v) => v.lines,
+          getStepValues: (v) => v.lines ?? [],
         },
         Component: SalesNoteLinesStep,
       }),
@@ -89,13 +85,12 @@ export function SalesNoteWizard({
         fieldPaths: ["unregisteredLines"],
         validator: {
           schema: SalesNoteUnregisteredLinesStepSchema,
-          getStepValues: (v) => v.unregisteredLines,
+          getStepValues: (v) => v.unregisteredLines ?? [],
           mapIssuePathToFieldPath: (issuePath: readonly PropertyKey[]) =>
             `unregisteredLines.${issuePath.map(String).join(".")}` as any,
         },
         Component: SalesNoteUnregisteredLinesStep,
       }),
-
       {
         id: "summary",
         kind: "summary",
@@ -104,16 +99,16 @@ export function SalesNoteWizard({
         Component: SalesNoteSummaryStep,
         labels: {
           submit: "Guardar",
-          submitting: "Guardando…",
+          submitting: submitting ? "Guardando…" : "Guardando…",
           next: "Siguiente",
           back: "Atrás",
         },
       },
     ] as const;
-  }, [Step]);
+  }, [Step, submitting]);
 
   return (
-    <MultiStepForm<SalesNoteFormValues>
+    <MultiStepForm<SalesNoteFormInput>
       config={{
         showProgress: true,
         allowDraftSave: false,
@@ -126,10 +121,8 @@ export function SalesNoteWizard({
       }}
       steps={steps}
       form={form}
-      // finalSchema={SalesNoteFormSchema} // opcional; ya está en resolver
-      onSubmit={onSubmit} // ✅ usa el handler real del cliente
+      onSubmit={(input) => onSubmit(SalesNoteFormSchema.parse(input))}
       onEvent={(e) => {
-        // Helpful during debugging
         console.log("SalesNoteWizard::event", e);
       }}
     />

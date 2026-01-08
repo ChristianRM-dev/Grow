@@ -3,14 +3,14 @@
 import React, { useRef, useState } from "react";
 import { useFieldArray } from "react-hook-form";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
-import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
+import type { SalesNoteFormInput } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 import {
   searchProductVariantsAction,
   type ProductVariantLookupDto,
 } from "@/modules/products/actions/searchProductVariants.action";
 
-type Props = StepComponentProps<SalesNoteFormValues>;
-
+// type Props = StepComponentProps<SalesNoteFormValues>;
+type Props = StepComponentProps<SalesNoteFormInput>;
 function parseMoney(v: string): number {
   const n = Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : NaN;

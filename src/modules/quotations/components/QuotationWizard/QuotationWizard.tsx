@@ -9,11 +9,15 @@ import {
   defineFormStep,
   prefixIssuePathMapper,
 } from "@/components/ui/MultiStepForm/stepBuilders";
+
 import {
   QuotationFormSchema,
   QuotationLinesStepSchema,
   QuotationUnregisteredLinesStepSchema,
-  type QuotationFormValues,
+} from "@/modules/quotations/forms/quotationForm.schemas";
+import type {
+  QuotationFormInput,
+  QuotationFormValues,
 } from "@/modules/quotations/forms/quotationForm.schemas";
 
 import { QuotationCustomerStep } from "./steps/QuotationCustomerStep";
@@ -22,7 +26,7 @@ import { QuotationUnregisteredLinesStep } from "./steps/QuotationUnregisteredLin
 import { QuotationSummaryStep } from "./steps/QuotationSummaryStep";
 
 type QuotationWizardProps = {
-  initialValues: Partial<QuotationFormValues>;
+  initialValues: Partial<QuotationFormInput>;
   onSubmit: (values: QuotationFormValues) => Promise<void> | void;
   submitting: boolean;
 };
@@ -32,14 +36,19 @@ export function QuotationWizard({
   onSubmit,
   submitting,
 }: QuotationWizardProps) {
-  const form = useForm<QuotationFormValues>({
+  const form = useForm<QuotationFormInput>({
     resolver: zodResolver(QuotationFormSchema),
     shouldUnregister: false,
-    defaultValues: initialValues,
+    defaultValues: {
+      ...initialValues,
+      lines: initialValues?.lines ?? [],
+      unregisteredLines: initialValues?.unregisteredLines ?? [],
+    },
     mode: "onSubmit",
   });
 
-  const Step = defineFormStep<QuotationFormValues>();
+  // ✅ IMPORTANT: build steps using the SAME type as the form (Input)
+  const Step = defineFormStep<QuotationFormInput>();
 
   const steps = useMemo(() => {
     return [
@@ -59,32 +68,36 @@ export function QuotationWizard({
           schema: QuotationFormSchema.shape.customer,
           getStepValues: (v) => v.customer,
           mapIssuePathToFieldPath:
-            prefixIssuePathMapper<QuotationFormValues>("customer"),
+            prefixIssuePathMapper<QuotationFormInput>("customer"),
         },
         Component: QuotationCustomerStep,
       }),
+
       Step.withValidator({
         id: "lines",
         title: "Productos",
         fieldPaths: ["lines"],
         validator: {
           schema: QuotationLinesStepSchema,
-          getStepValues: (v) => v.lines,
+          // ✅ Input allows undefined; validator expects an array
+          getStepValues: (v) => v.lines ?? [],
         },
         Component: QuotationLinesStep,
       }),
+
       Step.withValidator({
         id: "unregisteredLines",
         title: "Productos no registrados",
         fieldPaths: ["unregisteredLines"],
         validator: {
           schema: QuotationUnregisteredLinesStepSchema,
-          getStepValues: (v) => v.unregisteredLines,
+          getStepValues: (v) => v.unregisteredLines ?? [],
           mapIssuePathToFieldPath: (issuePath: readonly PropertyKey[]) =>
             `unregisteredLines.${issuePath.map(String).join(".")}` as any,
         },
         Component: QuotationUnregisteredLinesStep,
       }),
+
       {
         id: "summary",
         kind: "summary",
@@ -102,7 +115,7 @@ export function QuotationWizard({
   }, [Step, submitting]);
 
   return (
-    <MultiStepForm<QuotationFormValues>
+    <MultiStepForm<QuotationFormInput>
       config={{
         showProgress: true,
         allowDraftSave: false,
@@ -115,7 +128,8 @@ export function QuotationWizard({
       }}
       steps={steps}
       form={form}
-      onSubmit={onSubmit}
+      // ✅ Parse Input -> Output here, so DB layer receives normalized values
+      onSubmit={(input) => onSubmit(QuotationFormSchema.parse(input))}
       onEvent={(e) => {
         console.log("QuotationWizard::event", e);
       }}

@@ -4,7 +4,10 @@ import React from "react";
 import { useFieldArray, useWatch } from "react-hook-form";
 
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
-import type { QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
+import type {
+  QuotationFormInput,
+  QuotationFormValues,
+} from "@/modules/quotations/forms/quotationForm.schemas";
 
 function parseMoney(v: string): number {
   const n = Number(String(v ?? "").trim());
@@ -37,8 +40,8 @@ function isRowComplete(
   return true;
 }
 
-type Props = StepComponentProps<QuotationFormValues>;
-
+// type Props = StepComponentProps<QuotationFormValues>;
+type Props = StepComponentProps<QuotationFormInput>;
 export function QuotationUnregisteredLinesStep({ form }: Props) {
   const {
     control,

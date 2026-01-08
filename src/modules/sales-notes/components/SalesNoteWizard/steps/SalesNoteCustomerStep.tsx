@@ -2,13 +2,14 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
-import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
+import type { SalesNoteFormInput, SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 import {
   searchPartiesAction,
   type PartyLookupDto,
 } from "@/modules/parties/actions/searchParties.action";
 
-type Props = StepComponentProps<SalesNoteFormValues>;
+//type Props = StepComponentProps<SalesNoteFormValues>;
+type Props = StepComponentProps<SalesNoteFormInput>;
 
 export function SalesNoteCustomerStep({ form }: Props) {
   const {

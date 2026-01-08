@@ -66,4 +66,7 @@ export const SalesNoteFormSchema = z.object({
 
 // Define un tipo TypeScript manualmente para evitar problemas de inferencia
 // Elimina el tipo manual y usa el inferido de Zod
-export type SalesNoteFormValues = z.infer<typeof SalesNoteFormSchema>;
+export type SalesNoteFormValues = z.output<typeof SalesNoteFormSchema>;
+export type SalesNoteFormInput = z.input<typeof SalesNoteFormSchema>;
+
+

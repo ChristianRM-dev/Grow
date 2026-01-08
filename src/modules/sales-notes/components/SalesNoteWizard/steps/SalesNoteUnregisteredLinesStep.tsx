@@ -4,10 +4,13 @@ import React from "react";
 import { useFieldArray, useWatch } from "react-hook-form";
 
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
-import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
+import {
+  SalesNoteFormInput,
+  SalesNoteFormValues,
+} from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 
-type Props = StepComponentProps<SalesNoteFormValues>;
-
+// type Props = StepComponentProps<SalesNoteFormValues>;
+type Props = StepComponentProps<SalesNoteFormInput>;
 function normalizeMoneyInput(v: string): string {
   return String(v ?? "")
     .trim()

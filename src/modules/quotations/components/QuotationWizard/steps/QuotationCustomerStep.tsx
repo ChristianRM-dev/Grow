@@ -2,13 +2,14 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
-import type { QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
+import type { QuotationFormInput, QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
 import {
   searchPartiesAction,
   type PartyLookupDto,
 } from "@/modules/parties/actions/searchParties.action";
 
-type Props = StepComponentProps<QuotationFormValues>;
+// type Props = StepComponentProps<QuotationFormValues>;
+type Props = StepComponentProps<QuotationFormInput>;
 
 export function QuotationCustomerStep({ form }: Props) {
   const {
