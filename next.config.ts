@@ -4,8 +4,8 @@ import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import withSerwistInit from "@serwist/next";
 
-// We use git SHA when available, fallback to a random UUID.
-// This is only used to bust caches for precached entries.
+
+
 function getRevision(): string {
   try {
     const out = spawnSync("git", ["rev-parse", "HEAD"], {
@@ -20,8 +20,8 @@ function getRevision(): string {
 const revision = getRevision();
 
 const withSerwist = withSerwistInit({
-  // Serwist doesn't support Turbopack dev yet.
-  // Default: disable in dev. You can opt-in with ENABLE_PWA=true.
+  // Serwist OFF en dev por Turbopack; ON en prod.
+  // Puedes forzar PWA en local con ENABLE_PWA=true.
   disable:
     process.env.NODE_ENV !== "production" && process.env.ENABLE_PWA !== "true",
 
@@ -33,16 +33,9 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   output: "standalone",
-
-  experimental: {
-    optimizeCss: false,
-  },
-
+  experimental: { optimizeCss: false },
   reactCompiler: true,
-
-  // Prevent bundling pdfkit inside server chunks (keeps its files in node_modules)
   serverExternalPackages: ["pdfkit"],
-
   outputFileTracingIncludes: {
     "/sales-notes/\\[id\\]/pdf": [
       "./node_modules/pdfkit/js/data/**/*",
@@ -59,6 +52,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist({
-  disable: process.env.NODE_ENV !== "production",
-})(nextConfig);
+export default withSerwist(nextConfig);
