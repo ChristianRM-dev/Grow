@@ -46,3 +46,7 @@ next-env.d.ts
 
 # Next generated type validators (should live under .next/, not tracked)
 types/
+
+# Serwist
+public/sw*
+public/swe-worker*
