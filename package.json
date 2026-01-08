@@ -26,7 +26,7 @@
     "db:migrate:dev": "prisma migrate dev ",
     "db:reset": "prisma migrate reset",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build --webpack",
     "db:migrate:customers": "tsx scripts/migrateCustomers.ts",
     "db:migrate:plants": "tsx scripts/migratePlants.ts"
   },

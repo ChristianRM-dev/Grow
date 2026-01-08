@@ -59,4 +59,6 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+export default withSerwist({
+  disable: process.env.NODE_ENV !== "production",
+})(nextConfig);
