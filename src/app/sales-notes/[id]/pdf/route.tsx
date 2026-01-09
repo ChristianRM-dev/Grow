@@ -34,21 +34,40 @@ export async function GET(
   const headerLogoSrc = await readPublicImageAsDataUri(header.logoPublicPath);
   const totalInWords = numberToSpanishMoneyWords(salesNote.total);
 
-  const element = React.createElement(SalesNotePdfDocument, {
-    salesNote,
-    header,
-    headerLogoSrc,
-    totalInWords,
-  });
+  // const element = React.createElement(SalesNotePdfDocument, {
+  //   salesNote,
+  //   header,
+  //   headerLogoSrc,
+  //   totalInWords,
+  // });
 
-  const pdfBuffer = await renderToBuffer(element);
+  // const pdfBuffer = await renderToBuffer(element);
 
-  return new Response(pdfBuffer, {
+  // return new Response(pdfBuffer, {
+  //   headers: {
+  //     "Content-Type": "application/pdf",
+  //     "Content-Disposition": `inline; filename="Nota de Venta - ${encodeURIComponent(
+  //       salesNote.folio
+  //     )}.pdf"`,
+  //     "Cache-Control": "no-store",
+  //   },
+  // });
+
+  const pdfBuffer = await renderToBuffer(
+    <SalesNotePdfDocument
+      salesNote={salesNote}
+      header={header}
+      headerLogoSrc={headerLogoSrc}
+      totalInWords={totalInWords}
+    />
+  );
+
+  const body = new Uint8Array(pdfBuffer);
+
+  return new Response(body, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="Nota de Venta - ${encodeURIComponent(
-        salesNote.folio
-      )}.pdf"`,
+      "Content-Disposition": `inline; filename="Reporte de Ventas.pdf"`,
       "Cache-Control": "no-store",
     },
   });

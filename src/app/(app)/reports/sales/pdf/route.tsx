@@ -45,15 +45,17 @@ export async function GET(req: Request) {
 
   const headerLogoSrc = await readPublicImageAsDataUri(header.logoPublicPath);
 
-  const element = React.createElement(SalesReportPdfDocument, {
-    header,
-    headerLogoSrc,
-    report,
-  });
+  const pdfBuffer = await renderToBuffer(
+    <SalesReportPdfDocument
+      header={header}
+      headerLogoSrc={headerLogoSrc}
+      report={report}
+    />
+  );
 
-  const pdfBuffer = await renderToBuffer(element);
+  const body = new Uint8Array(pdfBuffer);
 
-  return new Response(pdfBuffer, {
+  return new Response(body, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="Reporte de Ventas.pdf"`,

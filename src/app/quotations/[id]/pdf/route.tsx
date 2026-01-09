@@ -32,21 +32,40 @@ export async function GET(
 
   const headerLogoSrc = await readPublicImageAsDataUri(header.logoPublicPath);
 
-  const element = React.createElement(QuotationPdfDocument, {
-    header,
-    headerLogoSrc,
-    quotation,
-  });
+  // const element = React.createElement(QuotationPdfDocument, {
+  //   header,
+  //   headerLogoSrc,
+  //   quotation,
+  // });
 
-  const pdfBuffer = await renderToBuffer(element);
+  // const pdfBuffer = await renderToBuffer(element);
 
-  return new Response(pdfBuffer, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="Cotizacion - ${encodeURIComponent(
-        quotation.folio
-      )}.pdf"`,
-      "Cache-Control": "no-store",
-    },
-  });
+  // return new Response(pdfBuffer, {
+  //   headers: {
+  //     "Content-Type": "application/pdf",
+  //     "Content-Disposition": `inline; filename="Cotizacion - ${encodeURIComponent(
+  //       quotation.folio
+  //     )}.pdf"`,
+  //     "Cache-Control": "no-store",
+  //   },
+  // });
+
+
+    const pdfBuffer = await renderToBuffer(
+      <QuotationPdfDocument
+        header={header}
+        headerLogoSrc={headerLogoSrc}
+        quotation={quotation}
+      />
+    );
+
+    const body = new Uint8Array(pdfBuffer);
+
+    return new Response(body, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="Reporte de Ventas.pdf"`,
+        "Cache-Control": "no-store",
+      },
+    });
 }
