@@ -1,13 +1,20 @@
+// src/modules/reports/domain/reportSearchParams.ts
 import {
   SalesReportFiltersSchema,
   type SalesReportFilters,
 } from "./salesReportFilters.schema";
+import {
+  PurchasesReportFiltersSchema,
+  type PurchasesReportFilters,
+} from "./purchasesReportFilters.schema";
+
 import { ReportTypeEnum, type ReportType } from "./reportTypes";
 
 export type ReportsPageState =
   | { type?: undefined } // no report selected yet
   | { type: ReportType; mode?: undefined } // report selected, filters not generated yet
-  | SalesReportFilters; // valid filters (currently only sales)
+  | SalesReportFilters
+  | PurchasesReportFilters;
 
 function hasMode(
   value: ReportsPageState
@@ -26,19 +33,25 @@ export function parseReportsPageState(
   if (!type) return { type: undefined };
 
   const mode = cleanParam(searchParams.get("mode"));
-  if (!mode) return { type }; // <- si viene "undefined", lo tratamos como que NO hay filtros
+  if (!mode) return { type }; // If mode is missing/undefined, treat as "no filters yet"
+
+  const raw: Record<string, unknown> = {
+    type,
+    mode,
+    year: cleanParam(searchParams.get("year")),
+    month: cleanParam(searchParams.get("month")),
+    from: cleanParam(searchParams.get("from")),
+    to: cleanParam(searchParams.get("to")),
+  };
 
   if (type === ReportTypeEnum.SALES) {
-    const raw: Record<string, unknown> = {
-      type,
-      mode,
-      year: cleanParam(searchParams.get("year")),
-      month: cleanParam(searchParams.get("month")),
-      from: cleanParam(searchParams.get("from")),
-      to: cleanParam(searchParams.get("to")),
-    };
-
     const parsed = SalesReportFiltersSchema.safeParse(raw);
+    if (!parsed.success) return null;
+    return parsed.data;
+  }
+
+  if (type === ReportTypeEnum.PURCHASES) {
+    const parsed = PurchasesReportFiltersSchema.safeParse(raw);
     if (!parsed.success) return null;
     return parsed.data;
   }
@@ -60,17 +73,17 @@ export function serializeReportsPageState(
 
   if (!hasMode(state)) return sp;
 
-  if (state.type === ReportTypeEnum.SALES) {
-    sp.set("mode", state.mode);
+  sp.set("mode", state.mode);
 
-    if (state.mode === "yearMonth") {
-      sp.set("year", String(state.year));
-      if (typeof state.month === "number") sp.set("month", String(state.month));
-    } else {
-      sp.set("from", state.from);
-      sp.set("to", state.to);
-    }
+  if (state.mode === "yearMonth") {
+    sp.set("year", String(state.year));
+    if (typeof state.month === "number") sp.set("month", String(state.month));
+    return sp;
   }
+
+  // range
+  sp.set("from", state.from);
+  sp.set("to", state.to);
 
   return sp;
 }
@@ -82,6 +95,16 @@ export function isCompleteSalesReportFilters(
     !!state &&
     state.type === ReportTypeEnum.SALES &&
     (state as SalesReportFilters).mode !== undefined
+  );
+}
+
+export function isCompletePurchasesReportFilters(
+  state: ReportsPageState | null
+): state is PurchasesReportFilters {
+  return (
+    !!state &&
+    state.type === ReportTypeEnum.PURCHASES &&
+    (state as PurchasesReportFilters).mode !== undefined
   );
 }
 

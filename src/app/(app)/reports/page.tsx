@@ -1,15 +1,22 @@
+// src/app/(app)/reports/page.tsx
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
 import {
   isCompleteSalesReportFilters,
+  isCompletePurchasesReportFilters,
   parseReportsPageState,
   serializeReportsPageState,
 } from "@/modules/reports/domain/reportSearchParams";
+
 import { ReportsPageClient } from "@/modules/reports/components/ReportsPageClient";
 
 import { getSalesReport } from "@/modules/reports/queries/getSalesReport.query";
+import { getPurchasesReport } from "@/modules/reports/queries/getPurchasesReport.query";
+
 import { SalesReportResult } from "@/modules/reports/components/SalesReportResult";
+import { PurchasesReportResult } from "@/modules/reports/components/PurchasesReportResult";
+
 import { routes } from "@/lib/routes";
 
 export default async function ReportsPage({
@@ -40,6 +47,8 @@ export default async function ReportsPage({
 
   // If filters are valid and complete, fetch report server-side.
   let salesReport: Awaited<ReturnType<typeof getSalesReport>> | null = null;
+  let purchasesReport: Awaited<ReturnType<typeof getPurchasesReport>> | null =
+    null;
 
   let pdfHref: string | null = null;
 
@@ -51,6 +60,14 @@ export default async function ReportsPage({
 
     const qs = pdfParams.toString();
     pdfHref = routes.reports.sales.pdf(qs);
+  } else if (isCompletePurchasesReportFilters(state)) {
+    purchasesReport = await getPurchasesReport(state);
+
+    const pdfParams = serializeReportsPageState(state);
+    pdfParams.delete("type"); // keep your existing behavior
+
+    const qs = pdfParams.toString();
+    pdfHref = routes.reports.purchases.pdf(qs);
   }
 
   return (
@@ -70,6 +87,10 @@ export default async function ReportsPage({
 
         {salesReport && pdfHref ? (
           <SalesReportResult report={salesReport} pdfHref={pdfHref} />
+        ) : null}
+
+        {purchasesReport && pdfHref ? (
+          <PurchasesReportResult report={purchasesReport} pdfHref={pdfHref} />
         ) : null}
       </div>
     </div>

@@ -18,6 +18,10 @@ export const routes = {
           ? `/reports/sales/pdf?${queryString}`
           : `/reports/sales/pdf`,
     },
+    purchases: {
+      pdf: (qs?: string) =>
+        qs ? `/reports/purchases/pdf?${qs}` : "/reports/purchases/pdf",
+    },
   },
 
   products: {

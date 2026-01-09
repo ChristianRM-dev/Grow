@@ -14,6 +14,7 @@ import {
   type ReportsPageState,
 } from "@/modules/reports/domain/reportSearchParams";
 import { SalesReportPanelClient } from "./SalesReportPanelClient";
+import { PurchasesReportPanelClient } from "./PurchasesReportPanelClient";
 
 export function ReportsPageClient({
   initialState,
@@ -92,6 +93,10 @@ export function ReportsPageClient({
 
       {selectedType === ReportTypeEnum.SALES ? (
         <SalesReportPanelClient />
+      ) : null}
+
+      {selectedType === ReportTypeEnum.PURCHASES ? (
+        <PurchasesReportPanelClient />
       ) : null}
     </div>
   );
