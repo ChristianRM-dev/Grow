@@ -10,6 +10,7 @@ import { ReportsPageClient } from "@/modules/reports/components/ReportsPageClien
 
 import { getSalesReport } from "@/modules/reports/queries/getSalesReport.query";
 import { SalesReportResult } from "@/modules/reports/components/SalesReportResult";
+import { routes } from "@/lib/routes";
 
 export default async function ReportsPage({
   searchParams,
@@ -45,10 +46,11 @@ export default async function ReportsPage({
   if (isCompleteSalesReportFilters(state)) {
     salesReport = await getSalesReport(state);
 
-    const pdfParams = serializeReportsPageState(state).toString();
-    pdfHref = pdfParams
-      ? `/reports/sales/pdf?${pdfParams.replace(/^type=sales&?/, "")}`
-      : "/reports/sales/pdf";
+    const pdfParams = serializeReportsPageState(state);
+    pdfParams.delete("type"); // keep your existing behavior
+
+    const qs = pdfParams.toString();
+    pdfHref = routes.reports.sales.pdf(qs);
   }
 
   return (

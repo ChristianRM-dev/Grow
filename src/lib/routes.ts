@@ -10,7 +10,15 @@ export const routes = {
   home: () => "/",
   login: () => "/login",
   dashboard: () => "/dashboard",
-  reports: () => "/reports",
+  reports: {
+    home: () => "/reports",
+    sales: {
+      pdf: (queryString?: string) =>
+        queryString
+          ? `/reports/sales/pdf?${queryString}`
+          : `/reports/sales/pdf`,
+    },
+  },
 
   products: {
     list: () => "/products",
