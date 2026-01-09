@@ -35,21 +35,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   experimental: { optimizeCss: false },
   reactCompiler: true,
-  serverExternalPackages: ["pdfkit"],
-  outputFileTracingIncludes: {
-    "/sales-notes/\\[id\\]/pdf": [
-      "./node_modules/pdfkit/js/data/**/*",
-      "./src/assets/fonts/**/*",
-    ],
-    "/reports/sales/pdf": [
-      "./node_modules/pdfkit/js/data/**/*",
-      "./src/assets/fonts/**/*",
-    ],
-    "/quotations/\\[id\\]/pdf": [
-      "./node_modules/pdfkit/js/data/**/*",
-      "./src/assets/fonts/**/*",
-    ],
-  },
+
 };
 
 export default withSerwist(nextConfig);
