@@ -56,6 +56,7 @@ export const routes = {
     new: () => "/supplier-purchases/new",
     details: (id: Id) => `/supplier-purchases/${enc(id)}`,
     edit: (id: Id) => `/supplier-purchases/${enc(id)}/edit`,
+    pdf: (id: Id) => `/supplier-purchases/${enc(id)}/pdf`,
     payments: {
       new: (purchaseId: Id) =>
         `/supplier-purchases/${enc(purchaseId)}/payments/new`,

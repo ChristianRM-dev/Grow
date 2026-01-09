@@ -17,6 +17,7 @@ import type { SupplierPurchaseRowDto } from "@/modules/supplier-purchases/querie
 
 import {
   CurrencyDollarIcon,
+  DocumentIcon,
   EyeIcon,
   PencilSquareIcon,
 } from "@heroicons/react/16/solid";
@@ -79,6 +80,12 @@ export function SupplierPurchasesTableClient({
       tooltip: "Agregar pago",
       icon: <CurrencyDollarIcon className="h-5 w-5" />,
     },
+    {
+      type: "pdf",
+      label: "Ver PDF",
+      tooltip: "Ver PDF",
+      icon: <DocumentIcon className="h-5 w-5" />,
+    },
   ];
 
   return (
@@ -100,6 +107,11 @@ export function SupplierPurchasesTableClient({
           case "payment":
             router.push(routes.supplierPurchases.payments.new(e.row.id));
             break;
+          case "pdf": {
+            const url = routes.supplierPurchases.pdf(e.row.id); // /sales-notes/[id]/pdf (route.ts)
+            window.open(url, "_blank", "noopener,noreferrer");
+            break;
+          }
         }
       }}
       searchPlaceholder="Buscar por proveedor, folio o notas…"

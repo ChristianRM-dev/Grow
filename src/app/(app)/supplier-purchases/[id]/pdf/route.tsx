@@ -1,10 +1,11 @@
-// src/app/quotations/[id]/pdf/route.ts
+// src/app/(app)/supplier-purchases/[id]/pdf/route.tsx
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { readPublicImageAsDataUri } from "@/modules/shared/pdf/readPublicImageAsDataUri";
-import { QuotationPdfDocument } from "@/modules/quotations/pdf/QuotationPdfDocument";
-import { getQuotationPdfDataById } from "@/modules/quotations/queries/getQuotationPdfData.query";
 import { LAURELES_PDF_HEADER } from "@/modules/shared/pdf/laurelesPdfHeader";
+
+import { SupplierPurchasePdfDocument } from "@/modules/supplier-purchases/pdf/SupplierPurchasePdfDocument";
+import { getSupplierPurchasePdfDataById } from "@/modules/supplier-purchases/queries/getSupplierPurchasePdfData.query";
 
 export const runtime = "nodejs";
 
@@ -14,18 +15,18 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
 
-  const quotation = await getQuotationPdfDataById(id);
-  if (!quotation) return new Response("Not Found", { status: 404 });
+  const purchase = await getSupplierPurchasePdfDataById(id);
+  if (!purchase) return new Response("Not Found", { status: 404 });
 
   const headerLogoSrc = await readPublicImageAsDataUri(
     LAURELES_PDF_HEADER.logoPublicPath
   );
 
   const pdfBuffer = await renderToBuffer(
-    <QuotationPdfDocument
+    <SupplierPurchasePdfDocument
       header={LAURELES_PDF_HEADER}
       headerLogoSrc={headerLogoSrc}
-      quotation={quotation}
+      purchase={purchase}
     />
   );
 
@@ -34,7 +35,9 @@ export async function GET(
   return new Response(body, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="Reporte de Ventas.pdf"`,
+      "Content-Disposition": `inline; filename="Compra - ${encodeURIComponent(
+        purchase.supplierFolio
+      )}.pdf"`,
       "Cache-Control": "no-store",
     },
   });

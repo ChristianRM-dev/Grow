@@ -10,6 +10,7 @@ import {
 import { getPurchasesReport } from "@/modules/reports/queries/getPurchasesReport.query";
 
 import { PurchasesReportPdfDocument } from "@/modules/reports/pdf/PurchasesReportPdfDocument";
+import { LAURELES_PDF_HEADER } from "@/modules/shared/pdf/laurelesPdfHeader";
 
 export const runtime = "nodejs";
 
@@ -29,25 +30,13 @@ export async function GET(req: Request) {
 
   const report = await getPurchasesReport(state);
 
-  const header = {
-    logoPublicPath: "/brand/laureles-logo.jpeg",
-    nurseryName: "VIVERO LOS LAURELES",
-    rfc: "R.F.C. VLA170116GW9",
-    addressLines: [
-      "Km. 3.5 carretera Coquimatlán - Pueblo Juarez S/N",
-      "Col. La esperanza, Coquimatlán, Colima, C.p. 28400",
-    ],
-    phone: "Tel: 3·312 163 3433",
-    email: "e-mail: viveroadmon@gmail.com",
-    issuedPlaceLine1: "EXPEDIDO EN",
-    issuedPlaceLine2: "COQUIMATLÁN, COL.",
-  };
-
-  const headerLogoSrc = await readPublicImageAsDataUri(header.logoPublicPath);
+  const headerLogoSrc = await readPublicImageAsDataUri(
+    LAURELES_PDF_HEADER.logoPublicPath
+  );
 
   const pdfBuffer = await renderToBuffer(
     <PurchasesReportPdfDocument
-      header={header}
+      header={LAURELES_PDF_HEADER}
       headerLogoSrc={headerLogoSrc}
       report={report}
     />
