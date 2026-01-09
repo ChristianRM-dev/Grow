@@ -1,11 +1,11 @@
 // src/modules/sales-notes/pdf/components/SalesNotePdfLinesTable.tsx
 import React from "react";
 import { StyleSheet, Text, View } from "@react-pdf/renderer";
-import type { SalesNotePdfLineDto } from "@/modules/sales-notes/queries/getSalesNotePdfData.query";
 import { formatMoney, formatQty } from "@/modules/shared/pdf/formatters";
+import { PdfLineDto } from "@/modules/shared/pdf/pdfDtos";
 
 type SalesNotePdfLinesTableProps = {
-  lines: SalesNotePdfLineDto[];
+  lines: PdfLineDto[];
 };
 
 const styles = StyleSheet.create({

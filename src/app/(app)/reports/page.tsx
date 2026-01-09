@@ -7,7 +7,6 @@ import {
   serializeReportsPageState,
 } from "@/modules/reports/domain/reportSearchParams";
 import { ReportsPageClient } from "@/modules/reports/components/ReportsPageClient";
-import { ReportTypeEnum } from "@/modules/reports/domain/reportTypes";
 
 import { getSalesReport } from "@/modules/reports/queries/getSalesReport.query";
 import { SalesReportResult } from "@/modules/reports/components/SalesReportResult";
