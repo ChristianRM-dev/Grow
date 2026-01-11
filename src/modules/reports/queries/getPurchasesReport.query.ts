@@ -29,7 +29,6 @@ export async function getPurchasesReport(
       notes: true,
       party: { select: { name: true } },
 
-      // NEW: payments linked to this purchase (money OUT)
       payments: {
         where: {
           direction: PaymentDirection.OUT,

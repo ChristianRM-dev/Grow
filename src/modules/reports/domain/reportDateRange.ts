@@ -39,19 +39,26 @@ function addDaysUtc(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-type YearMonthLike = {
-  mode: "yearMonth";
-  year: number;
-  month?: number | "all" | null;
-};
-
-type DateRangeLike = {
-  mode: "dateRange";
-  from: string; // YYYY-MM-DD
-  to: string; // YYYY-MM-DD
-};
-
-export type ReportDateRangeInput = YearMonthLike | DateRangeLike;
+/**
+ * Supports your existing report filter shapes:
+ * - mode: "yearMonth" (with year and optional month)
+ * - mode: "range" (with from/to as YYYY-MM-DD)
+ *
+ * It also tolerates extra fields like "type" without caring about them.
+ */
+export type ReportDateRangeInput =
+  | {
+      mode: "yearMonth";
+      year: number;
+      month?: number | null;
+      [key: string]: unknown; // tolerate extra fields like "type"
+    }
+  | {
+      mode: "range";
+      from: string; // YYYY-MM-DD
+      to: string; // YYYY-MM-DD
+      [key: string]: unknown; // tolerate extra fields like "type"
+    };
 
 export function getReportDateRange(input: ReportDateRangeInput): {
   from: Date;
@@ -75,8 +82,10 @@ export function getReportDateRange(input: ReportDateRangeInput): {
     return { from, toExclusive, rangeLabel };
   }
 
+  // mode === "range"
   const fromDate = parseDateOnlyToUtcStart(input.from);
   const toDate = parseDateOnlyToUtcStart(input.to);
+
   const from = fromDate;
   const toExclusive = addDaysUtc(toDate, 1); // inclusive "to"
   const rangeLabel = `${input.from} → ${input.to}`;
