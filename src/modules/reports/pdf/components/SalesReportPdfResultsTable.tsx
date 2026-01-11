@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "@react-pdf/renderer";
-import type { SalesReportRowDto } from "@/modules/reports/queries/getSalesReport.dto";
+import type { SalesReportSalesNoteDto } from "@/modules/reports/queries/getSalesReport.dto";
 
 const styles = StyleSheet.create({
   table: {
@@ -69,7 +69,7 @@ function formatMoney(n: number): string {
 }
 
 type Props = {
-  rows: SalesReportRowDto[];
+  rows: SalesReportSalesNoteDto[];
   grandTotal: number;
   grandPaidTotal: number;
   grandBalanceDue: number;
@@ -117,12 +117,8 @@ export function SalesReportPdfResultsTable({
 
       {rows.map((r) => (
         <View key={r.id} style={styles.row}>
-          <Text style={[styles.cell, styles.colCustomer]} maxLines={1}>
-            {r.partyName}
-          </Text>
-          <Text style={[styles.cell, styles.colFolio]} maxLines={1}>
-            {r.folio}
-          </Text>
+          <Text style={[styles.cell, styles.colCustomer]}>{r.partyName}</Text>
+          <Text style={[styles.cell, styles.colFolio]}>{r.folio}</Text>
           <Text style={[styles.cell, styles.colDate]}>
             {formatDateMX(r.createdAt)}
           </Text>

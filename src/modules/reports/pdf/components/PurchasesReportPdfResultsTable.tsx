@@ -117,10 +117,8 @@ export function PurchasesReportPdfResultsTable({
 
       {rows.map((r) => (
         <View key={r.id} style={styles.row}>
-          <Text style={[styles.cell, styles.colSupplier]} maxLines={1}>
-            {r.partyName}
-          </Text>
-          <Text style={[styles.cell, styles.colSupplierFolio]} maxLines={1}>
+          <Text style={[styles.cell, styles.colSupplier]}>{r.partyName}</Text>
+          <Text style={[styles.cell, styles.colSupplierFolio]}>
             {r.supplierFolio}
           </Text>
           <Text style={[styles.cell, styles.colDate]}>
