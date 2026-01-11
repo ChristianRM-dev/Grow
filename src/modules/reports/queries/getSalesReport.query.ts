@@ -1,25 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { PaymentDirection } from "@/generated/prisma/client";
 
 import type { SalesReportFilters } from "@/modules/reports/domain/salesReportFilters.schema";
 import { toNumber } from "@/modules/shared/utils/toNumber";
 import { parseDescriptionSnapshotName } from "@/modules/shared/snapshots/parseDescriptionSnapshotName";
 
 import type { SalesReportDto } from "./getSalesReport.dto";
-
-const MONTHS_ES = [
-  "enero",
-  "febrero",
-  "marzo",
-  "abril",
-  "mayo",
-  "junio",
-  "julio",
-  "agosto",
-  "septiembre",
-  "octubre",
-  "noviembre",
-  "diciembre",
-] as const;
+import { MONTHS_ES } from "../domain/reportDateRange";
 
 function startOfMonthUtc(year: number, month1to12: number) {
   return new Date(Date.UTC(year, month1to12 - 1, 1, 0, 0, 0, 0));
@@ -49,6 +36,7 @@ function addDaysUtc(date: Date, days: number) {
 
 /**
  * Fetches a Sales report from SalesNote + SalesNoteLine, filtered by createdAt.
+ * Includes payment aggregation (paidTotal) and remaining balance (balanceDue).
  * NOTE: Adjust status filtering if you want to include DRAFT/CANCELLED.
  */
 export async function getSalesReport(
@@ -83,6 +71,7 @@ export async function getSalesReport(
     where: {
       createdAt: { gte: from, lt: toExclusive },
       // Recommended for real "sales" reporting:
+      // status: "CONFIRMED"
       // If you prefer: status: { not: "CANCELLED" }
     },
     select: {
@@ -91,6 +80,8 @@ export async function getSalesReport(
       createdAt: true,
       total: true,
       party: { select: { name: true } },
+
+      // Keep lines to preserve existing report detail usage
       lines: {
         select: {
           descriptionSnapshot: true,
@@ -99,6 +90,17 @@ export async function getSalesReport(
           lineTotal: true,
         },
         orderBy: { id: "asc" },
+      },
+
+      // NEW: bring payments to compute paidTotal and balanceDue
+      payments: {
+        where: {
+          direction: PaymentDirection.IN,
+          amount: { not: null },
+        },
+        select: {
+          amount: true,
+        },
       },
     },
     orderBy: { createdAt: "asc" },
@@ -112,17 +114,31 @@ export async function getSalesReport(
       lineTotal: toNumber(l.lineTotal),
     }));
 
+    const total = toNumber(sn.total);
+
+    const paidTotal = sn.payments.reduce((acc, p) => {
+      // amount is filtered as not null, but keep it defensive.
+      return acc + (p.amount == null ? 0 : toNumber(p.amount));
+    }, 0);
+
+    // Remaining should not go negative even if there are extra payments (edge cases / adjustments).
+    const balanceDue = Math.max(0, total - paidTotal);
+
     return {
       id: sn.id,
       folio: sn.folio,
       createdAt: sn.createdAt.toISOString(),
       partyName: sn.party.name,
       lines,
-      total: toNumber(sn.total),
+      total,
+      paidTotal,
+      balanceDue,
     };
   });
 
   const grandTotal = mapped.reduce((acc, s) => acc + s.total, 0);
+  const grandPaidTotal = mapped.reduce((acc, s) => acc + s.paidTotal, 0);
+  const grandBalanceDue = mapped.reduce((acc, s) => acc + s.balanceDue, 0);
 
   return {
     type: "sales",
@@ -130,5 +146,7 @@ export async function getSalesReport(
     rangeLabel,
     salesNotes: mapped,
     grandTotal,
+    grandPaidTotal,
+    grandBalanceDue,
   };
 }

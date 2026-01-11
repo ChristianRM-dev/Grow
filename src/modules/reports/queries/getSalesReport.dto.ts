@@ -12,8 +12,14 @@ export type SalesReportSalesNoteDto = {
   folio: string;
   createdAt: string; // ISO
   partyName: string;
+
   lines: SalesReportLineDto[];
+
   total: number;
+
+  // NEW
+  paidTotal: number;
+  balanceDue: number;
 };
 
 export type SalesReportDto = {
@@ -21,5 +27,10 @@ export type SalesReportDto = {
   mode: SalesReportMode;
   rangeLabel: string;
   salesNotes: SalesReportSalesNoteDto[];
+
   grandTotal: number;
+
+  // NEW
+  grandPaidTotal: number;
+  grandBalanceDue: number;
 };

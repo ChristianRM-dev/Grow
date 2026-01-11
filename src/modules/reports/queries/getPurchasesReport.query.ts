@@ -1,83 +1,21 @@
-// src/modules/reports/queries/getPurchasesReport.query.ts
 import { prisma } from "@/lib/prisma";
+import { PaymentDirection } from "@/generated/prisma/client";
 
 import type { PurchasesReportFilters } from "@/modules/reports/domain/purchasesReportFilters.schema";
+import { getReportDateRange } from "@/modules/reports/domain/reportDateRange";
 import { toNumber } from "@/modules/shared/utils/toNumber";
 
 import type { PurchasesReportDto } from "./getPurchasesReport.dto";
 
-const MONTHS_ES = [
-  "enero",
-  "febrero",
-  "marzo",
-  "abril",
-  "mayo",
-  "junio",
-  "julio",
-  "agosto",
-  "septiembre",
-  "octubre",
-  "noviembre",
-  "diciembre",
-] as const;
-
-function startOfMonthUtc(year: number, month1to12: number) {
-  return new Date(Date.UTC(year, month1to12 - 1, 1, 0, 0, 0, 0));
-}
-
-function startOfNextMonthUtc(year: number, month1to12: number) {
-  if (month1to12 === 12) return new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0, 0));
-  return new Date(Date.UTC(year, month1to12, 1, 0, 0, 0, 0));
-}
-
-function startOfYearUtc(year: number) {
-  return new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
-}
-
-function startOfNextYearUtc(year: number) {
-  return new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0, 0));
-}
-
-function parseDateOnlyToUtcStart(dateOnly: string) {
-  // dateOnly must be YYYY-MM-DD (validated by Zod upstream)
-  return new Date(`${dateOnly}T00:00:00.000Z`);
-}
-
-function addDaysUtc(date: Date, days: number) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
 /**
  * Fetches a Purchases report from SupplierPurchase filtered by occurredAt.
  * Since SupplierPurchase has no line items yet, we expose a synthetic single line.
+ * Includes payment aggregation (paidTotal) and remaining balance (balanceDue).
  */
 export async function getPurchasesReport(
   filters: PurchasesReportFilters
 ): Promise<PurchasesReportDto> {
-  let from: Date;
-  let toExclusive: Date;
-  let rangeLabel = "";
-
-  if (filters.mode === "yearMonth") {
-    const year = filters.year;
-    const month = filters.month;
-
-    if (typeof month === "number") {
-      from = startOfMonthUtc(year, month);
-      toExclusive = startOfNextMonthUtc(year, month);
-      rangeLabel = `${MONTHS_ES[month - 1]} ${year}`;
-    } else {
-      from = startOfYearUtc(year);
-      toExclusive = startOfNextYearUtc(year);
-      rangeLabel = `Año ${year}`;
-    }
-  } else {
-    const fromDate = parseDateOnlyToUtcStart(filters.from);
-    const toDate = parseDateOnlyToUtcStart(filters.to);
-    from = fromDate;
-    toExclusive = addDaysUtc(toDate, 1); // inclusive "to"
-    rangeLabel = `${filters.from} → ${filters.to}`;
-  }
+  const { from, toExclusive, rangeLabel } = getReportDateRange(filters);
 
   const purchases = await prisma.supplierPurchase.findMany({
     where: {
@@ -90,12 +28,29 @@ export async function getPurchasesReport(
       total: true,
       notes: true,
       party: { select: { name: true } },
+
+      // NEW: payments linked to this purchase (money OUT)
+      payments: {
+        where: {
+          direction: PaymentDirection.OUT,
+          amount: { not: null },
+        },
+        select: {
+          amount: true,
+        },
+      },
     },
     orderBy: { occurredAt: "asc" },
   });
 
   const mapped = purchases.map((p) => {
     const total = toNumber(p.total);
+
+    const paidTotal = p.payments.reduce((acc, pay) => {
+      return acc + (pay.amount == null ? 0 : toNumber(pay.amount));
+    }, 0);
+
+    const balanceDue = Math.max(0, total - paidTotal);
 
     // Synthetic single row (until a SupplierPurchaseLine model exists)
     const lines = [
@@ -115,10 +70,14 @@ export async function getPurchasesReport(
       notes: p.notes ?? null,
       lines,
       total,
+      paidTotal,
+      balanceDue,
     };
   });
 
   const grandTotal = mapped.reduce((acc, p) => acc + p.total, 0);
+  const grandPaidTotal = mapped.reduce((acc, p) => acc + p.paidTotal, 0);
+  const grandBalanceDue = mapped.reduce((acc, p) => acc + p.balanceDue, 0);
 
   return {
     type: "purchases",
@@ -126,5 +85,7 @@ export async function getPurchasesReport(
     rangeLabel,
     purchases: mapped,
     grandTotal,
+    grandPaidTotal,
+    grandBalanceDue,
   };
 }

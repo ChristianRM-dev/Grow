@@ -1,4 +1,3 @@
-// src/modules/reports/queries/getPurchasesReport.dto.ts
 import type { PurchasesReportMode } from "@/modules/reports/domain/purchasesReportFilters.schema";
 
 export type PurchasesReportLineDto = {
@@ -17,7 +16,12 @@ export type PurchasesReportPurchaseDto = {
   partyName: string;
   notes: string | null;
   lines: PurchasesReportLineDto[];
+
   total: number;
+
+  // NEW
+  paidTotal: number;
+  balanceDue: number;
 };
 
 export type PurchasesReportDto = {
@@ -25,5 +29,10 @@ export type PurchasesReportDto = {
   mode: PurchasesReportMode;
   rangeLabel: string;
   purchases: PurchasesReportPurchaseDto[];
+
   grandTotal: number;
+
+  // NEW
+  grandPaidTotal: number;
+  grandBalanceDue: number;
 };

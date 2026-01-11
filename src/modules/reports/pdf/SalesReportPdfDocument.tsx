@@ -1,4 +1,3 @@
-// src/modules/reports/pdf/SalesReportPdfDocument.tsx
 import React from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { SalesReportDto } from "@/modules/reports/queries/getSalesReport.dto";
@@ -6,8 +5,7 @@ import {
   SalesNotePdfHeader,
   type SalesNotePdfHeaderConfig,
 } from "@/modules/sales-notes/pdf/components/SalesNotePdfHeader";
-import { SalesNotePdfLinesTable } from "@/modules/sales-notes/pdf/components/SalesNotePdfLinesTable";
-import { SalesNotePdfTotalsBox } from "@/modules/sales-notes/pdf/components/SalesNotePdfTotalsBox";
+import { SalesReportPdfResultsTable } from "@/modules/reports/pdf/components/SalesReportPdfResultsTable";
 
 type SalesReportPdfDocumentProps = {
   header: SalesNotePdfHeaderConfig;
@@ -36,45 +34,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
   },
-  topTotal: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: 700,
-  },
-
-  block: {
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: "#000",
-    padding: 10,
-  },
-  blockHeaderRow: {
+  topTotalsRow: {
+    marginTop: 8,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
   },
-  blockLeft: {
-    flexGrow: 1,
-    paddingRight: 10,
-  },
-  label: {
-    fontSize: 9,
-    fontWeight: 700,
-  },
-  value: {
+  topTotalItem: {
     fontSize: 10,
-    marginBottom: 3,
   },
-  blockRight: {
-    width: 160,
-    alignItems: "flex-end",
-  },
-  divider: {
-    marginTop: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#000",
-    opacity: 0.4,
+  topTotalStrong: {
+    fontWeight: 700,
   },
 });
 
@@ -98,7 +67,6 @@ export function SalesReportPdfDocument({
   headerLogoSrc,
   report,
 }: SalesReportPdfDocumentProps) {
-  // We reuse the same header layout, but with report label.
   const issuedDate = formatDateMX(new Date());
 
   return (
@@ -115,54 +83,35 @@ export function SalesReportPdfDocument({
         <View style={styles.topSummary}>
           <Text style={styles.topTitle}>Reporte de ventas</Text>
           <Text style={styles.topSub}>{report.rangeLabel}</Text>
-          <Text style={styles.topTotal}>
-            Gran total: {formatMoneyFromNumber(report.grandTotal)}
-          </Text>
+
+          <View style={styles.topTotalsRow}>
+            <Text style={styles.topTotalItem}>
+              Total:{" "}
+              <Text style={styles.topTotalStrong}>
+                {formatMoneyFromNumber(report.grandTotal)}
+              </Text>
+            </Text>
+            <Text style={styles.topTotalItem}>
+              Abonado:{" "}
+              <Text style={styles.topTotalStrong}>
+                {formatMoneyFromNumber(report.grandPaidTotal)}
+              </Text>
+            </Text>
+            <Text style={styles.topTotalItem}>
+              Restante:{" "}
+              <Text style={styles.topTotalStrong}>
+                {formatMoneyFromNumber(report.grandBalanceDue)}
+              </Text>
+            </Text>
+          </View>
         </View>
 
-        {report.salesNotes.map((sn, idx) => {
-          const lines = sn.lines.map((l) => ({
-            description: l.description,
-            quantity: String(l.quantity),
-            unitPrice: String(l.unitPrice),
-            lineTotal: String(l.lineTotal),
-          }));
-
-          return (
-            <View key={sn.id}>
-              <View style={styles.block} wrap>
-                <View style={styles.blockHeaderRow}>
-                  <View style={styles.blockLeft}>
-                    <Text style={styles.label}>Folio</Text>
-                    <Text style={styles.value}>{sn.folio}</Text>
-
-                    <Text style={styles.label}>Cliente</Text>
-                    <Text style={styles.value}>{sn.partyName}</Text>
-
-                    <Text style={styles.label}>Fecha</Text>
-                    <Text style={styles.value}>
-                      {formatDateMX(sn.createdAt)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.blockRight}>
-                    <Text style={styles.label}>Total de la venta</Text>
-                    <Text style={{ fontSize: 12, fontWeight: 700 }}>
-                      {formatMoneyFromNumber(sn.total)}
-                    </Text>
-                  </View>
-                </View>
-
-                <SalesNotePdfLinesTable lines={lines} />
-                <SalesNotePdfTotalsBox total={String(sn.total)} />
-              </View>
-
-              {idx < report.salesNotes.length - 1 ? (
-                <View style={styles.divider} />
-              ) : null}
-            </View>
-          );
-        })}
+        <SalesReportPdfResultsTable
+          rows={report.salesNotes}
+          grandTotal={report.grandTotal}
+          grandPaidTotal={report.grandPaidTotal}
+          grandBalanceDue={report.grandBalanceDue}
+        />
       </Page>
     </Document>
   );
