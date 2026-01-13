@@ -91,7 +91,7 @@ export function ProductsTableClient({
       searchPlaceholder="Buscar productos…"
       pageSizeOptions={[10, 25, 50]}
       showPageSizeSelector
-      initialSort={{ sortField: "createdAt", sortOrder: "desc" }}
+      initialSort={{ sortField: "speciesName", sortOrder: "asc" }}
     />
   );
 }
