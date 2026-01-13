@@ -53,9 +53,22 @@ export default async function PartyDetailsPage({
       title={result.party.name}
       subtitle={subtitle}
       headerActions={
-        <Link href={routes.parties.edit(id)} className="btn btn-warning btn-sm">
-          Editar
-        </Link>
+        <>
+          <Link
+            href={routes.parties.pdf(id)}
+            className="btn btn-info btn-sm"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ver PDF
+          </Link>
+          <Link
+            href={routes.parties.edit(id)}
+            className="btn btn-warning btn-sm"
+          >
+            Editar
+          </Link>
+        </>
       }
     >
       <PartyDetailsClient
