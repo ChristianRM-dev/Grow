@@ -15,7 +15,7 @@ export function SalesReportResult({
   if (report.salesNotes.length === 0) {
     return (
       <div className="alert alert-info">
-        <span>No hay ventas para el período seleccionado.</span>
+        <span>No hay ventas para el filtro seleccionado.</span>
       </div>
     );
   }
@@ -31,8 +31,22 @@ export function SalesReportResult({
 
           <div className="flex flex-col gap-2 sm:items-end">
             <div className="text-sm">
-              <span className="opacity-70">Gran total: </span>
+              <span className="opacity-70">Total: </span>
               <span className="font-semibold">{money(report.grandTotal)}</span>
+            </div>
+
+            <div className="text-sm">
+              <span className="opacity-70">Abonado: </span>
+              <span className="font-semibold">
+                {money(report.grandPaidTotal)}
+              </span>
+            </div>
+
+            <div className="text-sm">
+              <span className="opacity-70">Restante: </span>
+              <span className="font-semibold">
+                {money(report.grandBalanceDue)}
+              </span>
             </div>
 
             <a
@@ -47,7 +61,6 @@ export function SalesReportResult({
         </div>
       </div>
 
-      {/* ... resto igual ... */}
       {report.salesNotes.map((sn) => (
         <>
           <div
@@ -68,12 +81,19 @@ export function SalesReportResult({
                 </div>
 
                 <div className="text-right">
-                  <div className="text-sm opacity-70">Total de la venta</div>
+                  <div className="text-sm opacity-70">Total</div>
                   <div className="text-lg font-semibold">{money(sn.total)}</div>
+
+                  <div className="mt-2 text-sm opacity-70">Abonado</div>
+                  <div className="font-semibold">{money(sn.paidTotal)}</div>
+
+                  <div className="mt-2 text-sm opacity-70">Restante</div>
+                  <div className="font-semibold">{money(sn.balanceDue)}</div>
                 </div>
               </div>
             </div>
 
+            {/* resto igual */}
             <div className="p-4">
               <div className="overflow-x-auto">
                 <table className="table table-zebra w-full">
@@ -106,6 +126,7 @@ export function SalesReportResult({
               </div>
             </div>
           </div>
+
           <div className="divider"></div>
         </>
       ))}

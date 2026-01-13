@@ -22,7 +22,9 @@ export async function GET(req: Request) {
   sp.set("type", "sales");
 
   const state = parseReportsPageState(sp);
-  if (!state || !isCompleteSalesReportFilters(state)) {
+
+  // IMPORTANT: for PDF we require a COMPLETE filter set
+  if (!isCompleteSalesReportFilters(state)) {
     return new Response("Parámetros inválidos para reporte de ventas.", {
       status: 400,
     });
@@ -42,9 +44,7 @@ export async function GET(req: Request) {
     />
   );
 
-  const body = new Uint8Array(pdfBuffer);
-
-  return new Response(body, {
+  return new Response(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="Reporte de Ventas.pdf"`,

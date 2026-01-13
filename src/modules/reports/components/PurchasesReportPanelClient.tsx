@@ -1,6 +1,7 @@
+// src/modules/reports/components/PurchasesReportPanelClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { ReportTypeEnum } from "@/modules/reports/domain/reportTypes";
@@ -10,36 +11,27 @@ import {
 } from "@/modules/reports/domain/reportSearchParams";
 import { PurchasesReportFiltersSchema } from "@/modules/reports/domain/purchasesReportFilters.schema";
 import { monthLabelMX } from "@/modules/shared/utils/formatters";
+import {
+  firstDayOfMonthDateOnly,
+  todayDateOnly,
+} from "@/modules/shared/utils/dateOnly";
+
+import {
+  searchPartiesAction,
+  type PartyLookupDto,
+} from "@/modules/parties/actions/searchParties.action";
 
 type Mode = "yearMonth" | "range";
-
-function todayDateOnly(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function firstDayOfMonthDateOnly(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  return `${yyyy}-${mm}-01`;
-}
 
 export function PurchasesReportPanelClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  // ----- URL state (source of truth for "generated" report filters) -----
 
   const urlState = useMemo(() => {
     const sp = new URLSearchParams(searchParams.toString());
     return parseReportsPageState(sp);
   }, [searchParams]);
 
-  // ----- Draft state (user edits here; URL only updates on "Generate") -----
   const [mode, setMode] = useState<Mode>("yearMonth");
 
   const [years, setYears] = useState<number[]>([]);
@@ -51,12 +43,23 @@ export function PurchasesReportPanelClient() {
   const [draftFrom, setDraftFrom] = useState<string>(firstDayOfMonthDateOnly());
   const [draftTo, setDraftTo] = useState<string>(todayDateOnly());
 
+  // NEW: supplier filter (party)
+  const [draftPartyId, setDraftPartyId] = useState("");
+  const [draftPartyName, setDraftPartyName] = useState("");
+
+  // Autocomplete local state
+  const [term, setTerm] = useState("");
+  const [results, setResults] = useState<PartyLookupDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef<number | null>(null);
+
   const [loadingYears, setLoadingYears] = useState(false);
   const [loadingMonths, setLoadingMonths] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
-  // ----- Load years lazily (only when this panel is rendered) -----
+  // ----- Load years lazily -----
   useEffect(() => {
     let isMounted = true;
 
@@ -78,7 +81,6 @@ export function PurchasesReportPanelClient() {
         const list = data.years ?? [];
         setYears(list);
 
-        // If we don't have a draft year yet, use the most recent available year.
         if (draftYear === null && list.length > 0) {
           setDraftYear(list[0]);
         }
@@ -99,7 +101,7 @@ export function PurchasesReportPanelClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ----- Sync draft from URL when URL has valid purchases filters -----
+  // ----- Sync from URL -----
   useEffect(() => {
     if (!urlState) return;
     if (urlState.type !== ReportTypeEnum.PURCHASES) return;
@@ -108,15 +110,23 @@ export function PurchasesReportPanelClient() {
       setMode("yearMonth");
       setDraftYear(urlState.year);
       setDraftMonth(typeof urlState.month === "number" ? urlState.month : null);
-      return;
-    }
-
-    if (urlState.mode === "range") {
+    } else if (urlState.mode === "range") {
       setMode("range");
       setDraftFrom(urlState.from);
       setDraftTo(urlState.to);
-      return;
     }
+
+    const partyId = String((urlState as any).partyId ?? "").trim();
+    const partyName = String((urlState as any).partyName ?? "").trim();
+
+    setDraftPartyId(partyId);
+    setDraftPartyName(partyName);
+
+    // hydrate term if user is not typing
+    if (partyId && partyName && term.trim().length === 0 && !open) {
+      setTerm(partyName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlState]);
 
   // ----- Load months when draftYear changes -----
@@ -143,7 +153,6 @@ export function PurchasesReportPanelClient() {
         const list = data.months ?? [];
         setMonths(list);
 
-        // If current draft month is not available for this year, clear it.
         if (draftMonth !== null && !list.includes(draftMonth)) {
           setDraftMonth(null);
         }
@@ -163,7 +172,6 @@ export function PurchasesReportPanelClient() {
       return;
     }
 
-    // Changing year should reset month selection (user can re-pick).
     setDraftMonth(null);
     loadMonths(draftYear);
 
@@ -173,7 +181,31 @@ export function PurchasesReportPanelClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftYear]);
 
-  // ----- Mode switch: keep mutual exclusion clear -----
+  // ----- Autocomplete search (debounced) -----
+  useEffect(() => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+
+    debounceRef.current = window.setTimeout(async () => {
+      const q = term.trim();
+      if (q.length < 2) {
+        setResults([]);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const rows = await searchPartiesAction({ term: q, take: 10 });
+        setResults(rows);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, [term]);
+
   function handleModeChange(nextMode: Mode) {
     setMode(nextMode);
     setError(null);
@@ -184,28 +216,39 @@ export function PurchasesReportPanelClient() {
       return;
     }
 
-    // range
     setDraftMonth(null);
   }
 
-  // ----- Validation for enabling "Generate" -----
   const draftCandidate = useMemo(() => {
-    if (mode === "yearMonth") {
-      return {
-        type: ReportTypeEnum.PURCHASES,
-        mode: "yearMonth" as const,
-        year: draftYear ?? undefined,
-        month: draftMonth ?? undefined,
-      };
-    }
+    const base =
+      mode === "yearMonth"
+        ? {
+            type: ReportTypeEnum.PURCHASES,
+            mode: "yearMonth" as const,
+            year: draftYear ?? undefined,
+            month: draftMonth ?? undefined,
+          }
+        : {
+            type: ReportTypeEnum.PURCHASES,
+            mode: "range" as const,
+            from: draftFrom,
+            to: draftTo,
+          };
 
     return {
-      type: ReportTypeEnum.PURCHASES,
-      mode: "range" as const,
-      from: draftFrom,
-      to: draftTo,
+      ...base,
+      partyId: draftPartyId || undefined,
+      partyName: draftPartyName || undefined,
     };
-  }, [mode, draftYear, draftMonth, draftFrom, draftTo]);
+  }, [
+    mode,
+    draftYear,
+    draftMonth,
+    draftFrom,
+    draftTo,
+    draftPartyId,
+    draftPartyName,
+  ]);
 
   const validation = useMemo(() => {
     return PurchasesReportFiltersSchema.safeParse(draftCandidate);
@@ -230,6 +273,12 @@ export function PurchasesReportPanelClient() {
     setMode("yearMonth");
     setDraftMonth(null);
 
+    setDraftPartyId("");
+    setDraftPartyName("");
+    setTerm("");
+    setResults([]);
+    setOpen(false);
+
     if (years.length > 0) setDraftYear(years[0]);
     else setDraftYear(null);
 
@@ -244,7 +293,7 @@ export function PurchasesReportPanelClient() {
       <div>
         <h2 className="text-lg font-semibold">Reporte de Compras</h2>
         <p className="mt-1 text-sm opacity-70">
-          Elige un método para definir el período. Solo se usa uno a la vez.
+          Define el período y (opcional) filtra por proveedor.
         </p>
       </div>
 
@@ -270,7 +319,7 @@ export function PurchasesReportPanelClient() {
           onClick={() => handleModeChange("range")}
           type="button"
         >
-          Rango personalizado
+          Rango
         </button>
       </div>
 
@@ -284,10 +333,9 @@ export function PurchasesReportPanelClient() {
             <select
               className="select select-bordered w-full"
               value={draftYear ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setDraftYear(v ? Number(v) : null);
-              }}
+              onChange={(e) =>
+                setDraftYear(e.target.value ? Number(e.target.value) : null)
+              }
               disabled={loadingYears}
             >
               <option value="">
@@ -310,10 +358,9 @@ export function PurchasesReportPanelClient() {
             <select
               className="select select-bordered w-full"
               value={draftMonth ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setDraftMonth(v ? Number(v) : null);
-              }}
+              onChange={(e) =>
+                setDraftMonth(e.target.value ? Number(e.target.value) : null)
+              }
               disabled={draftYear === null || loadingMonths}
             >
               <option value="">
@@ -361,11 +408,107 @@ export function PurchasesReportPanelClient() {
           </div>
 
           <div className="md:col-span-2 text-sm opacity-70">
-            Usa un rango específico. El reporte incluirá compras creadas dentro
-            del período.
+            Usa un rango específico. El reporte incluirá compras ocurridas
+            dentro del período.
           </div>
         </div>
       )}
+
+      {/* Supplier filter */}
+      <div className="rounded-box border border-base-300 bg-base-200 p-4 space-y-4">
+        <div>
+          <h3 className="font-semibold">Filtros opcionales</h3>
+          <p className="text-sm opacity-70">Se aplican junto con el período.</p>
+        </div>
+
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-medium">Proveedor</span>
+          </label>
+
+          <div className="relative">
+            <input
+              className="input input-bordered w-full"
+              placeholder="Escribe al menos 2 letras…"
+              value={term}
+              onChange={(e) => {
+                const next = e.target.value;
+                setTerm(next);
+
+                // Editing invalidates selection
+                if (draftPartyId) {
+                  setDraftPartyId("");
+                  setDraftPartyName("");
+                }
+              }}
+              onFocus={() => setOpen(true)}
+              onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+              aria-label="Buscar proveedor"
+            />
+
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
+              {loading ? (
+                <span className="loading loading-spinner loading-sm" />
+              ) : (
+                <span>⌄</span>
+              )}
+            </div>
+
+            {open && results.length > 0 ? (
+              <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
+                <ul className="menu menu-sm w-full">
+                  {results.map((p) => (
+                    <li key={p.id} className="w-full">
+                      <button
+                        type="button"
+                        className="w-full justify-start text-left"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setDraftPartyId(p.id);
+                          setDraftPartyName(p.name);
+                          setTerm(p.name);
+                          setOpen(false);
+                        }}
+                      >
+                        <div className="flex flex-col items-start min-w-0">
+                          <span className="font-medium truncate">{p.name}</span>
+                          {p.phone ? (
+                            <span className="text-xs opacity-70 truncate">
+                              {p.phone}
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+
+          {draftPartyId ? (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="badge badge-success">
+                Proveedor seleccionado
+              </span>
+              <span className="text-sm opacity-70">{draftPartyName}</span>
+
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => {
+                  setDraftPartyId("");
+                  setDraftPartyName("");
+                  setTerm("");
+                  setResults([]);
+                }}
+              >
+                Quitar
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       {!validation.success ? (
         <div className="alert alert-warning">

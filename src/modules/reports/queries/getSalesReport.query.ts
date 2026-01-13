@@ -1,87 +1,50 @@
+// src/modules/reports/queries/getSalesReport.query.ts
 import { prisma } from "@/lib/prisma";
 import { PaymentDirection } from "@/generated/prisma/client";
 
 import type { SalesReportFilters } from "@/modules/reports/domain/salesReportFilters.schema";
+import { getReportDateRange } from "@/modules/reports/domain/reportDateRange";
 import { toNumber } from "@/modules/shared/utils/toNumber";
 import { parseDescriptionSnapshotName } from "@/modules/shared/snapshots/parseDescriptionSnapshotName";
 
 import type { SalesReportDto } from "./getSalesReport.dto";
-import { MONTHS_ES } from "../domain/reportDateRange";
 
-function startOfMonthUtc(year: number, month1to12: number) {
-  return new Date(Date.UTC(year, month1to12 - 1, 1, 0, 0, 0, 0));
+function paymentStatusLabel(status: string | undefined): string | null {
+  if (!status || status === "all") return null;
+  if (status === "paid") return "Pagados";
+  if (status === "pending") return "Pendientes";
+  return null;
 }
 
-function startOfNextMonthUtc(year: number, month1to12: number) {
-  if (month1to12 === 12) return new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0, 0));
-  return new Date(Date.UTC(year, month1to12, 1, 0, 0, 0, 0));
-}
-
-function startOfYearUtc(year: number) {
-  return new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
-}
-
-function startOfNextYearUtc(year: number) {
-  return new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0, 0));
-}
-
-function parseDateOnlyToUtcStart(dateOnly: string) {
-  // dateOnly must be YYYY-MM-DD (validated by Zod upstream)
-  return new Date(`${dateOnly}T00:00:00.000Z`);
-}
-
-function addDaysUtc(date: Date, days: number) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
-/**
- * Fetches a Sales report from SalesNote + SalesNoteLine, filtered by createdAt.
- * Includes payment aggregation (paidTotal) and remaining balance (balanceDue).
- * NOTE: Adjust status filtering if you want to include DRAFT/CANCELLED.
- */
 export async function getSalesReport(
   filters: SalesReportFilters
 ): Promise<SalesReportDto> {
-  let from: Date;
-  let toExclusive: Date;
-  let rangeLabel = "";
+  const {
+    from,
+    toExclusive,
+    rangeLabel: baseRangeLabel,
+  } = getReportDateRange(filters);
 
-  if (filters.mode === "yearMonth") {
-    const year = filters.year;
-    const month = filters.month;
+  // Optional filters
+  const status = filters.status ?? "all";
+  const partyId = filters.partyId?.trim() ? filters.partyId.trim() : null;
 
-    if (typeof month === "number") {
-      from = startOfMonthUtc(year, month);
-      toExclusive = startOfNextMonthUtc(year, month);
-      rangeLabel = `${MONTHS_ES[month - 1]} ${year}`;
-    } else {
-      from = startOfYearUtc(year);
-      toExclusive = startOfNextYearUtc(year);
-      rangeLabel = `Año ${year}`;
-    }
-  } else {
-    const fromDate = parseDateOnlyToUtcStart(filters.from);
-    const toDate = parseDateOnlyToUtcStart(filters.to);
-    from = fromDate;
-    toExclusive = addDaysUtc(toDate, 1); // inclusive "to"
-    rangeLabel = `${filters.from} → ${filters.to}`;
+  const where: any = {
+    createdAt: { gte: from, lt: toExclusive },
+  };
+
+  if (partyId) {
+    where.partyId = partyId;
   }
 
   const salesNotes = await prisma.salesNote.findMany({
-    where: {
-      createdAt: { gte: from, lt: toExclusive },
-      // Recommended for real "sales" reporting:
-      // status: "CONFIRMED"
-      // If you prefer: status: { not: "CANCELLED" }
-    },
+    where,
     select: {
       id: true,
       folio: true,
       createdAt: true,
       total: true,
       party: { select: { name: true } },
-
-      // Keep lines to preserve existing report detail usage
       lines: {
         select: {
           descriptionSnapshot: true,
@@ -91,16 +54,12 @@ export async function getSalesReport(
         },
         orderBy: { id: "asc" },
       },
-
-      // NEW: bring payments to compute paidTotal and balanceDue
       payments: {
         where: {
           direction: PaymentDirection.IN,
           amount: { not: null },
         },
-        select: {
-          amount: true,
-        },
+        select: { amount: true },
       },
     },
     orderBy: { createdAt: "asc" },
@@ -117,11 +76,9 @@ export async function getSalesReport(
     const total = toNumber(sn.total);
 
     const paidTotal = sn.payments.reduce((acc, p) => {
-      // amount is filtered as not null, but keep it defensive.
       return acc + (p.amount == null ? 0 : toNumber(p.amount));
     }, 0);
 
-    // Remaining should not go negative even if there are extra payments (edge cases / adjustments).
     const balanceDue = Math.max(0, total - paidTotal);
 
     return {
@@ -136,15 +93,38 @@ export async function getSalesReport(
     };
   });
 
-  const grandTotal = mapped.reduce((acc, s) => acc + s.total, 0);
-  const grandPaidTotal = mapped.reduce((acc, s) => acc + s.paidTotal, 0);
-  const grandBalanceDue = mapped.reduce((acc, s) => acc + s.balanceDue, 0);
+  // Optional payment status filter
+  const filtered =
+    status === "all"
+      ? mapped
+      : mapped.filter((sn) => {
+          if (status === "paid") return sn.balanceDue <= 0;
+          return sn.balanceDue > 0; // pending
+        });
+
+  // Range label: base + optional descriptors
+  const parts: string[] = [baseRangeLabel];
+
+  if (partyId) {
+    const partyName =
+      salesNotes[0]?.party?.name ?? filters.partyName ?? "Cliente";
+    parts.push(`Cliente: ${partyName}`);
+  }
+
+  const ps = paymentStatusLabel(status);
+  if (ps) parts.push(`Pagos: ${ps}`);
+
+  const rangeLabel = parts.join(" · ");
+
+  const grandTotal = filtered.reduce((acc, s) => acc + s.total, 0);
+  const grandPaidTotal = filtered.reduce((acc, s) => acc + s.paidTotal, 0);
+  const grandBalanceDue = filtered.reduce((acc, s) => acc + s.balanceDue, 0);
 
   return {
     type: "sales",
     mode: filters.mode,
     rangeLabel,
-    salesNotes: mapped,
+    salesNotes: filtered,
     grandTotal,
     grandPaidTotal,
     grandBalanceDue,

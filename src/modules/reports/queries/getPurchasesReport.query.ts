@@ -1,3 +1,4 @@
+// src/modules/reports/queries/getPurchasesReport.query.ts
 import { prisma } from "@/lib/prisma";
 import { PaymentDirection } from "@/generated/prisma/client";
 
@@ -9,18 +10,29 @@ import type { PurchasesReportDto } from "./getPurchasesReport.dto";
 
 /**
  * Fetches a Purchases report from SupplierPurchase filtered by occurredAt.
- * Since SupplierPurchase has no line items yet, we expose a synthetic single line.
  * Includes payment aggregation (paidTotal) and remaining balance (balanceDue).
  */
 export async function getPurchasesReport(
   filters: PurchasesReportFilters
 ): Promise<PurchasesReportDto> {
-  const { from, toExclusive, rangeLabel } = getReportDateRange(filters);
+  const {
+    from,
+    toExclusive,
+    rangeLabel: baseRangeLabel,
+  } = getReportDateRange(filters);
+
+  const partyId = filters.partyId?.trim() ? filters.partyId.trim() : null;
+
+  const where: any = {
+    occurredAt: { gte: from, lt: toExclusive },
+  };
+
+  if (partyId) {
+    where.partyId = partyId;
+  }
 
   const purchases = await prisma.supplierPurchase.findMany({
-    where: {
-      occurredAt: { gte: from, lt: toExclusive },
-    },
+    where,
     select: {
       id: true,
       supplierFolio: true,
@@ -28,15 +40,12 @@ export async function getPurchasesReport(
       total: true,
       notes: true,
       party: { select: { name: true } },
-
       payments: {
         where: {
           direction: PaymentDirection.OUT,
           amount: { not: null },
         },
-        select: {
-          amount: true,
-        },
+        select: { amount: true },
       },
     },
     orderBy: { occurredAt: "asc" },
@@ -51,7 +60,6 @@ export async function getPurchasesReport(
 
     const balanceDue = Math.max(0, total - paidTotal);
 
-    // Synthetic single row (until a SupplierPurchaseLine model exists)
     const lines = [
       {
         description: "Compra a proveedor",
@@ -73,6 +81,15 @@ export async function getPurchasesReport(
       balanceDue,
     };
   });
+
+  const parts: string[] = [baseRangeLabel];
+
+  if (partyId) {
+    const name = purchases[0]?.party?.name ?? filters.partyName ?? "Proveedor";
+    parts.push(`Proveedor: ${name}`);
+  }
+
+  const rangeLabel = parts.join(" · ");
 
   const grandTotal = mapped.reduce((acc, p) => acc + p.total, 0);
   const grandPaidTotal = mapped.reduce((acc, p) => acc + p.paidTotal, 0);

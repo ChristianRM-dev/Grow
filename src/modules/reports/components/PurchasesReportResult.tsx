@@ -49,11 +49,8 @@ export function PurchasesReportResult({
       </div>
 
       {report.purchases.map((p) => (
-        <>
-          <div
-            key={p.id}
-            className="rounded-box border border-base-300 bg-base-100"
-          >
+        <div key={p.id}>
+          <div className="rounded-box border border-base-300 bg-base-100">
             <div className="border-b border-base-300 p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -116,7 +113,7 @@ export function PurchasesReportResult({
           </div>
 
           <div className="divider"></div>
-        </>
+        </div>
       ))}
     </div>
   );

@@ -8,17 +8,24 @@ export type PurchasesReportMode = z.infer<typeof PurchasesReportModeEnum>;
 const YearSchema = z.coerce.number().int().min(2000).max(2100);
 const MonthSchema = z.coerce.number().int().min(1).max(12);
 
-// Usar YYYY-MM-DD para mantener URLs estables y seguras contra zonas horarias
 const DateOnlySchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (usa YYYY-MM-DD)");
 
-export const PurchasesReportYearMonthFiltersSchema = z.object({
-  type: z.literal(ReportTypeEnum.PURCHASES),
-  mode: z.literal("yearMonth"),
-  year: YearSchema,
-  month: MonthSchema.optional(),
-});
+// NEW: extras (optional)
+const PurchasesExtraFiltersSchema = {
+  partyId: z.string().optional(),
+  partyName: z.string().optional(), // only for client label hydration
+};
+
+export const PurchasesReportYearMonthFiltersSchema = z
+  .object({
+    type: z.literal(ReportTypeEnum.PURCHASES),
+    mode: z.literal("yearMonth"),
+    year: YearSchema,
+    month: MonthSchema.optional(),
+  })
+  .extend(PurchasesExtraFiltersSchema);
 
 export const PurchasesReportRangeFiltersSchema = z
   .object({
@@ -27,6 +34,7 @@ export const PurchasesReportRangeFiltersSchema = z
     from: DateOnlySchema,
     to: DateOnlySchema,
   })
+  .extend(PurchasesExtraFiltersSchema)
   .superRefine((val, ctx) => {
     if (val.from > val.to) {
       ctx.addIssue({

@@ -1,6 +1,7 @@
+// src/modules/reports/components/SalesReportPanelClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { ReportTypeEnum } from "@/modules/reports/domain/reportTypes";
@@ -10,23 +11,18 @@ import {
 } from "@/modules/reports/domain/reportSearchParams";
 import { SalesReportFiltersSchema } from "@/modules/reports/domain/salesReportFilters.schema";
 import { monthLabelMX } from "@/modules/shared/utils/formatters";
+import {
+  firstDayOfMonthDateOnly,
+  todayDateOnly,
+} from "@/modules/shared/utils/dateOnly";
+
+import {
+  searchPartiesAction,
+  type PartyLookupDto,
+} from "@/modules/parties/actions/searchParties.action";
 
 type Mode = "yearMonth" | "range";
-
-function todayDateOnly(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function firstDayOfMonthDateOnly(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  return `${yyyy}-${mm}-01`;
-}
+type PaymentStatus = "all" | "paid" | "pending";
 
 export function SalesReportPanelClient() {
   const router = useRouter();
@@ -50,12 +46,24 @@ export function SalesReportPanelClient() {
   const [draftFrom, setDraftFrom] = useState<string>(firstDayOfMonthDateOnly());
   const [draftTo, setDraftTo] = useState<string>(todayDateOnly());
 
+  // Extra filters (compatible with both date modes)
+  const [draftStatus, setDraftStatus] = useState<PaymentStatus>("all");
+  const [draftPartyId, setDraftPartyId] = useState("");
+  const [draftPartyName, setDraftPartyName] = useState("");
+
+  // Autocomplete local state
+  const [term, setTerm] = useState("");
+  const [results, setResults] = useState<PartyLookupDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef<number | null>(null);
+
   const [loadingYears, setLoadingYears] = useState(false);
   const [loadingMonths, setLoadingMonths] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
-  // ----- Load years lazily (only when this panel is rendered) -----
+  // ----- Load years lazily -----
   useEffect(() => {
     let isMounted = true;
 
@@ -77,7 +85,7 @@ export function SalesReportPanelClient() {
         const list = data.years ?? [];
         setYears(list);
 
-        // If we don't have a draft year yet, use the most recent available year.
+        // Default to most recent available year if not already selected
         if (draftYear === null && list.length > 0) {
           setDraftYear(list[0]);
         }
@@ -101,23 +109,39 @@ export function SalesReportPanelClient() {
   // ----- Sync draft from URL when URL has valid sales filters -----
   useEffect(() => {
     if (!urlState) return;
-
     if (urlState.type !== ReportTypeEnum.SALES) return;
+    if (!("mode" in urlState)) return;
 
-    // If URL has valid filters, reflect them in the draft.
+    // Date mode
     if (urlState.mode === "yearMonth") {
       setMode("yearMonth");
       setDraftYear(urlState.year);
       setDraftMonth(typeof urlState.month === "number" ? urlState.month : null);
-      return;
-    }
-
-    if (urlState.mode === "range") {
+    } else {
       setMode("range");
       setDraftFrom(urlState.from);
       setDraftTo(urlState.to);
-      return;
     }
+
+    // Extra filters
+    const status = String((urlState as any).status ?? "all");
+    setDraftStatus(
+      status === "paid" || status === "pending" || status === "all"
+        ? status
+        : "all"
+    );
+
+    const partyId = String((urlState as any).partyId ?? "").trim();
+    const partyName = String((urlState as any).partyName ?? "").trim();
+
+    setDraftPartyId(partyId);
+    setDraftPartyName(partyName);
+
+    // Hydrate input label only if user isn't typing / dropdown not open
+    if (partyId && partyName && term.trim().length === 0 && !open) {
+      setTerm(partyName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlState]);
 
   // ----- Load months when draftYear changes -----
@@ -164,7 +188,7 @@ export function SalesReportPanelClient() {
       return;
     }
 
-    // Changing year should reset month selection (user can re-pick).
+    // Changing year resets month selection
     setDraftMonth(null);
     loadMonths(draftYear);
 
@@ -173,6 +197,31 @@ export function SalesReportPanelClient() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftYear]);
+
+  // ----- Autocomplete search (debounced) -----
+  useEffect(() => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+
+    debounceRef.current = window.setTimeout(async () => {
+      const q = term.trim();
+      if (q.length < 2) {
+        setResults([]);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const rows = await searchPartiesAction({ term: q, take: 10 });
+        setResults(rows);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, [term]);
 
   // ----- Mode switch: keep mutual exclusion clear -----
   function handleModeChange(nextMode: Mode) {
@@ -190,14 +239,21 @@ export function SalesReportPanelClient() {
     setDraftMonth(null);
   }
 
-  // ----- Validation for enabling "Generate" -----
+  // ----- Draft candidate -----
   const draftCandidate = useMemo(() => {
+    const extra = {
+      status: draftStatus,
+      partyId: draftPartyId || undefined,
+      partyName: draftPartyName || undefined,
+    };
+
     if (mode === "yearMonth") {
       return {
         type: ReportTypeEnum.SALES,
         mode: "yearMonth" as const,
         year: draftYear ?? undefined,
         month: draftMonth ?? undefined,
+        ...extra,
       };
     }
 
@@ -206,12 +262,21 @@ export function SalesReportPanelClient() {
       mode: "range" as const,
       from: draftFrom,
       to: draftTo,
+      ...extra,
     };
-  }, [mode, draftYear, draftMonth, draftFrom, draftTo]);
+  }, [
+    mode,
+    draftYear,
+    draftMonth,
+    draftFrom,
+    draftTo,
+    draftStatus,
+    draftPartyId,
+    draftPartyName,
+  ]);
 
   const validation = useMemo(() => {
-    const parsed = SalesReportFiltersSchema.safeParse(draftCandidate);
-    return parsed;
+    return SalesReportFiltersSchema.safeParse(draftCandidate);
   }, [draftCandidate]);
 
   const canGenerate = validation.success;
@@ -229,16 +294,19 @@ export function SalesReportPanelClient() {
   }
 
   function clearFilters() {
-    // Keep type=sales, reset to a safe draft (yearMonth with latest year if available)
     setError(null);
     setMode("yearMonth");
     setDraftMonth(null);
 
-    if (years.length > 0) {
-      setDraftYear(years[0]);
-    } else {
-      setDraftYear(null);
-    }
+    setDraftStatus("all");
+    setDraftPartyId("");
+    setDraftPartyName("");
+    setTerm("");
+    setResults([]);
+    setOpen(false);
+
+    if (years.length > 0) setDraftYear(years[0]);
+    else setDraftYear(null);
 
     setDraftFrom(firstDayOfMonthDateOnly());
     setDraftTo(todayDateOnly());
@@ -251,7 +319,7 @@ export function SalesReportPanelClient() {
       <div>
         <h2 className="text-lg font-semibold">Reporte de Ventas</h2>
         <p className="mt-1 text-sm opacity-70">
-          Elige un método para definir el período. Solo se usa uno a la vez.
+          Define el período y (opcional) filtra por estado de pago y/o cliente.
         </p>
       </div>
 
@@ -261,7 +329,7 @@ export function SalesReportPanelClient() {
         </div>
       ) : null}
 
-      {/* Tabs for mutually exclusive modes */}
+      {/* Date mode tabs */}
       <div role="tablist" className="tabs tabs-border">
         <button
           role="tab"
@@ -278,7 +346,7 @@ export function SalesReportPanelClient() {
           onClick={() => handleModeChange("range")}
           type="button"
         >
-          Rango personalizado
+          Rango
         </button>
       </div>
 
@@ -293,10 +361,9 @@ export function SalesReportPanelClient() {
             <select
               className="select select-bordered w-full"
               value={draftYear ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setDraftYear(v ? Number(v) : null);
-              }}
+              onChange={(e) =>
+                setDraftYear(e.target.value ? Number(e.target.value) : null)
+              }
               disabled={loadingYears}
             >
               <option value="">
@@ -320,10 +387,9 @@ export function SalesReportPanelClient() {
             <select
               className="select select-bordered w-full"
               value={draftMonth ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setDraftMonth(v ? Number(v) : null);
-              }}
+              onChange={(e) =>
+                setDraftMonth(e.target.value ? Number(e.target.value) : null)
+              }
               disabled={draftYear === null || loadingMonths}
             >
               <option value="">
@@ -344,7 +410,6 @@ export function SalesReportPanelClient() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* From */}
           <div className="form-control">
             <label className="label">
               <span className="label-text font-medium">Desde</span>
@@ -358,7 +423,6 @@ export function SalesReportPanelClient() {
             />
           </div>
 
-          {/* To */}
           <div className="form-control">
             <label className="label">
               <span className="label-text font-medium">Hasta</span>
@@ -379,7 +443,119 @@ export function SalesReportPanelClient() {
         </div>
       )}
 
-      {/* Inline validation feedback (optional, but helpful) */}
+      {/* EXTRA FILTERS */}
+      <div className="rounded-box border border-base-300 bg-base-200 p-4 space-y-4">
+        <div>
+          <h3 className="font-semibold">Filtros opcionales</h3>
+          <p className="text-sm opacity-70">Se aplican junto con el período.</p>
+        </div>
+
+        {/* Payment status */}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-medium">Estado de pago</span>
+          </label>
+
+          <select
+            className="select select-bordered w-full"
+            value={draftStatus}
+            onChange={(e) => setDraftStatus(e.target.value as PaymentStatus)}
+          >
+            <option value="all">Todos</option>
+            <option value="paid">Pagados</option>
+            <option value="pending">Pendientes</option>
+          </select>
+        </div>
+
+        {/* Party autocomplete */}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-medium">Cliente</span>
+          </label>
+
+          <div className="relative">
+            <input
+              className="input input-bordered w-full"
+              placeholder="Escribe al menos 2 letras…"
+              value={term}
+              onChange={(e) => {
+                const next = e.target.value;
+                setTerm(next);
+
+                // Editing invalidates any previous selection.
+                if (draftPartyId) {
+                  setDraftPartyId("");
+                  setDraftPartyName("");
+                }
+              }}
+              onFocus={() => setOpen(true)}
+              onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+              aria-label="Buscar cliente"
+            />
+
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
+              {loading ? (
+                <span className="loading loading-spinner loading-sm" />
+              ) : (
+                <span>⌄</span>
+              )}
+            </div>
+
+            {open && results.length > 0 ? (
+              <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
+                <ul className="menu menu-sm w-full">
+                  {results.map((p) => (
+                    <li key={p.id} className="w-full">
+                      <button
+                        type="button"
+                        className="w-full justify-start text-left"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setDraftPartyId(p.id);
+                          setDraftPartyName(p.name);
+                          setTerm(p.name);
+                          setOpen(false);
+                        }}
+                      >
+                        <div className="flex flex-col items-start min-w-0">
+                          <span className="font-medium truncate">{p.name}</span>
+                          {p.phone ? (
+                            <span className="text-xs opacity-70 truncate">
+                              {p.phone}
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+
+          {draftPartyId ? (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="badge badge-success">Cliente seleccionado</span>
+              <span className="text-sm opacity-70">{draftPartyName}</span>
+
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => {
+                  setDraftPartyId("");
+                  setDraftPartyName("");
+                  setTerm("");
+                  setResults([]);
+                }}
+              >
+                Quitar
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Inline validation feedback */}
       {!validation.success ? (
         <div className="alert alert-warning">
           <span>Falta completar filtros válidos para generar el reporte.</span>
