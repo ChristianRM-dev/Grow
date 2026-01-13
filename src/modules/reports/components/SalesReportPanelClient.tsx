@@ -107,39 +107,35 @@ export function SalesReportPanelClient() {
   }, []);
 
   // ----- Sync draft from URL when URL has valid sales filters -----
+  // ----- Sync draft from URL when URL has valid sales filters -----
   useEffect(() => {
     if (!urlState) return;
     if (urlState.type !== ReportTypeEnum.SALES) return;
-    if (!("mode" in urlState)) return;
 
-    // Date mode
+    // If URL is "selected but not generated yet" (mode missing), do nothing.
+    if (!("mode" in urlState) || !urlState.mode) return;
+
+    // date mode
     if (urlState.mode === "yearMonth") {
       setMode("yearMonth");
       setDraftYear(urlState.year);
       setDraftMonth(typeof urlState.month === "number" ? urlState.month : null);
-    } else {
+    } else if (urlState.mode === "range") {
       setMode("range");
       setDraftFrom(urlState.from);
       setDraftTo(urlState.to);
     }
 
-    // Extra filters
-    const status = String((urlState as any).status ?? "all");
-    setDraftStatus(
-      status === "paid" || status === "pending" || status === "all"
-        ? status
-        : "all"
-    );
+    // extras (sales)
+    setDraftStatus(urlState.status ?? "all");
+    setDraftPartyId(urlState.partyId ?? "");
+    setDraftPartyName(urlState.partyName ?? "");
 
-    const partyId = String((urlState as any).partyId ?? "").trim();
-    const partyName = String((urlState as any).partyName ?? "").trim();
-
-    setDraftPartyId(partyId);
-    setDraftPartyName(partyName);
-
-    // Hydrate input label only if user isn't typing / dropdown not open
-    if (partyId && partyName && term.trim().length === 0 && !open) {
-      setTerm(partyName);
+    // hydrate input label if we have a selected party and user isn't typing
+    const name = String(urlState.partyName ?? "").trim();
+    const id = String(urlState.partyId ?? "").trim();
+    if (id && name && term.trim().length === 0 && !open) {
+      setTerm(name);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlState]);
