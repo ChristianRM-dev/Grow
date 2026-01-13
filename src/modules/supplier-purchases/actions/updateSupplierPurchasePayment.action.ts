@@ -3,6 +3,7 @@
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { SupplierPurchasePaymentFinalSchema } from "@/modules/supplier-purchases/forms/supplierPurchasePaymentForm.schemas";
 import { updatePartyPaymentOutUseCase } from "@/modules/payments/application/updatePartyPaymentOut.usecase";
+import { businessDateStringToUtcDate } from "@/modules/shared/dates/businessDate";
 
 function buildReference(args: {
   supplierFolio: string;
@@ -26,7 +27,9 @@ export async function updateSupplierPurchasePaymentAction(params: {
 
   const values = SupplierPurchasePaymentFinalSchema.parse(params.input);
 
-  const occurredAt = new Date(values.occurredAt + "T00:00:00");
+  const occurredAt = values.occurredAt
+    ? businessDateStringToUtcDate(values.occurredAt)
+    : undefined;
 
   const reference = buildReference({
     supplierFolio: values.supplierFolio,

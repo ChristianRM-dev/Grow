@@ -2,6 +2,7 @@
 
 import { SupplierPurchaseFinalSchema } from "@/modules/supplier-purchases/forms/supplierPurchaseForm.schemas";
 import { updateSupplierPurchaseUseCase } from "@/modules/supplier-purchases/application/updateSupplierPurchase.usecase";
+import { businessDateStringToUtcDate } from "@/modules/shared/dates/businessDate";
 
 export async function updateSupplierPurchaseAction(args: {
   id: string;
@@ -10,7 +11,7 @@ export async function updateSupplierPurchaseAction(args: {
   const values = SupplierPurchaseFinalSchema.parse(args.input);
 
   const occurredAt = values.occurredAt
-    ? new Date(values.occurredAt + "T00:00:00")
+    ? businessDateStringToUtcDate(values.occurredAt)
     : undefined;
 
   return updateSupplierPurchaseUseCase(args.id, {

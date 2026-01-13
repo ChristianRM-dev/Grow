@@ -15,6 +15,7 @@ export function SupplierPurchaseNewClient() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: SupplierPurchaseFormValues) => {
+    console.log("handleSubmit", values);
     setSubmitting(true);
     try {
       const res = await createSupplierPurchaseAction(values);
