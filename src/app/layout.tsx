@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast/ToastProvider";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { BlockingDialogsProvider } from "@/components/ui/Dialogs";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +31,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ServiceWorkerRegister />
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <BlockingDialogsProvider>{children}</BlockingDialogsProvider>
+        </ToastProvider>
       </body>
     </html>
   );

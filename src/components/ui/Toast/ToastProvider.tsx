@@ -1,6 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useSyncExternalStore } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 import { toastStore } from "./toastStore";
 import type { ToastItem } from "./toast.types";
 
@@ -10,6 +15,9 @@ type ToastContextValue = {
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+
+// Cached server snapshot to avoid hydration loops with useSyncExternalStore.
+const EMPTY_TOASTS: ToastItem[] = [];
 
 function variantToAlertClass(variant: ToastItem["variant"]) {
   switch (variant) {
@@ -29,13 +37,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const toasts = useSyncExternalStore(
     (listener) => toastStore.subscribe(listener),
     () => toastStore.getSnapshot(),
-    () => [] as ToastItem[]
+    () => EMPTY_TOASTS
   );
 
-  const value: ToastContextValue = {
-    dismiss: (id) => toastStore.dismiss(id),
-    clear: () => toastStore.clear(),
-  };
+  // Memoize context value to avoid unnecessary rerenders.
+  const value = useMemo<ToastContextValue>(
+    () => ({
+      dismiss: (id) => toastStore.dismiss(id),
+      clear: () => toastStore.clear(),
+    }),
+    []
+  );
 
   return (
     <ToastContext.Provider value={value}>

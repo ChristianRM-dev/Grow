@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { GenericPaginatedTable } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable";
@@ -14,7 +15,14 @@ import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
 import { dateMX, phoneMX } from "@/modules/shared/utils/formatters";
 import { routes } from "@/lib/routes";
 
-import { EyeIcon, PencilSquareIcon } from "@heroicons/react/16/solid";
+import {
+  EyeIcon,
+  PencilSquareIcon,
+  TrashIcon,
+} from "@heroicons/react/16/solid";
+
+import { useBlockingDialogs } from "@/components/ui/Dialogs";
+import { softDeletePartyAction } from "@/modules/parties/actions/softDeleteParty.action";
 
 export function PartiesTableClient({
   data,
@@ -25,6 +33,53 @@ export function PartiesTableClient({
 }) {
   const router = useRouter();
   const pushTableQuery = useTableUrlQuery();
+  const dialogs = useBlockingDialogs();
+  const [isPending, startTransition] = useTransition();
+
+  // Keep delete flow isolated and reusable.
+  const handleDeleteParty = async (row: PartyRowDto) => {
+    // 1) Open modal OUTSIDE of transition so it renders immediately.
+    const ok = await dialogs.confirmDelete({
+      resourceLabel: "contacto",
+      message: (
+        <div className="space-y-2">
+          <p>
+            Se eliminará <strong>{row.name}</strong> de la lista de contactos.
+          </p>
+          <p className="text-sm opacity-80">
+            Sus notas de venta, compras, pagos y documentos relacionados{" "}
+            <strong>seguirán disponibles</strong> para consulta.
+          </p>
+        </div>
+      ),
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+    });
+
+    if (!ok) return;
+
+    // 2) Only the server action + refresh goes into transition.
+    startTransition(async () => {
+      try {
+        await softDeletePartyAction({ id: row.id });
+        router.refresh();
+
+        await dialogs.success({
+          title: "Eliminado",
+          message: "El contacto se eliminó correctamente.",
+          labels: { confirmText: "Listo" },
+        });
+      } catch (err) {
+        await dialogs.error({
+          title: "No se pudo eliminar",
+          message:
+            "Ocurrió un error al eliminar el contacto. Inténtalo de nuevo.",
+          details: err instanceof Error ? err.message : String(err),
+          labels: { confirmText: "Entendido" },
+        });
+      }
+    });
+  };
 
   const columns: Array<ColumnDef<PartyRowDto>> = [
     { header: "Nombre", field: "name", sortable: true, sortField: "name" },
@@ -82,9 +137,16 @@ export function PartiesTableClient({
     {
       type: "edit",
       label: "Editar",
-      tooltip: "Editar party",
+      tooltip: "Editar contacto",
       icon: <PencilSquareIcon className="h-5 w-5" />,
     },
+    {
+      type: "delete",
+      label: "Eliminar",
+      tooltip: "Eliminar contacto",
+      icon: <TrashIcon className="h-5 w-5" />,
+      disabled: () => isPending,
+    } as unknown as TableActionDef<PartyRowDto>,
   ];
 
   return (
@@ -102,6 +164,10 @@ export function PartiesTableClient({
             break;
           case "edit":
             router.push(routes.parties.edit(e.row.id));
+            break;
+          case "delete":
+            // no transition wrapper here
+            void handleDeleteParty(e.row);
             break;
         }
       }}

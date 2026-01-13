@@ -11,11 +11,20 @@ export function money(v: string | number): string {
  * Formats an ISO date string to a readable es-MX locale string.
  * Returns the original input if it's not a valid date.
  */
+const DATE_TIME_MX = new Intl.DateTimeFormat("es-MX", {
+  timeZone: "America/Mexico_City",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
 export function dateMX(iso: string): string {
   const d = new Date(iso);
-  return Number.isFinite(d.getTime()) ? d.toLocaleString("es-MX") : iso;
+  return Number.isFinite(d.getTime()) ? DATE_TIME_MX.format(d) : iso;
 }
-
 /**
  * Parses a string into a number safely. Invalid values become 0.
  */
