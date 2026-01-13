@@ -125,7 +125,7 @@ export function PartyPdfDocument(props: {
   summary: PartyPdfSummaryDto;
   ledger: PartyPdfLedgerRowDto[];
   header: Header;
-  headerLogoSrc: string;
+  headerLogoSrc: string | null;
 }) {
   const { party, summary, ledger, header, headerLogoSrc } = props;
 
