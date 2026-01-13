@@ -8,10 +8,13 @@ import { toNumber } from "@/modules/shared/utils/toNumber";
 
 import type { PurchasesReportDto } from "./getPurchasesReport.dto";
 
-/**
- * Fetches a Purchases report from SupplierPurchase filtered by occurredAt.
- * Includes payment aggregation (paidTotal) and remaining balance (balanceDue).
- */
+function paymentStatusLabel(status: string | undefined): string | null {
+  if (!status || status === "all") return null;
+  if (status === "paid") return "Pagadas";
+  if (status === "pending") return "Pendientes";
+  return null;
+}
+
 export async function getPurchasesReport(
   filters: PurchasesReportFilters
 ): Promise<PurchasesReportDto> {
@@ -21,15 +24,14 @@ export async function getPurchasesReport(
     rangeLabel: baseRangeLabel,
   } = getReportDateRange(filters);
 
+  const status = filters.status ?? "all";
   const partyId = filters.partyId?.trim() ? filters.partyId.trim() : null;
 
   const where: any = {
     occurredAt: { gte: from, lt: toExclusive },
   };
 
-  if (partyId) {
-    where.partyId = partyId;
-  }
+  if (partyId) where.partyId = partyId;
 
   const purchases = await prisma.supplierPurchase.findMany({
     where,
@@ -82,6 +84,14 @@ export async function getPurchasesReport(
     };
   });
 
+  const filtered =
+    status === "all"
+      ? mapped
+      : mapped.filter((x) => {
+          if (status === "paid") return x.balanceDue <= 0;
+          return x.balanceDue > 0; // pending
+        });
+
   const parts: string[] = [baseRangeLabel];
 
   if (partyId) {
@@ -89,17 +99,20 @@ export async function getPurchasesReport(
     parts.push(`Proveedor: ${name}`);
   }
 
+  const ps = paymentStatusLabel(status);
+  if (ps) parts.push(`Estado: ${ps}`);
+
   const rangeLabel = parts.join(" · ");
 
-  const grandTotal = mapped.reduce((acc, p) => acc + p.total, 0);
-  const grandPaidTotal = mapped.reduce((acc, p) => acc + p.paidTotal, 0);
-  const grandBalanceDue = mapped.reduce((acc, p) => acc + p.balanceDue, 0);
+  const grandTotal = filtered.reduce((acc, p) => acc + p.total, 0);
+  const grandPaidTotal = filtered.reduce((acc, p) => acc + p.paidTotal, 0);
+  const grandBalanceDue = filtered.reduce((acc, p) => acc + p.balanceDue, 0);
 
   return {
     type: "purchases",
     mode: filters.mode,
     rangeLabel,
-    purchases: mapped,
+    purchases: filtered,
     grandTotal,
     grandPaidTotal,
     grandBalanceDue,

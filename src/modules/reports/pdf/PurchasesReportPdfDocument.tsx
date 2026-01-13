@@ -93,12 +93,14 @@ export function PurchasesReportPdfDocument({
                 {formatMoneyFromNumber(report.grandTotal)}
               </Text>
             </Text>
+
             <Text style={styles.topTotalItem}>
               Abonado:{" "}
               <Text style={styles.topTotalStrong}>
                 {formatMoneyFromNumber(report.grandPaidTotal)}
               </Text>
             </Text>
+
             <Text style={styles.topTotalItem}>
               Restante:{" "}
               <Text style={styles.topTotalStrong}>

@@ -124,6 +124,13 @@ export function serializeReportsPageState(
     if (s.status && s.status !== "all") sp.set("status", s.status);
   }
 
+  if (state.type === ReportTypeEnum.PURCHASES) {
+    const p = state as any;
+    if (p.status && p.status !== "all") sp.set("status", p.status);
+    if (p.partyId) sp.set("partyId", p.partyId);
+    if (p.partyName) sp.set("partyName", p.partyName);
+  }
+
   return sp;
 }
 

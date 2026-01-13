@@ -1,4 +1,3 @@
-// src/modules/reports/components/PurchasesReportPanelClient.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +21,7 @@ import {
 } from "@/modules/parties/actions/searchParties.action";
 
 type Mode = "yearMonth" | "range";
+type PaymentStatus = "all" | "paid" | "pending";
 
 export function PurchasesReportPanelClient() {
   const router = useRouter();
@@ -43,11 +43,12 @@ export function PurchasesReportPanelClient() {
   const [draftFrom, setDraftFrom] = useState<string>(firstDayOfMonthDateOnly());
   const [draftTo, setDraftTo] = useState<string>(todayDateOnly());
 
-  // NEW: supplier filter (party)
+  // NEW: extra filters
+  const [draftStatus, setDraftStatus] = useState<PaymentStatus>("all");
   const [draftPartyId, setDraftPartyId] = useState("");
   const [draftPartyName, setDraftPartyName] = useState("");
 
-  // Autocomplete local state
+  // Autocomplete
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<PartyLookupDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,7 +60,7 @@ export function PurchasesReportPanelClient() {
 
   const [error, setError] = useState<string | null>(null);
 
-  // ----- Load years lazily -----
+  // Load years
   useEffect(() => {
     let isMounted = true;
 
@@ -94,14 +95,13 @@ export function PurchasesReportPanelClient() {
     }
 
     loadYears();
-
     return () => {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ----- Sync from URL -----
+  // Sync draft from URL
   useEffect(() => {
     if (!urlState) return;
     if (urlState.type !== ReportTypeEnum.PURCHASES) return;
@@ -116,20 +116,21 @@ export function PurchasesReportPanelClient() {
       setDraftTo(urlState.to);
     }
 
-    const partyId = String((urlState as any).partyId ?? "").trim();
-    const partyName = String((urlState as any).partyName ?? "").trim();
+    // extras
+    const u: any = urlState;
+    setDraftStatus((u.status as PaymentStatus) ?? "all");
+    setDraftPartyId(u.partyId ?? "");
+    setDraftPartyName(u.partyName ?? "");
 
-    setDraftPartyId(partyId);
-    setDraftPartyName(partyName);
-
-    // hydrate term if user is not typing
-    if (partyId && partyName && term.trim().length === 0 && !open) {
-      setTerm(partyName);
+    const name = String(u.partyName ?? "").trim();
+    const id = String(u.partyId ?? "").trim();
+    if (id && name && term.trim().length === 0 && !open) {
+      setTerm(name);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlState]);
 
-  // ----- Load months when draftYear changes -----
+  // Load months when year changes
   useEffect(() => {
     let isMounted = true;
 
@@ -181,7 +182,7 @@ export function PurchasesReportPanelClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftYear]);
 
-  // ----- Autocomplete search (debounced) -----
+  // Autocomplete search
   useEffect(() => {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
 
@@ -220,23 +221,26 @@ export function PurchasesReportPanelClient() {
   }
 
   const draftCandidate = useMemo(() => {
-    const base =
-      mode === "yearMonth"
-        ? {
-            type: ReportTypeEnum.PURCHASES,
-            mode: "yearMonth" as const,
-            year: draftYear ?? undefined,
-            month: draftMonth ?? undefined,
-          }
-        : {
-            type: ReportTypeEnum.PURCHASES,
-            mode: "range" as const,
-            from: draftFrom,
-            to: draftTo,
-          };
+    if (mode === "yearMonth") {
+      return {
+        type: ReportTypeEnum.PURCHASES,
+        mode: "yearMonth" as const,
+        year: draftYear ?? undefined,
+        month: draftMonth ?? undefined,
+
+        status: draftStatus,
+        partyId: draftPartyId || undefined,
+        partyName: draftPartyName || undefined,
+      };
+    }
 
     return {
-      ...base,
+      type: ReportTypeEnum.PURCHASES,
+      mode: "range" as const,
+      from: draftFrom,
+      to: draftTo,
+
+      status: draftStatus,
       partyId: draftPartyId || undefined,
       partyName: draftPartyName || undefined,
     };
@@ -246,6 +250,7 @@ export function PurchasesReportPanelClient() {
     draftMonth,
     draftFrom,
     draftTo,
+    draftStatus,
     draftPartyId,
     draftPartyName,
   ]);
@@ -273,6 +278,7 @@ export function PurchasesReportPanelClient() {
     setMode("yearMonth");
     setDraftMonth(null);
 
+    setDraftStatus("all");
     setDraftPartyId("");
     setDraftPartyName("");
     setTerm("");
@@ -293,7 +299,8 @@ export function PurchasesReportPanelClient() {
       <div>
         <h2 className="text-lg font-semibold">Reporte de Compras</h2>
         <p className="mt-1 text-sm opacity-70">
-          Define el período y (opcional) filtra por proveedor.
+          Define el período y (opcional) filtra por estado de pago y/o
+          proveedor.
         </p>
       </div>
 
@@ -303,6 +310,7 @@ export function PurchasesReportPanelClient() {
         </div>
       ) : null}
 
+      {/* Date mode tabs */}
       <div role="tablist" className="tabs tabs-border">
         <button
           role="tab"
@@ -323,6 +331,7 @@ export function PurchasesReportPanelClient() {
         </button>
       </div>
 
+      {/* Date selectors */}
       {mode === "yearMonth" ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="form-control">
@@ -406,21 +415,33 @@ export function PurchasesReportPanelClient() {
               onChange={(e) => setDraftTo(e.target.value)}
             />
           </div>
-
-          <div className="md:col-span-2 text-sm opacity-70">
-            Usa un rango específico. El reporte incluirá compras ocurridas
-            dentro del período.
-          </div>
         </div>
       )}
 
-      {/* Supplier filter */}
+      {/* EXTRA FILTERS */}
       <div className="rounded-box border border-base-300 bg-base-200 p-4 space-y-4">
         <div>
           <h3 className="font-semibold">Filtros opcionales</h3>
           <p className="text-sm opacity-70">Se aplican junto con el período.</p>
         </div>
 
+        {/* Payment status */}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-medium">Estado de pago</span>
+          </label>
+          <select
+            className="select select-bordered w-full"
+            value={draftStatus}
+            onChange={(e) => setDraftStatus(e.target.value as PaymentStatus)}
+          >
+            <option value="all">Todos</option>
+            <option value="paid">Pagadas</option>
+            <option value="pending">Pendientes</option>
+          </select>
+        </div>
+
+        {/* Supplier autocomplete */}
         <div className="form-control">
           <label className="label">
             <span className="label-text font-medium">Proveedor</span>
@@ -435,7 +456,6 @@ export function PurchasesReportPanelClient() {
                 const next = e.target.value;
                 setTerm(next);
 
-                // Editing invalidates selection
                 if (draftPartyId) {
                   setDraftPartyId("");
                   setDraftPartyName("");

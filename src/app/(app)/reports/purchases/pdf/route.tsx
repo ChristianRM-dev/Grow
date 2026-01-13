@@ -17,11 +17,12 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const url = new URL(req.url);
 
-  // The UI strips `type=purchases` from the PDF URL. We add it back for the shared parser.
+  // UI strips `type=purchases` from PDF URL. Add it back for the shared parser.
   const sp = new URLSearchParams(url.searchParams);
   sp.set("type", "purchases");
 
   const state = parseReportsPageState(sp);
+
   if (!state || !isCompletePurchasesReportFilters(state)) {
     return new Response("Parámetros inválidos para reporte de compras.", {
       status: 400,
@@ -42,9 +43,7 @@ export async function GET(req: Request) {
     />
   );
 
-  const body = new Uint8Array(pdfBuffer);
-
-  return new Response(body, {
+  return new Response(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="Reporte de Compras.pdf"`,
