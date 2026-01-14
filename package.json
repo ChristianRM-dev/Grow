@@ -52,6 +52,7 @@
   "devDependencies": {
     "@faker-js/faker": "^10.1.0",
     "@tailwindcss/postcss": "^4",
+    "@types/luxon": "^3.7.1",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
