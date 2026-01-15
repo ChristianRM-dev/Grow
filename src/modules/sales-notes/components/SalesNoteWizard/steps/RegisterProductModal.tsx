@@ -14,7 +14,7 @@ const RegisterProductSchema = z.object({
   variantName: z.string().trim().max(120).optional(),
   bagSize: z.string().trim().max(60).optional(),
   color: z.string().trim().max(60).optional(),
-  shouldRegister: z.boolean().default(true),
+  shouldRegister: z.boolean(),
 });
 
 type RegisterProductFormValues = z.infer<typeof RegisterProductSchema>;
@@ -47,7 +47,7 @@ export function RegisterProductModal({
       variantName: initialData?.variantName || "",
       bagSize: initialData?.bagSize || "",
       color: initialData?.color || "",
-      shouldRegister: true,
+      shouldRegister: initialData?.shouldRegister ?? true, // Siempre tiene valor
     },
   });
 

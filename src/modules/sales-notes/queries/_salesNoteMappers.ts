@@ -163,6 +163,7 @@ export function mapSalesNoteRowToFormValues(input: {
         quantity,
         unitPrice,
         description,
+        shouldRegister: false,
       });
     }
   }
