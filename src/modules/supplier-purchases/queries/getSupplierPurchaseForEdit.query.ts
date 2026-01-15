@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { assertNotSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SupplierPurchaseForEditDto = {
   id: string;
@@ -23,11 +24,13 @@ export async function getSupplierPurchaseForEditById(id: string) {
       total: true,
       occurredAt: true,
       notes: true,
+      isDeleted: true, // ← Necesario para verificar
       party: { select: { name: true, phone: true } },
     },
   });
 
-  if (!row) return null;
+  // Redirigir a 404 si está eliminada
+  assertNotSoftDeleted(row, "Compra de proveedor");
 
   return {
     id: row.id,

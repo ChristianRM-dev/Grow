@@ -4,6 +4,7 @@ import {
   PartyLedgerSide,
   PartyLedgerSourceType,
 } from "@/generated/prisma/client";
+import { excludeSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type PartyPdfPartyDto = {
   id: string;
@@ -51,9 +52,13 @@ export async function getPartyPdfDataById(partyId: string) {
   if (!party) return null;
 
   // Summary totals (same logic as details page)
+  // ✅ Solo contar entradas activas
   const grouped = await prisma.partyLedgerEntry.groupBy({
     by: ["side"],
-    where: { partyId },
+    where: {
+      partyId,
+      ...excludeSoftDeleted, // ← Filtrar entradas eliminadas
+    },
     _sum: { amount: true },
   });
 
@@ -75,8 +80,12 @@ export async function getPartyPdfDataById(partyId: string) {
   };
 
   // Full ledger (no pagination)
+  // ✅ Solo mostrar entradas activas en el PDF
   const rows = await prisma.partyLedgerEntry.findMany({
-    where: { partyId },
+    where: {
+      partyId,
+      ...excludeSoftDeleted, // ← Filtrar entradas eliminadas
+    },
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
     select: {
       id: true,

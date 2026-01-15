@@ -259,33 +259,31 @@ model ProductVariant {
 model SalesNote {
   id String @id @default(cuid())
 
-  // Human-friendly unique folio (generated using FolioSequence type SALES_NOTE).
   folio String @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Customer reference; onDelete is Restrict to protect history.
   partyId String
   party   Party  @relation(fields: [partyId], references: [id], onDelete: Restrict)
 
   status SalesNoteStatus @default(DRAFT)
 
-  // Totals are stored as decimals to avoid float issues.
-  // subtotal / discountTotal / total should remain consistent with lines and business rules.
   subtotal      Decimal @db.Decimal(18, 2)
   discountTotal Decimal @db.Decimal(18, 2)
   total         Decimal @db.Decimal(18, 2)
 
-  // SalesNote owns its lines; deleting a note deletes lines.
-  lines SalesNoteLine[]
+  // Soft-delete para preservar referencias y documentos históricos
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
 
-  // Payments attached to this note (direction IN).
+  lines    SalesNoteLine[]
   payments Payment[]
 
   @@index([partyId])
   @@index([createdAt])
   @@index([status])
+  @@index([isDeleted])
 }
 
 model SalesNoteLine {
@@ -316,28 +314,20 @@ model SalesNoteLine {
 model Payment {
   id String @id @default(cuid())
 
-  // Payments can be linked to a SalesNote (customer payments).
-  // When a sales note is deleted (rare), keep the payment but detach it (SetNull).
   salesNoteId String?
   salesNote   SalesNote? @relation(fields: [salesNoteId], references: [id], onDelete: SetNull)
 
-  // Optional: links OUT payments to a specific supplier purchase for precise traceability.
   supplierPurchaseId String?
   supplierPurchase   SupplierPurchase? @relation(fields: [supplierPurchaseId], references: [id], onDelete: SetNull)
 
-  // Payments can also be linked directly to a Party (supplier payments or other movements).
-  // We keep historical payments even if a party is soft-deleted; relation is SetNull.
   partyId String?
   party   Party?  @relation(fields: [partyId], references: [id], onDelete: SetNull)
 
   direction   PaymentDirection
   paymentType PaymentType
 
-  // amount is nullable to allow drafts or partial flows, but business logic should enforce it when saving.
   amount Decimal? @db.Decimal(18, 2)
 
-  // reference can carry external identifiers (bank transfer folio)
-  // and can be used as a token to link payments to SupplierPurchase if needed.
   reference String?
   notes     String?
 
@@ -346,25 +336,26 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Soft-delete para preservar historial financiero
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   @@index([salesNoteId])
   @@index([partyId])
   @@index([supplierPurchaseId])
   @@index([occurredAt])
+  @@index([isDeleted])
 }
 
 model SupplierPurchase {
   id String @id @default(cuid())
 
-  // Supplier reference; onDelete Restrict to preserve purchase history.
   partyId String
 
-  // Supplier-provided folio/reference number (not the system folio).
   supplierFolio String
 
-  // occurredAt is the real purchase date (can differ from createdAt).
   occurredAt DateTime
 
-  // Total purchase amount (debt we owe to supplier before payments).
   total Decimal @db.Decimal(18, 2)
 
   notes String?
@@ -372,48 +363,49 @@ model SupplierPurchase {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Soft-delete para preservar referencias y documentos históricos
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   party    Party     @relation(fields: [partyId], references: [id], onDelete: Restrict)
   payments Payment[]
 
   @@index([partyId])
   @@index([occurredAt])
+  @@index([isDeleted])
 }
+
 
 model PartyLedgerEntry {
   id      String @id @default(cuid())
   partyId String
 
-  // RECEIVABLE: party owes the business (e.g. SalesNote)
-  // PAYABLE: business owes the party (e.g. SupplierPurchase)
   side PartyLedgerSide
 
-  // Source document type that created this entry (derived).
   sourceType PartyLedgerSourceType
 
-  // ID of the source document (SalesNote.id, SupplierPurchase.id, Payment.id, etc).
-  // Nullable for ADJUSTMENT or future cases.
   sourceId String?
 
-  // Human readable reference (folio) used for audit/traceability.
   reference String
 
-  // Effective date of the movement.
   occurredAt DateTime
 
-  // Signed amount is not used; we keep amount positive and interpret meaning via side.
   amount Decimal @db.Decimal(18, 2)
 
   notes     String?
   createdAt DateTime @default(now())
 
+  // Soft-delete para preservar integridad del ledger histórico
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
 
-  // Enforces "1 derived ledger entry per source document".
-  // This makes ledger idempotent and safe to upsert from use cases.
   @@unique([sourceType, sourceId])
   @@index([partyId])
   @@index([occurredAt])
   @@index([sourceType, sourceId])
+  @@index([isDeleted])
 }
 
 model Quotation {

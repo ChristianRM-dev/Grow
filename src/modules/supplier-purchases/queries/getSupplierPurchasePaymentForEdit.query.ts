@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
 import { toFormPaymentType } from "@/modules/payments/application/paymentTypeMapping";
+import {
+  assertNotSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SupplierPurchasePaymentForEditDto = {
   supplierPurchase: {
@@ -40,26 +44,32 @@ export async function getSupplierPurchasePaymentForEdit(params: {
       supplierFolio: true,
       occurredAt: true,
       total: true,
+      isDeleted: true, // ← Necesario
       party: { select: { id: true, name: true } },
     },
   });
-  if (!purchase) return null;
+
+  // Redirigir a 404 si la compra está eliminada
+  assertNotSoftDeleted(purchase, "Compra de proveedor");
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
     select: {
       id: true,
       partyId: true,
-      supplierPurchaseId: true, // ✅ NEW
+      supplierPurchaseId: true,
       direction: true,
       paymentType: true,
       amount: true,
       occurredAt: true,
       reference: true,
       notes: true,
+      isDeleted: true, // ← Necesario
     },
   });
-  if (!payment) return null;
+
+  // Redirigir a 404 si el pago está eliminado
+  assertNotSoftDeleted(payment, "Pago");
 
   // Must be OUT + linked to this purchase
   const isOut = payment.direction === PaymentDirection.OUT;
@@ -70,11 +80,12 @@ export async function getSupplierPurchasePaymentForEdit(params: {
 
   if (!isOut || !isLinkedToPurchase || !sameParty) return null;
 
-  // Sum all OUT payments linked to this purchase
+  // Sum all OUT payments linked to this purchase (excluding soft-deleted)
   const agg = await prisma.payment.aggregate({
     where: {
       direction: PaymentDirection.OUT,
-      supplierPurchaseId: purchase.id, // ✅ FK
+      supplierPurchaseId: purchase.id,
+      ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
     },
     _sum: { amount: true },
   });

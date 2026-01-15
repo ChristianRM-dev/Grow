@@ -28,7 +28,10 @@
     "postinstall": "prisma generate",
     "vercel-build": "prisma generate && prisma migrate deploy && next build --webpack",
     "db:migrate:customers": "tsx scripts/migrateCustomers.ts",
-    "db:migrate:plants": "tsx scripts/migratePlants.ts"
+    "db:migrate:plants": "tsx scripts/migratePlants.ts",
+    "studio": "prisma studio",
+    "studio:dev": "prisma studio --port 5555",
+    "studio:browser": "open http://localhost:5555"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

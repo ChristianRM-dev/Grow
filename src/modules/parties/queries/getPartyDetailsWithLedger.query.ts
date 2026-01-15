@@ -5,6 +5,7 @@ import {
   PartyLedgerSourceType,
 } from "@/generated/prisma/client";
 import { parseTableSearchParams } from "@/modules/shared/tables/parseTableSearchParams";
+import { excludeSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type PartyDetailsDto = {
   id: string;
@@ -62,10 +63,17 @@ function toWhere(
   search?: string
 ): Prisma.PartyLedgerEntryWhereInput {
   const term = String(search ?? "").trim();
-  if (!term) return { partyId };
+
+  // ✅ Base filter: always exclude soft-deleted entries
+  const baseWhere: Prisma.PartyLedgerEntryWhereInput = {
+    partyId,
+    ...excludeSoftDeleted,
+  };
+
+  if (!term) return baseWhere;
 
   return {
-    partyId,
+    ...baseWhere,
     OR: [
       { reference: { contains: term, mode: "insensitive" } },
       { notes: { contains: term, mode: "insensitive" } },
@@ -103,10 +111,13 @@ export async function getPartyDetailsWithLedgerQuery(params: {
 
   if (!party) return null;
 
-  // Summary totals
+  // Summary totals - ✅ Solo contar entradas activas
   const grouped = await prisma.partyLedgerEntry.groupBy({
     by: ["side"],
-    where: { partyId },
+    where: {
+      partyId,
+      ...excludeSoftDeleted, // ← Filtrar entradas eliminadas
+    },
     _sum: { amount: true },
   });
 

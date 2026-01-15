@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/modules/shared/utils/toNumber";
 import { z } from "zod";
+import { excludeSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 const InputSchema = z.object({
   year: z.number().int().min(2000).max(2100),
@@ -37,6 +38,7 @@ export async function getDashboardMonthlySales(input: {
   const notes = await prisma.salesNote.findMany({
     where: {
       createdAt: { gte: start, lt: end },
+      ...excludeSoftDeleted, // ← Filtrar notas eliminadas
     },
     select: {
       createdAt: true,

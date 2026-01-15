@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
+import {
+  assertNotSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SupplierPurchaseForPaymentDto = {
   id: string; // supplierPurchaseId
@@ -22,16 +26,19 @@ export async function getSupplierPurchaseForPaymentById(id: string) {
       supplierFolio: true,
       total: true,
       occurredAt: true,
+      isDeleted: true, // ← Necesario
       party: { select: { id: true, name: true } },
     },
   });
 
-  if (!row) return null;
+  // Redirigir a 404 si está eliminada
+  assertNotSoftDeleted(row, "Compra de proveedor");
 
   const paidAgg = await prisma.payment.aggregate({
     where: {
       direction: PaymentDirection.OUT,
-      supplierPurchaseId: row.id, // ✅ FK
+      supplierPurchaseId: row.id,
+      ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
     },
     _sum: { amount: true },
   });

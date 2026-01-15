@@ -1,6 +1,6 @@
-// src/modules/supplier-purchases/queries/getSupplierPurchasePdfData.query.ts
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/modules/shared/utils/toNumber";
+import { assertNotSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SupplierPurchasePdfLineDto = {
   description: string;
@@ -30,11 +30,13 @@ export async function getSupplierPurchasePdfDataById(
       occurredAt: true,
       total: true,
       notes: true,
+      isDeleted: true, // ← Necesario
       party: { select: { name: true } },
     },
   });
 
-  if (!purchase) return null;
+  // Redirigir a 404 si está eliminada
+  assertNotSoftDeleted(purchase, "Compra de proveedor");
 
   // SupplierPurchase doesn't have line items yet -> synthetic single row.
   const totalNumber = toNumber(purchase.total);

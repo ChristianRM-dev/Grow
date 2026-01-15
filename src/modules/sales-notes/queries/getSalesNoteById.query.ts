@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { assertNotSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 import {
   buildProductName,
   decimalToString,
@@ -57,6 +58,7 @@ export async function getSalesNoteById(
       id: true,
       createdAt: true,
       updatedAt: true,
+      isDeleted: true, // ← Necesario para verificar
 
       party: {
         select: {
@@ -88,7 +90,8 @@ export async function getSalesNoteById(
     },
   });
 
-  if (!row) return null;
+  // Redirigir a 404 si está eliminada
+  assertNotSoftDeleted(row, "Nota de venta");
 
   const mode = inferCustomerModeFromSystemKey(row.party?.systemKey);
   const customerLabel =

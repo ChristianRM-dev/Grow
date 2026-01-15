@@ -4,6 +4,10 @@ import {
   PaymentDirection,
   PaymentType,
 } from "@/generated/prisma/client";
+import {
+  assertNotSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SupplierPurchasePaymentRowDto = {
   id: string;
@@ -47,16 +51,19 @@ export async function getSupplierPurchaseDetailsById(id: string) {
       createdAt: true,
       total: true,
       notes: true,
+      isDeleted: true, // ← Necesario para verificar soft-delete
       party: { select: { id: true, name: true } },
     },
   });
 
-  if (!purchase) return null;
+  // Redirigir a 404 si está eliminada o no existe
+  assertNotSoftDeleted(purchase, "Compra de proveedor");
 
   const payments = await prisma.payment.findMany({
     where: {
       direction: PaymentDirection.OUT,
       supplierPurchaseId: purchase.id,
+      ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
     },
     orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     select: {
@@ -73,6 +80,7 @@ export async function getSupplierPurchaseDetailsById(id: string) {
     where: {
       direction: PaymentDirection.OUT,
       supplierPurchaseId: purchase.id,
+      ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados en aggregate
     },
     _sum: { amount: true },
   });

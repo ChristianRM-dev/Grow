@@ -1,10 +1,13 @@
-// src/modules/reports/queries/getPurchasesReport.query.ts
 import { prisma } from "@/lib/prisma";
 import { PaymentDirection } from "@/generated/prisma/client";
 
 import type { PurchasesReportFilters } from "@/modules/reports/domain/purchasesReportFilters.schema";
 import { getReportDateRange } from "@/modules/reports/domain/reportDateRange";
 import { toNumber } from "@/modules/shared/utils/toNumber";
+import {
+  excludeSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 import type { PurchasesReportDto } from "./getPurchasesReport.dto";
 
@@ -29,6 +32,7 @@ export async function getPurchasesReport(
 
   const where: any = {
     occurredAt: { gte: from, lt: toExclusive },
+    ...excludeSoftDeleted, // ← Filtrar compras eliminadas
   };
 
   if (partyId) where.partyId = partyId;
@@ -46,6 +50,7 @@ export async function getPurchasesReport(
         where: {
           direction: PaymentDirection.OUT,
           amount: { not: null },
+          ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
         },
         select: { amount: true },
       },

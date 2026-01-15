@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
+import { assertNotSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 import { mapSalesNoteRowToFormValues } from "./_salesNoteMappers";
 
 export type SalesNoteForEditDto = {
   id: string;
-  values: SalesNoteFormValues; // ✅ perfect for RHF/wizard
+  values: SalesNoteFormValues;
   createdAt: string; // ISO
   updatedAt: string | null; // ISO
 };
@@ -18,6 +19,7 @@ export async function getSalesNoteForEditById(
       id: true,
       createdAt: true,
       updatedAt: true,
+      isDeleted: true, // ← Necesario para verificar
 
       party: {
         select: {
@@ -50,7 +52,8 @@ export async function getSalesNoteForEditById(
     },
   });
 
-  if (!row) return null;
+  // Redirigir a 404 si está eliminada
+  assertNotSoftDeleted(row, "Nota de venta");
 
   const values = mapSalesNoteRowToFormValues({
     party: row.party,

@@ -21,9 +21,11 @@ const DATE_TIME_MX = new Intl.DateTimeFormat("es-MX", {
   second: "2-digit",
 });
 
-export function dateMX(iso: string): string {
+export function dateMX(iso: string | Date): string {
   const d = new Date(iso);
-  return Number.isFinite(d.getTime()) ? DATE_TIME_MX.format(d) : iso;
+  return Number.isFinite(d.getTime())
+    ? DATE_TIME_MX.format(d)
+    : iso.toLocaleString();
 }
 /**
  * Parses a string into a number safely. Invalid values become 0.

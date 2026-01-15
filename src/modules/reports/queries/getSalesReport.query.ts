@@ -1,4 +1,3 @@
-// src/modules/reports/queries/getSalesReport.query.ts
 import { prisma } from "@/lib/prisma";
 import { PaymentDirection } from "@/generated/prisma/client";
 
@@ -6,6 +5,10 @@ import type { SalesReportFilters } from "@/modules/reports/domain/salesReportFil
 import { getReportDateRange } from "@/modules/reports/domain/reportDateRange";
 import { toNumber } from "@/modules/shared/utils/toNumber";
 import { parseDescriptionSnapshotName } from "@/modules/shared/snapshots/parseDescriptionSnapshotName";
+import {
+  excludeSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 import type { SalesReportDto } from "./getSalesReport.dto";
 
@@ -31,6 +34,7 @@ export async function getSalesReport(
 
   const where: any = {
     createdAt: { gte: from, lt: toExclusive },
+    ...excludeSoftDeleted, // ← Filtrar notas eliminadas
   };
 
   if (partyId) {
@@ -58,6 +62,7 @@ export async function getSalesReport(
         where: {
           direction: PaymentDirection.IN,
           amount: { not: null },
+          ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
         },
         select: { amount: true },
       },

@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { GenericPaginatedTable } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable";
@@ -12,7 +13,6 @@ import type {
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
 import { dateMX, money } from "@/modules/shared/utils/formatters";
 import { routes } from "@/lib/routes";
-
 import type { SupplierPurchaseRowDto } from "@/modules/supplier-purchases/queries/getSupplierPurchasesTable.query";
 
 import {
@@ -20,7 +20,11 @@ import {
   DocumentIcon,
   EyeIcon,
   PencilSquareIcon,
+  TrashIcon,
 } from "@heroicons/react/16/solid";
+
+import { useBlockingDialogs } from "@/components/ui/Dialogs";
+import { softDeleteSupplierPurchaseAction } from "@/modules/supplier-purchases/actions/softDeleteSupplierPurchase.action";
 
 export function SupplierPurchasesTableClient({
   data,
@@ -31,6 +35,60 @@ export function SupplierPurchasesTableClient({
 }) {
   const router = useRouter();
   const pushTableQuery = useTableUrlQuery();
+  const dialogs = useBlockingDialogs();
+  const [isPending, startTransition] = useTransition();
+
+  // Delete flow isolated and reusable
+  const handleDeletePurchase = async (row: SupplierPurchaseRowDto) => {
+    // 1) Open modal OUTSIDE of transition so it renders immediately
+    const ok = await dialogs.confirmDelete({
+      resourceLabel: "compra",
+      message: (
+        <div className="space-y-2">
+          <p>
+            Se eliminará la compra <strong>{row.supplierFolio}</strong> del
+            proveedor <strong>{row.supplierName}</strong>.
+          </p>
+          <p className="text-sm opacity-80">
+            Los pagos relacionados y los movimientos relacionados también se
+            marcarán como eliminados.
+          </p>
+          <p className="text-sm font-medium">Total: {money(row.total)}</p>
+        </div>
+      ),
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+    });
+
+    if (!ok) return;
+
+    // 2) Only the server action + refresh goes into transition
+    startTransition(async () => {
+      try {
+        const result = await softDeleteSupplierPurchaseAction({ id: row.id });
+        router.refresh();
+
+        const paymentsMsg =
+          result.deletedPaymentsCount && result.deletedPaymentsCount > 0
+            ? ` Se eliminaron ${result.deletedPaymentsCount} pago(s) relacionado(s).`
+            : "";
+
+        await dialogs.success({
+          title: "Eliminado",
+          message: `La compra se eliminó correctamente.${paymentsMsg}`,
+          labels: { confirmText: "Listo" },
+        });
+      } catch (err) {
+        await dialogs.error({
+          title: "No se pudo eliminar",
+          message:
+            "Ocurrió un error al eliminar la compra. Inténtalo de nuevo.",
+          details: err instanceof Error ? err.message : String(err),
+          labels: { confirmText: "Entendido" },
+        });
+      }
+    });
+  };
 
   const columns: Array<ColumnDef<SupplierPurchaseRowDto>> = [
     {
@@ -53,10 +111,10 @@ export function SupplierPurchasesTableClient({
       cell: (v) => money(v),
     },
     {
-      header: "Creado",
-      field: "createdAt",
+      header: "Cuando",
+      field: "occurredAt",
       sortable: true,
-      sortField: "createdAt",
+      sortField: "occurredAt",
       cell: (v) => dateMX(v),
     },
   ];
@@ -86,6 +144,13 @@ export function SupplierPurchasesTableClient({
       tooltip: "Ver PDF",
       icon: <DocumentIcon className="h-5 w-5" />,
     },
+    {
+      type: "delete",
+      label: "Eliminar",
+      tooltip: "Eliminar compra",
+      icon: <TrashIcon className="h-5 w-5" />,
+      disabled: () => isPending,
+    } as unknown as TableActionDef<SupplierPurchaseRowDto>,
   ];
 
   return (
@@ -108,10 +173,14 @@ export function SupplierPurchasesTableClient({
             router.push(routes.supplierPurchases.payments.new(e.row.id));
             break;
           case "pdf": {
-            const url = routes.supplierPurchases.pdf(e.row.id); // /sales-notes/[id]/pdf (route.ts)
+            const url = routes.supplierPurchases.pdf(e.row.id);
             window.open(url, "_blank", "noopener,noreferrer");
             break;
           }
+          case "delete":
+            // no transition wrapper here
+            void handleDeletePurchase(e.row);
+            break;
         }
       }}
       searchPlaceholder="Buscar por proveedor, folio o notas…"

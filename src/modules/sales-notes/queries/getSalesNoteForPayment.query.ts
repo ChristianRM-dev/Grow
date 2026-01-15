@@ -1,5 +1,9 @@
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  assertNotSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SalesNoteForPaymentDto = {
   id: string;
@@ -22,16 +26,19 @@ export async function getSalesNoteForPaymentById(
       id: true,
       folio: true,
       total: true,
+      isDeleted: true, // ← Necesario para verificar
       party: { select: { id: true, name: true } },
     },
   });
 
-  if (!note) return null;
+  // Redirigir a 404 si está eliminada
+  assertNotSoftDeleted(note, "Nota de venta");
 
   const agg = await prisma.payment.aggregate({
     where: {
       salesNoteId: note.id,
       direction: PaymentDirection.IN,
+      ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
     },
     _sum: { amount: true },
   });

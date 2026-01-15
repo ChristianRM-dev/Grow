@@ -1,5 +1,5 @@
-// src/modules/sales-notes/queries/getSalesNotePdfData.query.ts
 import { prisma } from "@/lib/prisma";
+import { assertNotSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SalesNotePdfLineDto = {
   description: string;
@@ -34,6 +34,7 @@ export async function getSalesNotePdfDataById(
       subtotal: true,
       discountTotal: true,
       total: true,
+      isDeleted: true, // ← Necesario para verificar
       party: { select: { name: true } },
       lines: {
         orderBy: { id: "asc" },
@@ -47,7 +48,8 @@ export async function getSalesNotePdfDataById(
     },
   });
 
-  if (!row) return null;
+  // Redirigir a 404 si está eliminada
+  assertNotSoftDeleted(row, "Nota de venta");
 
   return {
     id: row.id,

@@ -4,6 +4,10 @@ import {
   parseTableSearchParams,
   type ParsedTableQuery,
 } from "@/modules/shared/tables/parseTableSearchParams";
+import {
+  excludeSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SalesNoteRowDto = {
   id: string;
@@ -23,7 +27,6 @@ function toPrismaOrderBy(
   const sortField = (q.sortField ?? "createdAt").trim();
   const sortOrder = (q.sortOrder ?? "desc") as Prisma.SortOrder;
 
-  // Nota: paidTotal/remainingTotal son calculados (no ordenables con Prisma sin SQL).
   const allowed: Record<string, Prisma.SalesNoteOrderByWithRelationInput> = {
     createdAt: { createdAt: sortOrder },
     folio: { folio: sortOrder },
@@ -36,9 +39,16 @@ function toPrismaOrderBy(
 
 function toWhere(q: ParsedTableQuery): Prisma.SalesNoteWhereInput {
   const term = (q.search ?? "").trim();
-  if (!term) return {};
+
+  // Base filter: always exclude soft-deleted records
+  const baseWhere: Prisma.SalesNoteWhereInput = {
+    ...excludeSoftDeleted,
+  };
+
+  if (!term) return baseWhere;
 
   return {
+    ...baseWhere,
     OR: [
       { folio: { contains: term, mode: "insensitive" } },
       { party: { name: { contains: term, mode: "insensitive" } } },
@@ -80,6 +90,7 @@ export async function getSalesNotesTableQuery(rawSearchParams: unknown) {
         where: {
           salesNoteId: { in: ids },
           direction: PaymentDirection.IN,
+          ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
         },
         _sum: { amount: true },
       })

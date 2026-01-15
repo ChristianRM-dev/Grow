@@ -1,6 +1,10 @@
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SalesNotePaymentFormValues } from "@/modules/sales-notes/forms/salesNotePaymentForm.schemas";
+import {
+  assertNotSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SalesNotePaymentEditDto = {
   salesNoteId: string;
@@ -28,10 +32,13 @@ export async function getSalesNotePaymentForEdit(params: {
       id: true,
       folio: true,
       total: true,
+      isDeleted: true, // ← Necesario para verificar
       party: { select: { name: true } },
     },
   });
-  if (!note) return null;
+
+  // Redirigir a 404 si la nota está eliminada
+  assertNotSoftDeleted(note, "Nota de venta");
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
@@ -43,10 +50,13 @@ export async function getSalesNotePaymentForEdit(params: {
       amount: true,
       reference: true,
       notes: true,
+      isDeleted: true, // ← Necesario para verificar
     },
   });
 
-  if (!payment) return null;
+  // Redirigir a 404 si el pago está eliminado
+  assertNotSoftDeleted(payment, "Pago");
+
   if (payment.salesNoteId !== note.id) return null;
   if (payment.direction !== PaymentDirection.IN) return null;
 
@@ -55,6 +65,7 @@ export async function getSalesNotePaymentForEdit(params: {
       salesNoteId: note.id,
       direction: PaymentDirection.IN,
       NOT: { id: payment.id },
+      ...excludeSoftDeletedPayments, // ← Filtrar otros pagos eliminados
     },
     _sum: { amount: true },
   });

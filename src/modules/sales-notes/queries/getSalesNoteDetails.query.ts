@@ -1,5 +1,9 @@
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  assertNotSoftDeleted,
+  excludeSoftDeletedPayments,
+} from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SalesNoteLineDetailsDto = {
   id: string;
@@ -58,6 +62,7 @@ export async function getSalesNoteDetailsById(
       subtotal: true,
       discountTotal: true,
       total: true,
+      isDeleted: true,
       party: { select: { id: true, name: true } },
       lines: {
         select: {
@@ -73,12 +78,13 @@ export async function getSalesNoteDetailsById(
     },
   });
 
-  if (!note) return null;
+  assertNotSoftDeleted(note, "Nota de venta");
 
   const payments = await prisma.payment.findMany({
     where: {
       salesNoteId: note.id,
       direction: PaymentDirection.IN,
+      ...excludeSoftDeletedPayments,
     },
     select: {
       id: true,
@@ -96,6 +102,7 @@ export async function getSalesNoteDetailsById(
     where: {
       salesNoteId: note.id,
       direction: PaymentDirection.IN,
+      ...excludeSoftDeletedPayments,
     },
     _sum: { amount: true },
   });
