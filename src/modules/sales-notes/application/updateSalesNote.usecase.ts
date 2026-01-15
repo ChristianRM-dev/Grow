@@ -1,3 +1,4 @@
+// src/modules/sales-notes/application/updateSalesNote.usecase.ts
 import {
   Prisma,
   PartyLedgerSide,
@@ -58,10 +59,21 @@ export async function updateSalesNoteUseCase(
 
     const existing = await tx.salesNote.findUnique({
       where: { id: salesNoteId },
-      select: { id: true, partyId: true, folio: true, createdAt: true },
+      select: {
+        id: true,
+        partyId: true,
+        folio: true,
+        createdAt: true,
+        total: true,
+        subtotal: true,
+        discountTotal: true,
+      },
     });
 
     if (!existing) throw new Error("La nota de venta no existe.");
+
+    // Capture balance BEFORE any changes
+    const balanceBefore = await computeSalesNoteBalance(tx, existing.id);
 
     // 1) Resolve partyId (reusable)
     const nextPartyId = await resolvePartyIdForCustomerSelection(
@@ -75,7 +87,58 @@ export async function updateSalesNoteUseCase(
       logger
     );
 
-    // 2) Build line payloads
+    // 2) Register products marked for registration
+    const registeredProductIds = new Map<number, string>();
+
+    for (let i = 0; i < (values.unregisteredLines ?? []).length; i++) {
+      const line = values.unregisteredLines![i];
+
+      if (line.shouldRegister) {
+        logger.log("registering_product", {
+          index: i,
+          name: line.name,
+        });
+
+        // Check if a similar product already exists (case-insensitive)
+        const existingProduct = await tx.productVariant.findFirst({
+          where: {
+            speciesName: { equals: line.name.trim(), mode: "insensitive" },
+            variantName: line.variantName?.trim() || null,
+            isDeleted: false,
+          },
+        });
+
+        if (existingProduct) {
+          registeredProductIds.set(i, existingProduct.id);
+          logger.log("product_already_exists", {
+            index: i,
+            productId: existingProduct.id,
+            name: line.name,
+          });
+        } else {
+          const newProduct = await tx.productVariant.create({
+            data: {
+              speciesName: line.name.trim(),
+              variantName: line.variantName?.trim() || null,
+              bagSize: line.bagSize?.trim() || null,
+              color: line.color?.trim() || null,
+              defaultPrice: toDecimal(line.unitPrice),
+              isActive: true,
+            },
+          });
+
+          registeredProductIds.set(i, newProduct.id);
+          logger.log("product_registered", {
+            index: i,
+            productId: newProduct.id,
+            name: line.name,
+            defaultPrice: newProduct.defaultPrice.toString(),
+          });
+        }
+      }
+    }
+
+    // 3) Build line payloads
     const registeredLines: LinePayload[] = (values.lines ?? []).map((l) => {
       const qty = toDecimal(l.quantity);
       const unitPrice = toDecimal(l.unitPrice);
@@ -95,13 +158,16 @@ export async function updateSalesNoteUseCase(
 
     const unregisteredLines: LinePayload[] = (
       values.unregisteredLines ?? []
-    ).map((l) => {
+    ).map((l, index) => {
       const qty = toDecimal(l.quantity);
       const unitPrice = toDecimal(l.unitPrice);
       const lineTotal = qty.mul(unitPrice);
 
+      // If the product was registered, use its productVariantId
+      const productVariantId = registeredProductIds.get(index) || null;
+
       return {
-        productVariantId: null,
+        productVariantId,
         descriptionSnapshot: buildDescriptionSnapshot(l.name, l.description),
         quantity: qty,
         unitPrice,
@@ -110,9 +176,12 @@ export async function updateSalesNoteUseCase(
     });
 
     const allLines = [...registeredLines, ...unregisteredLines];
-    logger.log("lines_built", { allLines: allLines.length });
+    logger.log("lines_built", {
+      allLines: allLines.length,
+      newlyRegistered: registeredProductIds.size,
+    });
 
-    // 3) Totals
+    // 4) Totals
     const subtotal = sumDecimals(allLines, (l) => l.lineTotal);
     const discountTotal = zeroDecimal();
     const total = subtotal.sub(discountTotal);
@@ -123,7 +192,7 @@ export async function updateSalesNoteUseCase(
       total: total.toString(),
     });
 
-    // 4) Update SalesNote header
+    // 5) Update SalesNote header
     await tx.salesNote.update({
       where: { id: salesNoteId },
       data: {
@@ -135,7 +204,7 @@ export async function updateSalesNoteUseCase(
       select: { id: true },
     });
 
-    // 5) Replace lines (simple approach)
+    // 6) Replace lines (simple approach)
     logger.log("lines_replace_start");
 
     await tx.salesNoteLine.deleteMany({ where: { salesNoteId } });
@@ -156,7 +225,7 @@ export async function updateSalesNoteUseCase(
       logger.log("lines_skipped_empty");
     }
 
-    // 6) Ledger: ensure SalesNote entry matches new totals/party
+    // 7) Ledger: ensure SalesNote entry matches new totals/party
     await ensureSingleLedgerEntryForSource(tx, {
       partyId: nextPartyId,
       side: PartyLedgerSide.RECEIVABLE,
@@ -168,7 +237,7 @@ export async function updateSalesNoteUseCase(
       notes: null,
     });
 
-    // 7) If party changed, move Payments and their ledger entries (recommended for statement consistency)
+    // 8) If party changed, move Payments and their ledger entries (recommended for statement consistency)
     if (existing.partyId !== nextPartyId) {
       logger.log("party_changed_move_payments", {
         from: existing.partyId,
@@ -194,37 +263,9 @@ export async function updateSalesNoteUseCase(
       });
     }
 
-    // 8) Optional debug snapshot
-    const written = await tx.salesNote.findUnique({
-      where: { id: salesNoteId },
-      select: {
-        id: true,
-        folio: true,
-        partyId: true,
-        total: true,
-        _count: { select: { lines: true } },
-      },
-    });
-
-    const before = await tx.salesNote.findUnique({
-      where: { id: salesNoteId },
-      select: {
-        id: true,
-        folio: true,
-        total: true,
-        subtotal: true,
-        discountTotal: true,
-        createdAt: true,
-      },
-    });
-    if (!before) throw new Error("La nota de venta no existe.");
-
-    const balanceBefore = await computeSalesNoteBalance(tx, before.id);
-
-    // ... tu lógica de update (lines, totals, ledger, etc.)
-
+    // 9) Get updated state for audit
     const after = await tx.salesNote.findUnique({
-      where: { id: before.id },
+      where: { id: salesNoteId },
       select: {
         id: true,
         folio: true,
@@ -232,13 +273,17 @@ export async function updateSalesNoteUseCase(
         subtotal: true,
         discountTotal: true,
         updatedAt: true,
+        _count: { select: { lines: true } },
       },
     });
-    if (!after)
+
+    if (!after) {
       throw new Error("No se pudo leer la nota de venta actualizada.");
+    }
 
     const balanceAfter = await computeSalesNoteBalance(tx, after.id);
 
+    // 10) Create audit log
     await createAuditLog(
       tx,
       {
@@ -253,17 +298,17 @@ export async function updateSalesNoteUseCase(
         changes: [
           auditDecimalChange(
             AuditChangeKey.SALES_NOTE_SUBTOTAL,
-            before.subtotal,
+            existing.subtotal,
             after.subtotal
           ),
           auditDecimalChange(
             AuditChangeKey.SALES_NOTE_DISCOUNT_TOTAL,
-            before.discountTotal,
+            existing.discountTotal,
             after.discountTotal
           ),
           auditDecimalChange(
             AuditChangeKey.SALES_NOTE_TOTAL,
-            before.total,
+            existing.total,
             after.total
           ),
           auditDecimalChange(
@@ -272,12 +317,26 @@ export async function updateSalesNoteUseCase(
             balanceAfter.balance
           ),
         ],
+        meta: {
+          linesCount: after._count.lines,
+          newProductsRegistered: registeredProductIds.size,
+        },
       },
       ctx
     );
 
-    logger.log("tx_end_written_snapshot", written);
+    logger.log("tx_end_written_snapshot", {
+      id: after.id,
+      folio: after.folio,
+      partyId: nextPartyId,
+      total: after.total.toString(),
+      linesCount: after._count.lines,
+      newProductsRegistered: registeredProductIds.size,
+    });
 
-    return { salesNoteId };
+    return {
+      salesNoteId,
+      newProductsRegistered: registeredProductIds.size,
+    };
   });
 }

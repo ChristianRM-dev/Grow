@@ -47,6 +47,12 @@ export const SalesNoteUnregisteredLineSchema = z.object({
   quantity: z.number().int().min(1, "Cantidad mínima 1"),
   unitPrice: decimalString,
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
+  // 👇 Nuevos campos
+  shouldRegister: z.boolean().default(false),
+  // Campos opcionales para registro completo
+  variantName: z.string().trim().max(120).optional(),
+  bagSize: z.string().trim().max(60).optional(),
+  color: z.string().trim().max(60).optional(),
 });
 
 export const SalesNoteLinesStepSchema = z

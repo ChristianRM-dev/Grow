@@ -1,4 +1,6 @@
+// src/modules/products/queries/getProductVariantById.query.ts
 import { prisma } from "@/lib/prisma";
+import { assertNotSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type ProductVariantEditDto = {
   id: string;
@@ -23,10 +25,12 @@ export async function getProductVariantById(
       color: true,
       defaultPrice: true,
       isActive: true,
+      isDeleted: true, // 👈 Necesario para assertNotSoftDeleted
     },
   });
 
-  if (!row) return null;
+  // 👇 Lanza notFound() si está eliminado o no existe
+  assertNotSoftDeleted(row, "Producto");
 
   return {
     id: row.id,

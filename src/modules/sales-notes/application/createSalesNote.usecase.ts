@@ -65,7 +65,58 @@ export async function createSalesNoteUseCase(
       logger
     );
 
-    // 2) Build line payloads
+    // 2) Register products marked for registration
+    const registeredProductIds = new Map<number, string>();
+
+    for (let i = 0; i < (values.unregisteredLines ?? []).length; i++) {
+      const line = values.unregisteredLines![i];
+
+      if (line.shouldRegister) {
+        logger.log("registering_product", {
+          index: i,
+          name: line.name,
+        });
+
+        // Check if a similar product already exists (case-insensitive)
+        const existing = await tx.productVariant.findFirst({
+          where: {
+            speciesName: { equals: line.name.trim(), mode: "insensitive" },
+            variantName: line.variantName?.trim() || null,
+            isDeleted: false,
+          },
+        });
+
+        if (existing) {
+          registeredProductIds.set(i, existing.id);
+          logger.log("product_already_exists", {
+            index: i,
+            productId: existing.id,
+            name: line.name,
+          });
+        } else {
+          const newProduct = await tx.productVariant.create({
+            data: {
+              speciesName: line.name.trim(),
+              variantName: line.variantName?.trim() || null,
+              bagSize: line.bagSize?.trim() || null,
+              color: line.color?.trim() || null,
+              defaultPrice: toDecimal(line.unitPrice),
+              isActive: true,
+            },
+          });
+
+          registeredProductIds.set(i, newProduct.id);
+          logger.log("product_registered", {
+            index: i,
+            productId: newProduct.id,
+            name: line.name,
+            defaultPrice: newProduct.defaultPrice.toString(),
+          });
+        }
+      }
+    }
+
+    // 3) Build line payloads
     const registeredLines: LinePayload[] = (values.lines ?? []).map((l) => {
       const qty = toDecimal(l.quantity);
       const unitPrice = toDecimal(l.unitPrice);
@@ -85,13 +136,16 @@ export async function createSalesNoteUseCase(
 
     const unregisteredLines: LinePayload[] = (
       values.unregisteredLines ?? []
-    ).map((l) => {
+    ).map((l, index) => {
       const qty = toDecimal(l.quantity);
       const unitPrice = toDecimal(l.unitPrice);
       const lineTotal = qty.mul(unitPrice);
 
+      // If the product was registered, use its productVariantId
+      const productVariantId = registeredProductIds.get(index) || null;
+
       return {
-        productVariantId: null,
+        productVariantId,
         descriptionSnapshot: buildDescriptionSnapshot(l.name, l.description),
         quantity: qty,
         unitPrice,
@@ -100,9 +154,12 @@ export async function createSalesNoteUseCase(
     });
 
     const allLines = [...registeredLines, ...unregisteredLines];
-    logger.log("lines_built", { allLines: allLines.length });
+    logger.log("lines_built", {
+      allLines: allLines.length,
+      newlyRegistered: registeredProductIds.size,
+    });
 
-    // 3) Totals
+    // 4) Totals
     const subtotal = sumDecimals(allLines, (l) => l.lineTotal);
     const discountTotal = zeroDecimal();
     const total = subtotal.sub(discountTotal);
@@ -113,7 +170,7 @@ export async function createSalesNoteUseCase(
       total: total.toString(),
     });
 
-    // 4) Create SalesNote with sequential folio (YYYY-MM-XX)
+    // 5) Create SalesNote with sequential folio (YYYY-MM-XX)
     const folio = await generateMonthlyFolio({
       tx,
       type: FolioType.SALES_NOTE,
@@ -165,6 +222,7 @@ export async function createSalesNoteUseCase(
         ],
         meta: {
           linesCount: allLines.length,
+          newProductsRegistered: registeredProductIds.size,
         },
       },
       ctx
@@ -172,7 +230,7 @@ export async function createSalesNoteUseCase(
 
     logger.log("salesNote_created", { id: created.id, folio: created.folio });
 
-    // 4.1) Ledger entry: charge to customer (RECEIVABLE +total)
+    // 5.1) Ledger entry: charge to customer (RECEIVABLE +total)
     await ensureSingleLedgerEntryForSource(tx, {
       partyId,
       side: PartyLedgerSide.RECEIVABLE,
@@ -184,7 +242,7 @@ export async function createSalesNoteUseCase(
       notes: null,
     });
 
-    // 5) Create lines
+    // 6) Create lines
     if (allLines.length > 0) {
       logger.log("lines_createMany_start");
       const res = await tx.salesNoteLine.createMany({
@@ -202,7 +260,7 @@ export async function createSalesNoteUseCase(
       logger.log("lines_skipped_empty");
     }
 
-    // 6) Optional: verify snapshot
+    // 7) Optional: verify snapshot
     const written = await tx.salesNote.findUnique({
       where: { id: created.id },
       select: {
@@ -214,8 +272,14 @@ export async function createSalesNoteUseCase(
       },
     });
 
-    logger.log("tx_end_written_snapshot", written);
+    logger.log("tx_end_written_snapshot", {
+      ...written,
+      newProductsRegistered: registeredProductIds.size,
+    });
 
-    return { salesNoteId: created.id };
+    return {
+      salesNoteId: created.id,
+      newProductsRegistered: registeredProductIds.size,
+    };
   });
 }

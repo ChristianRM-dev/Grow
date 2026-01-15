@@ -1,6 +1,8 @@
+// src/modules/products/queries/getProductsTable.query.ts
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseTableSearchParams } from "@/modules/shared/tables/parseTableSearchParams";
+import { excludeSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type ProductVariantRowDto = {
   id: string;
@@ -39,12 +41,15 @@ function toPrismaOrderBy(q: {
   return [{ [field]: order } as Prisma.ProductVariantOrderByWithRelationInput];
 }
 
-function toWhere(search?: string): Prisma.ProductVariantWhereInput | undefined {
+function toWhere(search?: string): Prisma.ProductVariantWhereInput {
   const term = String(search ?? "").trim();
-  if (!term) return undefined;
+
+  if (!term) {
+    return excludeSoftDeleted;
+  }
 
   return {
-    isDeleted: false,
+    ...excludeSoftDeleted,
     OR: [
       { speciesName: { contains: term, mode: "insensitive" } },
       { variantName: { contains: term, mode: "insensitive" } },

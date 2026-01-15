@@ -1,7 +1,9 @@
+// src/modules/products/actions/searchProductVariants.action.ts
 "use server";
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { excludeSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 
 const InputSchema = z.object({
   term: z.string().trim().max(80).optional().default(""),
@@ -25,6 +27,7 @@ export async function searchProductVariantsAction(
   const where =
     q.length >= 2
       ? {
+          ...excludeSoftDeleted,
           isActive: true,
           id: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
           OR: [
@@ -33,6 +36,7 @@ export async function searchProductVariantsAction(
           ],
         }
       : {
+          ...excludeSoftDeleted,
           isActive: true,
           id: excludeIds.length > 0 ? { notIn: excludeIds } : undefined,
         };

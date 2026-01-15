@@ -427,6 +427,10 @@ model Quotation {
   // Nullable to allow drafts during migration; business logic should compute it.
   total Decimal? @db.Decimal(18, 2)
 
+  // Soft-delete para preservar referencias y documentos históricos
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   party Party @relation(fields: [partyId], references: [id], onDelete: Restrict)
 
   // Quotation owns its lines; deleting quotation deletes lines.
@@ -435,6 +439,7 @@ model Quotation {
   @@index([partyId])
   @@index([createdAt])
   @@index([status])
+  @@index([isDeleted])
 }
 
 model QuotationLine {

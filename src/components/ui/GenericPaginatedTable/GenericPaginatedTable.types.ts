@@ -1,3 +1,4 @@
+// src/components/ui/GenericPaginatedTable/GenericPaginatedTable.types.ts
 import type React from "react";
 
 export type TableRow = {
@@ -61,10 +62,11 @@ type ColumnWithCell<T> = {
 
 export type ColumnDef<T> = ColumnValue<T> | ColumnWithCell<T>;
 
+// ✅ Nueva versión con soporte para funciones dinámicas
 export type TableActionDef<T> = {
   type: string;
-  label: string; // Spanish label
-  icon?: React.ReactNode;
-  tooltip?: string; // Spanish tooltip
+  label: string | ((row: T) => string); // 👈 Puede ser función
+  icon?: React.ReactNode | ((row: T) => React.ReactNode); // 👈 Puede ser función
+  tooltip?: string | ((row: T) => string); // 👈 Puede ser función
   disabled?: (row: T) => boolean;
 };
