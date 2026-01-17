@@ -69,7 +69,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
       <aside className="drawer-side">
         <label htmlFor="app-drawer" className="drawer-overlay" />
-        <AppSidebar items={navItems} signOutAction={signOutCommand} />
+        <AppSidebar
+          items={navItems}
+          userName={session.user.name}
+          userEmail={session.user.email}
+          changePasswordHref={routes.user.config.changePassword()}
+          signOutAction={signOutCommand}
+        />
       </aside>
     </div>
   );

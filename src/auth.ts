@@ -1,6 +1,5 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -13,8 +12,7 @@ const credentialsSchema = z.object({
 });
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
-  // Prisma adapter package under @auth/* in v5
-  adapter: PrismaAdapter(prisma as any), // cast to avoid type mismatch with custom client output
+  // REMOVED: adapter - not needed with JWT strategy
   secret: process.env.AUTH_SECRET,
   trustHost: true,
   session: { strategy: "jwt" },
@@ -52,14 +50,32 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
-        // Return minimal user payload.
+        // Return user payload with all fields we need
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
-        } as any;
+        };
       },
     }),
   ],
+  callbacks: {
+    // Include user id and role in the JWT token
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+      }
+      return token;
+    },
+    // Include user id and role in the session object
+    async session({ session, token }) {
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+      }
+      return session;
+    },
+  },
 });

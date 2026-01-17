@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { UserRole } from "@/generated/prisma/enums";
 
 const SoftDeleteSalesNoteSchema = z.object({
   id: z.string().min(1),
@@ -111,7 +112,7 @@ export async function softDeleteSalesNoteAction(
       data: {
         actorUserId: session.user.id,
         actorNameSnapshot: session.user.name ?? undefined,
-        actorRoleSnapshot: session.user.role,
+        actorRoleSnapshot: session.user.role as UserRole, // ← CAST TO UserRole
         action: "UPDATE",
         eventKey: "sales_note.soft_deleted",
         entityType: "SALES_NOTE",

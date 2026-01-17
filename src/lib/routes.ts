@@ -76,4 +76,9 @@ export const routes = {
     createSalesNote: (quotationId: Id) =>
       `${routes.salesNotes.new()}?fromQuotationId=${enc(quotationId)}`,
   },
+  user: {
+    config: {
+      changePassword: () => "/user/config/change-password",
+    },
+  },
 } as const;

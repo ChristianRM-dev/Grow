@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { UserRole } from "@/generated/prisma/enums";
 
 const SoftDeleteSupplierPurchaseSchema = z.object({
   id: z.string().min(1),
@@ -115,7 +116,7 @@ export async function softDeleteSupplierPurchaseAction(
       data: {
         actorUserId: session.user.id,
         actorNameSnapshot: session.user.name ?? undefined,
-        actorRoleSnapshot: session.user.role,
+        actorRoleSnapshot: session.user.role as UserRole,
         action: "UPDATE",
         eventKey: "supplier_purchase.soft_deleted",
         entityType: "SUPPLIER_PURCHASE",
