@@ -22,22 +22,22 @@ import { MultiStepFormStepper } from "./MultiStepFormStepper";
  * MultiStepForm wrapper component:
  * - Owns wizard navigation and validation orchestration
  * - Steps render fields using the same RHF instance
+ *
+ * Note: Draft saving is now handled externally via useFormDraft hook.
+ * This component focuses purely on step navigation and validation.
  */
 export function MultiStepForm<TFormValues extends FieldValues>(
   props: MultiStepFormProps<TFormValues>
 ) {
-  const { config, steps, form, finalSchema, onSaveDraft, onSubmit, onEvent } =
-    props;
+  const { config, steps, form, finalSchema, onSubmit, onEvent } = props;
 
   const values = useWatch({ control: form.control }) as TFormValues;
 
   const defaultLabels: Required<WizardButtonLabels> = {
     back: "Atrás",
     next: "Siguiente",
-    saveDraft: "Guardar",
     submit: "Guardar",
     submitting: "Guardando…",
-    savingDraft: "Guardando…",
   };
 
   const visibleSteps = useMemo(() => {
@@ -54,7 +54,6 @@ export function MultiStepForm<TFormValues extends FieldValues>(
   const [errorIds, setErrorIds] = useState<Set<string>>(() => new Set());
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // Initialize current step
   useEffect(() => {
@@ -229,7 +228,6 @@ export function MultiStepForm<TFormValues extends FieldValues>(
       }
 
       onEvent?.({ type: "submit", values: snapshot });
-      console.log("snapshot", snapshot);
       await onSubmit(snapshot);
     } finally {
       setIsSubmitting(false);
@@ -284,21 +282,6 @@ export function MultiStepForm<TFormValues extends FieldValues>(
     setVisitedIds((p) => new Set(p).add(prev.id));
   }, [canGoBack, currentIndex, currentStepId, onEvent, visibleSteps]);
 
-  const saveDraft = useCallback(async () => {
-    if (!config.allowDraftSave) return;
-    if (!onSaveDraft) return;
-
-    const snapshot = form.getValues() as TFormValues;
-
-    setIsSavingDraft(true);
-    try {
-      onEvent?.({ type: "draft_save", values: snapshot });
-      await onSaveDraft(snapshot);
-    } finally {
-      setIsSavingDraft(false);
-    }
-  }, [config.allowDraftSave, form, onEvent, onSaveDraft]);
-
   const wizardLabels = useMemo(() => {
     const stepLabels = currentStep?.labels;
     return mergeLabels(defaultLabels, config.labels, stepLabels);
@@ -314,13 +297,11 @@ export function MultiStepForm<TFormValues extends FieldValues>(
       canGoNext: true,
       isLastVisibleStep,
       isSubmitting,
-      isSavingDraft,
 
       goBack,
       goNext,
       goToStep: goToStepInternal,
 
-      saveDraft,
       submit,
 
       getValues: () => form.getValues() as TFormValues,
@@ -334,10 +315,8 @@ export function MultiStepForm<TFormValues extends FieldValues>(
       goNext,
       goToStepInternal,
       isLastVisibleStep,
-      isSavingDraft,
       isSubmitting,
       runtimeSteps,
-      saveDraft,
       submit,
     ]
   );
@@ -366,8 +345,6 @@ export function MultiStepForm<TFormValues extends FieldValues>(
   const primaryLoadingLabel = isLastVisibleStep
     ? wizardLabels.submitting
     : wizardLabels.next;
-
-  const showDraftButton = Boolean(config.allowDraftSave && onSaveDraft);
 
   return (
     <div className="w-full">
@@ -406,24 +383,11 @@ export function MultiStepForm<TFormValues extends FieldValues>(
         </div>
 
         <div className="flex items-center justify-end gap-2">
-          {showDraftButton ? (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => wizardApi.saveDraft()}
-              disabled={isSubmitting || isSavingDraft}
-            >
-              {isSavingDraft
-                ? wizardLabels.savingDraft
-                : wizardLabels.saveDraft}
-            </button>
-          ) : null}
-
           <button
             type="button"
             className="btn"
             onClick={() => wizardApi.goBack()}
-            disabled={!wizardApi.canGoBack || isSubmitting || isSavingDraft}
+            disabled={!wizardApi.canGoBack || isSubmitting}
           >
             {wizardLabels.back}
           </button>
@@ -432,7 +396,7 @@ export function MultiStepForm<TFormValues extends FieldValues>(
             type="button"
             className="btn btn-primary"
             onClick={() => wizardApi.goNext()}
-            disabled={isSubmitting || isSavingDraft}
+            disabled={isSubmitting}
           >
             {isSubmitting ? primaryLoadingLabel : primaryLabel}
           </button>

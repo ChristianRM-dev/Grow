@@ -73,7 +73,6 @@ export function ProductVariantWizard({
       config={{
         showProgress: false, // single step: no stepper needed
         allowFreeNavigation: false,
-        allowDraftSave: false,
         labels: {
           back: "Atrás",
           next: "Guardar",

@@ -68,7 +68,6 @@ export function SalesNotePaymentWizard({
         config={{
           showProgress: false,
           allowFreeNavigation: false,
-          allowDraftSave: false,
           labels: {
             back: "Atrás",
             next: "Guardar",

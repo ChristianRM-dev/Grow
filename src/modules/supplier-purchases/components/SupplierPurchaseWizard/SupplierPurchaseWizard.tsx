@@ -60,7 +60,6 @@ export function SupplierPurchaseWizard({
       config={{
         showProgress: false,
         allowFreeNavigation: false,
-        allowDraftSave: false,
         labels: {
           back: "Atrás",
           next: "Guardar",

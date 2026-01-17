@@ -25,10 +25,8 @@ export type StepStatus =
 export type WizardButtonLabels = {
   back?: string;
   next?: string;
-  saveDraft?: string;
   submit?: string;
   submitting?: string;
-  savingDraft?: string;
 };
 
 /**
@@ -41,7 +39,7 @@ export type MultiStepFormConfig = {
   allowFreeNavigation?: boolean;
 
   /**
-   * If true, show a summary step (or you can define a custom summary step manually).
+   * If true, show progress stepper UI.
    */
   showProgress?: boolean;
 
@@ -49,11 +47,6 @@ export type MultiStepFormConfig = {
    * Button labels (Spanish defaults in the component, overrideable here).
    */
   labels?: WizardButtonLabels;
-
-  /**
-   * If true, show a "Guardar" / draft button.
-   */
-  allowDraftSave?: boolean;
 };
 
 /**
@@ -62,7 +55,6 @@ export type MultiStepFormConfig = {
  */
 export type WizardEvent<TFormValues extends FieldValues> =
   | { type: "step_change"; fromStepId: string; toStepId: string }
-  | { type: "draft_save"; values: TFormValues }
   | { type: "submit"; values: TFormValues };
 
 /**
@@ -201,7 +193,6 @@ export type WizardApi<TFormValues extends FieldValues> = {
   canGoNext: boolean;
   isLastVisibleStep: boolean;
   isSubmitting: boolean;
-  isSavingDraft: boolean;
 
   /** Navigation actions. */
   goBack: () => void;
@@ -213,8 +204,7 @@ export type WizardApi<TFormValues extends FieldValues> = {
    */
   goToStep: (stepId: string) => void;
 
-  /** Draft save / final submit actions. */
-  saveDraft: () => Promise<void>;
+  /** Final submit action. */
   submit: () => Promise<void>;
 
   /** Read full current form values (snapshot). */
@@ -246,12 +236,6 @@ export type MultiStepFormProps<TFormValues extends FieldValues> = {
    * Recommended for "Guardar/Enviar" final action.
    */
   finalSchema?: ZodSchema<TFormValues>;
-
-  /**
-   * Called when user saves draft.
-   * Draft may be partial depending on config/implementation.
-   */
-  onSaveDraft?: (values: TFormValues) => Promise<void> | void;
 
   /**
    * Called when user submits final.

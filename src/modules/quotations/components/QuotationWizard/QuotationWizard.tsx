@@ -118,7 +118,6 @@ export function QuotationWizard({
     <MultiStepForm<QuotationFormInput>
       config={{
         showProgress: true,
-        allowDraftSave: false,
         labels: {
           back: "Atrás",
           next: "Siguiente",
