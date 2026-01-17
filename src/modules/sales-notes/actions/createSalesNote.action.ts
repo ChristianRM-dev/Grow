@@ -5,6 +5,7 @@ import { z } from "zod";
 import { SalesNoteFormSchema } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 import { createSalesNoteUseCase } from "@/modules/sales-notes/application/createSalesNote.usecase";
 import { Prisma } from "@/generated/prisma/client";
+import { auth } from "@/auth";
 
 const CreateSalesNoteActionSchema = SalesNoteFormSchema;
 
@@ -36,20 +37,26 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
   if (!parsed.success) {
     console.warn(
       `[createSalesNoteAction] validation_failed traceId=${traceId}`,
-      parsed.error.flatten()
+      parsed.error.flatten(),
     );
     return { ok: false as const, errors: parsed.error.flatten(), traceId };
   }
 
   try {
     console.log(
-      `[createSalesNoteAction] validated traceId=${traceId} customer.mode=${parsed.data.customer.mode}`
+      `[createSalesNoteAction] validated traceId=${traceId} customer.mode=${parsed.data.customer.mode}`,
+    );
+    const session = await auth();
+    const userId = session?.user?.id;
+
+    const result = await createSalesNoteUseCase(
+      parsed.data,
+      { traceId },
+      userId,
     );
 
-    const result = await createSalesNoteUseCase(parsed.data, { traceId });
-
     console.log(
-      `[createSalesNoteAction] success traceId=${traceId} salesNoteId=${result.salesNoteId}`
+      `[createSalesNoteAction] success traceId=${traceId} salesNoteId=${result.salesNoteId}`,
     );
 
     return { ok: true as const, salesNoteId: result.salesNoteId, traceId };

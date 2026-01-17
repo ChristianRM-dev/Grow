@@ -39,7 +39,8 @@ type LinePayload = {
 
 export async function createSalesNoteUseCase(
   values: SalesNoteFormValues,
-  ctx?: UseCaseContext
+  ctx?: UseCaseContext,
+  userId?: string,
 ) {
   const logger = createScopedLogger("createSalesNoteUseCase", ctx);
 
@@ -62,7 +63,7 @@ export async function createSalesNoteUseCase(
         existingPartyId: values.customer.existingPartyId,
         newParty: values.customer.newParty,
       },
-      logger
+      logger,
     );
 
     // 2) Register products marked for registration
@@ -126,7 +127,7 @@ export async function createSalesNoteUseCase(
         productVariantId: safeTrim(l.productVariantId) || null,
         descriptionSnapshot: buildDescriptionSnapshot(
           l.productName,
-          l.description
+          l.description,
         ),
         quantity: qty,
         unitPrice,
@@ -177,7 +178,7 @@ export async function createSalesNoteUseCase(
       logger,
     });
 
-    logger.log("salesNote_create", { folio });
+    logger.log("salesNote_create", { folio, userId });
 
     const created = await tx.salesNote.create({
       data: {
@@ -187,6 +188,7 @@ export async function createSalesNoteUseCase(
         subtotal,
         discountTotal,
         total,
+        createdByUserId: userId ?? null,
       },
       select: { id: true, folio: true, createdAt: true },
     });
@@ -206,18 +208,18 @@ export async function createSalesNoteUseCase(
           auditDecimalChange(
             AuditChangeKey.SALES_NOTE_SUBTOTAL,
             null,
-            subtotal
+            subtotal,
           ),
           auditDecimalChange(
             AuditChangeKey.SALES_NOTE_DISCOUNT_TOTAL,
             null,
-            discountTotal
+            discountTotal,
           ),
           auditDecimalChange(AuditChangeKey.SALES_NOTE_TOTAL, null, total),
           auditDecimalChange(
             AuditChangeKey.SALES_NOTE_BALANCE_DUE,
             null,
-            total
+            total,
           ),
         ],
         meta: {
@@ -225,7 +227,7 @@ export async function createSalesNoteUseCase(
           newProductsRegistered: registeredProductIds.size,
         },
       },
-      ctx
+      ctx,
     );
 
     logger.log("salesNote_created", { id: created.id, folio: created.folio });

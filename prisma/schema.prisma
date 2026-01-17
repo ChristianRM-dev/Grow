@@ -37,6 +37,9 @@ model User {
   accounts  Account[]
   sessions  Session[]
   auditLogs AuditLog[]
+
+  // Nuevo: Notas de venta creadas por este usuario
+  salesNotesCreated SalesNote[] @relation("SalesNoteCreatedBy")
 }
 
 model Account {
@@ -264,6 +267,10 @@ model SalesNote {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Nuevo: Usuario que creó la nota
+  createdByUserId String?
+  createdBy       User?   @relation("SalesNoteCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
   partyId String
   party   Party  @relation(fields: [partyId], references: [id], onDelete: Restrict)
 
@@ -273,7 +280,6 @@ model SalesNote {
   discountTotal Decimal @db.Decimal(18, 2)
   total         Decimal @db.Decimal(18, 2)
 
-  // Soft-delete para preservar referencias y documentos históricos
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
 
@@ -284,6 +290,7 @@ model SalesNote {
   @@index([createdAt])
   @@index([status])
   @@index([isDeleted])
+  @@index([createdByUserId]) // Nuevo índice
 }
 
 model SalesNoteLine {
@@ -374,7 +381,6 @@ model SupplierPurchase {
   @@index([occurredAt])
   @@index([isDeleted])
 }
-
 
 model PartyLedgerEntry {
   id      String @id @default(cuid())
