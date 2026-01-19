@@ -32,21 +32,21 @@ const styles = StyleSheet.create({
   },
 
   left: {
-    width: 110,
+    width: 140, // Increased from 110
     paddingRight: 8,
     justifyContent: "center",
   },
   logoBox: {
     borderWidth: 1,
-    borderColor: "#000",
+    borderColor: "#ffffff",
     padding: 6,
-    height: 68,
+    height: 90, // Increased from 68
     justifyContent: "center",
     alignItems: "center",
   },
   logo: {
-    width: 92,
-    height: 50,
+    width: 150, // Increased from 92
+    height: 80, // Increased from 50
     objectFit: "contain",
   },
   logoFallback: {
