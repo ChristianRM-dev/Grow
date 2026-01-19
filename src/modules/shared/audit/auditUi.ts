@@ -1,4 +1,4 @@
-import { money } from "@/modules/shared/utils/formatters";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 /**
  * Small UI helpers for AuditLog rendering.
@@ -51,7 +51,7 @@ export function auditChangeLabel(changeKey: string): string {
 
 export function auditFormatMoney(value: string | null): string {
   if (!value) return "—";
-  return `$${money(value)}`;
+  return `$${moneyMX(value)}`;
 }
 
 export function auditFormatText(value: string | null): string {

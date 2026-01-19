@@ -18,7 +18,7 @@ import {
   PencilSquareIcon,
 } from "@heroicons/react/16/solid";
 import { routes } from "@/lib/routes";
-import { dateMX, money } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 export function QuotationsTableClient({
   data,
@@ -43,7 +43,7 @@ export function QuotationsTableClient({
       field: "total",
       sortable: true,
       sortField: "total",
-      cell: (v) => money(v),
+      cell: (v) => moneyMX(v),
     },
     {
       header: "Creado",

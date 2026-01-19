@@ -18,7 +18,7 @@ import {
   EyeSlashIcon,
 } from "@heroicons/react/16/solid";
 import { routes } from "@/lib/routes";
-import { dateMX, money } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 import { useBlockingDialogs } from "@/components/ui/Dialogs";
 import { softDeleteProductVariantAction } from "@/modules/products/actions/softDeleteProductVariant.action";
 import { toggleProductVariantActiveAction } from "@/modules/products/actions/toggleProductVariantActive.action";
@@ -156,7 +156,7 @@ export function ProductsTableClient({
             en nuevas ventas o cotizaciones.
           </p>
           <p className="text-sm font-medium">
-            Precio: {money(row.defaultPrice)}
+            Precio: {moneyMX(row.defaultPrice)}
           </p>
           {row.isActive && (
             <div className="alert alert-warning mt-2">
@@ -236,7 +236,7 @@ export function ProductsTableClient({
       header: "Precio",
       field: "defaultPrice",
       sortable: true,
-      cell: (v) => money(v),
+      cell: (v) => moneyMX(v),
       sortField: "defaultPrice",
     },
     {

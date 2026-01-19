@@ -1,6 +1,7 @@
 "use client";
 
 import type { DashboardMonthlySalesDto } from "@/modules/dashboard/queries/getDashboardMonthlySales.query";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 import {
   BarChart,
   Bar,
@@ -10,14 +11,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 export function MonthlySalesChartCardClient({
   data,
@@ -31,8 +24,7 @@ export function MonthlySalesChartCardClient({
           <div>
             <h2 className="card-title">Ventas del mes</h2>
             <p className="text-sm opacity-70">
-              {formatMoney(data.monthTotal)} · {data.monthCount} notas
-              confirmadas
+              {moneyMX(data.monthTotal)} · {data.monthCount} notas confirmadas
             </p>
           </div>
           <div className="badge badge-ghost">
@@ -47,7 +39,7 @@ export function MonthlySalesChartCardClient({
               <XAxis dataKey="day" />
               <YAxis tickFormatter={(v) => `${v}`} />
               <Tooltip
-                formatter={(v) => formatMoney(Number(v))}
+                formatter={(v) => moneyMX(Number(v))}
                 labelFormatter={(l) => `Día ${l}`}
               />
               <Bar dataKey="total" />

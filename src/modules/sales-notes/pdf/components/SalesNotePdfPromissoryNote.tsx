@@ -1,7 +1,7 @@
 // src/modules/sales-notes/pdf/components/SalesNotePdfPromissoryNote.tsx
 import React from "react";
 import { StyleSheet, Text, View } from "@react-pdf/renderer";
-import { formatMoney } from "@/modules/shared/pdf/formatters";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 type SalesNotePdfPromissoryNoteProps = {
   payeeName: string;
@@ -34,7 +34,7 @@ export function SalesNotePdfPromissoryNote({
         <Text style={styles.bold}>{payeeName}</Text> en esta ciudad o cualquiera
         otra que se requiera pago el día{" "}
         <Text style={styles.bold}>__________</Text> la cantidad de ${" "}
-        <Text style={styles.bold}>{formatMoney(total)}</Text> (
+        <Text style={styles.bold}>{moneyMX(total)}</Text> (
         <Text style={styles.bold}>{totalInWords}</Text> -m.n.) valor del
         servicio recibido a mi (nuestra) entera satisfacción, de no hacerlo así
         causará un interés del <Text style={styles.bold}>____%</Text> mensual, a

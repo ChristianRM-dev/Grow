@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { useWatch } from "react-hook-form";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { QuotationFormInput, QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 // type Props = StepComponentProps<QuotationFormValues>;
 type Props = StepComponentProps<QuotationFormInput>;
@@ -13,10 +14,7 @@ function toNumber(v: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function formatMoney(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
+
 
 export function QuotationSummaryStep({ form }: Props) {
   const values = useWatch({ control: form.control }) as QuotationFormValues;
@@ -95,10 +93,10 @@ export function QuotationSummaryStep({ form }: Props) {
                     <tr key={`${r.productVariantId}-${idx}`}>
                       <td>{r.productName || "—"}</td>
                       <td className="text-right">{qty || 0}</td>
-                      <td className="text-right">{formatMoney(price)}</td>
+                      <td className="text-right">{moneyMX(price)}</td>
                       <td>{r.description?.trim() || "—"}</td>
                       <td className="text-right font-medium">
-                        {formatMoney(rowTotal)}
+                        {moneyMX(rowTotal)}
                       </td>
                     </tr>
                   );
@@ -112,7 +110,7 @@ export function QuotationSummaryStep({ form }: Props) {
               <div className="flex items-center justify-between">
                 <span className="text-sm opacity-70">Subtotal productos</span>
                 <span className="text-lg font-semibold">
-                  {formatMoney(registeredSubtotal)}
+                  {moneyMX(registeredSubtotal)}
                 </span>
               </div>
             </div>
@@ -152,10 +150,10 @@ export function QuotationSummaryStep({ form }: Props) {
                       <tr key={`${r.name}-${idx}`}>
                         <td>{r.name || "—"}</td>
                         <td className="text-right">{qty || 0}</td>
-                        <td className="text-right">{formatMoney(price)}</td>
+                        <td className="text-right">{moneyMX(price)}</td>
                         <td>{r.description?.trim() || "—"}</td>
                         <td className="text-right font-medium">
-                          {formatMoney(rowTotal)}
+                          {moneyMX(rowTotal)}
                         </td>
                       </tr>
                     );
@@ -171,7 +169,7 @@ export function QuotationSummaryStep({ form }: Props) {
                     Subtotal no registrados
                   </span>
                   <span className="text-lg font-semibold">
-                    {formatMoney(externalSubtotal)}
+                    {moneyMX(externalSubtotal)}
                   </span>
                 </div>
               </div>
@@ -184,7 +182,7 @@ export function QuotationSummaryStep({ form }: Props) {
         <div className="card-body">
           <div className="flex items-center justify-between">
             <span className="text-sm opacity-70">Total general</span>
-            <span className="text-2xl font-bold">{formatMoney(grandTotal)}</span>
+            <span className="text-2xl font-bold">{moneyMX(grandTotal)}</span>
           </div>
         </div>
       </div>

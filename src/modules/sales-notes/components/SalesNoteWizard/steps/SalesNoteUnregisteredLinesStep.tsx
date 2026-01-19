@@ -10,6 +10,7 @@ import {
   SalesNoteFormValues,
 } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 import { RegisterProductModal } from "./RegisterProductModal";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 type Props = StepComponentProps<SalesNoteFormInput>;
 
@@ -26,10 +27,7 @@ function parseMoney(v: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function formatMoney(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
+
 
 function isPriceLike(v: string) {
   const s = normalizeMoneyInput(v);
@@ -186,7 +184,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                             type="checkbox"
                             className="checkbox checkbox-success"
                             {...register(
-                              `unregisteredLines.${index}.shouldRegister`
+                              `unregisteredLines.${index}.shouldRegister`,
                             )}
                             disabled={!isRowComplete(row)}
                             title={
@@ -205,7 +203,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           }`}
                           placeholder="Ej: Tierra preparada"
                           {...register(
-                            `unregisteredLines.${index}.name` as const
+                            `unregisteredLines.${index}.name` as const,
                           )}
                         />
                         {rowErr?.name?.message ? (
@@ -226,7 +224,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                             `unregisteredLines.${index}.quantity` as const,
                             {
                               valueAsNumber: true,
-                            }
+                            },
                           )}
                         />
                         {rowErr?.quantity?.message ? (
@@ -254,11 +252,11 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                                   setValue(
                                     `unregisteredLines.${index}.unitPrice`,
                                     normalized,
-                                    { shouldDirty: true, shouldValidate: true }
+                                    { shouldDirty: true, shouldValidate: true },
                                   );
                                 }
                               },
-                            }
+                            },
                           )}
                         />
                         {rowErr?.unitPrice?.message ? (
@@ -275,7 +273,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                           }`}
                           placeholder="Opcional"
                           {...register(
-                            `unregisteredLines.${index}.description` as const
+                            `unregisteredLines.${index}.description` as const,
                           )}
                         />
                         {rowErr?.description?.message ? (
@@ -286,7 +284,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                       </td>
 
                       <td className="text-right font-medium">
-                        {formatMoney(rowTotal)}
+                        {moneyMX(rowTotal)}
                       </td>
 
                       <td>
@@ -327,7 +325,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-sm opacity-70">Subtotal</span>
                   <span className="text-lg font-semibold">
-                    {formatMoney(computedTotals.subtotal)}
+                    {moneyMX(computedTotals.subtotal)}
                   </span>
                 </div>
               </div>

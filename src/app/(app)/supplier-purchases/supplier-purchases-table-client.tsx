@@ -11,7 +11,7 @@ import type {
 } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable.types";
 
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
-import { dateMX, money } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 import { routes } from "@/lib/routes";
 import type { SupplierPurchaseRowDto } from "@/modules/supplier-purchases/queries/getSupplierPurchasesTable.query";
 
@@ -53,7 +53,7 @@ export function SupplierPurchasesTableClient({
             Los pagos relacionados y los movimientos relacionados también se
             marcarán como eliminados.
           </p>
-          <p className="text-sm font-medium">Total: {money(row.total)}</p>
+          <p className="text-sm font-medium">Total: {moneyMX(row.total)}</p>
         </div>
       ),
       confirmText: "Eliminar",
@@ -108,7 +108,7 @@ export function SupplierPurchasesTableClient({
       field: "total",
       sortable: true,
       sortField: "total",
-      cell: (v) => money(v),
+      cell: (v) => moneyMX(v),
     },
     {
       header: "Cuando",

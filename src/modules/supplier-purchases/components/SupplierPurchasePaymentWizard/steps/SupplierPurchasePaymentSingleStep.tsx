@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { SupplierPurchasePaymentFormValues } from "@/modules/supplier-purchases/forms/supplierPurchasePaymentForm.schemas";
 import { useSupplierPurchasePaymentWizardMeta } from "../SupplierPurchasePaymentWizard.context";
-import { money } from "@/modules/shared/utils/formatters";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 function toNumberSafe(v: string): number {
   const n = Number(String(v ?? "").trim());
@@ -17,13 +17,13 @@ export function SupplierPurchasePaymentSingleStep({
   const meta = useSupplierPurchasePaymentWizardMeta();
 
   const totalText = useMemo(
-    () => money(meta.purchaseTotal),
-    [meta.purchaseTotal]
+    () => moneyMX(meta.purchaseTotal),
+    [meta.purchaseTotal],
   );
-  const paidText = useMemo(() => money(meta.paidTotal), [meta.paidTotal]);
+  const paidText = useMemo(() => moneyMX(meta.paidTotal), [meta.paidTotal]);
   const remainingText = useMemo(
-    () => money(meta.remainingTotal),
-    [meta.remainingTotal]
+    () => moneyMX(meta.remainingTotal),
+    [meta.remainingTotal],
   );
 
   const maxAmountNum = useMemo(
@@ -31,8 +31,8 @@ export function SupplierPurchasePaymentSingleStep({
     [meta.remainingTotal]
   );
   const maxAmountText = useMemo(
-    () => money(meta.remainingTotal),
-    [meta.remainingTotal]
+    () => moneyMX(meta.remainingTotal),
+    [meta.remainingTotal],
   );
 
   const isLocked = maxAmountNum <= 0;
@@ -80,7 +80,7 @@ export function SupplierPurchasePaymentSingleStep({
 
             {meta.mode === "edit" && meta.currentAmount ? (
               <div className="text-xs opacity-70">
-                Monto actual: <b>${money(meta.currentAmount)}</b>
+                Monto actual: <b>${moneyMX(meta.currentAmount)}</b>
               </div>
             ) : null}
 

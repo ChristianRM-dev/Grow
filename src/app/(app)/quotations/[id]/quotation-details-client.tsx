@@ -1,9 +1,7 @@
 "use client";
 
-import React from "react";
-
 import type { QuotationDetailsDto } from "@/modules/quotations/queries/getQuotationDetails.query";
-import { money } from "@/modules/shared/utils/formatters";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 import { splitSnapshot } from "@/modules/sales-notes/queries/_salesNoteMappers";
 
 export function QuotationDetailsClient({
@@ -20,7 +18,7 @@ export function QuotationDetailsClient({
           <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-box border border-base-300 bg-base-200 p-4">
               <div className="text-sm opacity-70">Total</div>
-              <div className="text-2xl font-bold">${money(dto.total)}</div>
+              <div className="text-2xl font-bold">${moneyMX(dto.total)}</div>
             </div>
 
             <div className="rounded-box border border-base-300 bg-base-200 p-4">
@@ -66,7 +64,7 @@ export function QuotationDetailsClient({
 
                 {dto.registeredLines.map((l) => {
                   const { name, description } = splitSnapshot(
-                    l.descriptionSnapshot
+                    l.descriptionSnapshot,
                   );
                   const displayName = name || l.descriptionSnapshot || "—";
                   const displayDescription = description || "—";
@@ -75,10 +73,12 @@ export function QuotationDetailsClient({
                     <tr key={l.id}>
                       <td>{displayName}</td>
                       <td className="text-right">{l.quantity}</td>
-                      <td className="text-right">${money(l.quotedUnitPrice)}</td>
+                      <td className="text-right">
+                        ${moneyMX(l.quotedUnitPrice)}
+                      </td>
                       <td>{displayDescription}</td>
                       <td className="text-right font-semibold">
-                        ${money(l.lineTotal)}
+                        ${moneyMX(l.lineTotal)}
                       </td>
                     </tr>
                   );
@@ -108,7 +108,7 @@ export function QuotationDetailsClient({
                 <tbody>
                   {dto.externalLines.map((l) => {
                     const { name, description } = splitSnapshot(
-                      l.descriptionSnapshot
+                      l.descriptionSnapshot,
                     );
                     const displayName = name || l.descriptionSnapshot || "—";
                     const displayDescription = description || "—";
@@ -118,11 +118,11 @@ export function QuotationDetailsClient({
                         <td>{displayName}</td>
                         <td className="text-right">{l.quantity}</td>
                         <td className="text-right">
-                          ${money(l.quotedUnitPrice)}
+                          ${moneyMX(l.quotedUnitPrice)}
                         </td>
                         <td>{displayDescription}</td>
                         <td className="text-right font-semibold">
-                          ${money(l.lineTotal)}
+                          ${moneyMX(l.lineTotal)}
                         </td>
                       </tr>
                     );

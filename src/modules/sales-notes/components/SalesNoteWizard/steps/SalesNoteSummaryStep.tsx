@@ -7,17 +7,13 @@ import {
   SalesNoteFormInput,
   SalesNoteFormValues,
 } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 // type Props = StepComponentProps<SalesNoteFormValues>;
 type Props = StepComponentProps<SalesNoteFormInput>;
 function toNumber(v: string): number {
   const n = Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : NaN;
-}
-
-function formatMoney(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
 }
 
 export function SalesNoteSummaryStep({ form }: Props) {
@@ -105,10 +101,10 @@ export function SalesNoteSummaryStep({ form }: Props) {
                     <tr key={`${r.productVariantId}-${idx}`}>
                       <td>{r.productName || "—"}</td>
                       <td className="text-right">{qty || 0}</td>
-                      <td className="text-right">{formatMoney(price)}</td>
+                      <td className="text-right">{moneyMX(price)}</td>
                       <td>{r.description?.trim() || "—"}</td>
                       <td className="text-right font-medium">
-                        {formatMoney(rowTotal)}
+                        {moneyMX(rowTotal)}
                       </td>
                     </tr>
                   );
@@ -122,7 +118,7 @@ export function SalesNoteSummaryStep({ form }: Props) {
               <div className="flex items-center justify-between">
                 <span className="text-sm opacity-70">Subtotal productos</span>
                 <span className="text-lg font-semibold">
-                  {formatMoney(productsSubtotal)}
+                  {moneyMX(productsSubtotal)}
                 </span>
               </div>
             </div>
@@ -163,10 +159,10 @@ export function SalesNoteSummaryStep({ form }: Props) {
                       <tr key={`${r.name}-${idx}`}>
                         <td>{r.name || "—"}</td>
                         <td className="text-right">{qty || 0}</td>
-                        <td className="text-right">{formatMoney(price)}</td>
+                        <td className="text-right">{moneyMX(price)}</td>
                         <td>{r.description?.trim() || "—"}</td>
                         <td className="text-right font-medium">
-                          {formatMoney(rowTotal)}
+                          {moneyMX(rowTotal)}
                         </td>
                       </tr>
                     );
@@ -182,7 +178,7 @@ export function SalesNoteSummaryStep({ form }: Props) {
                     Subtotal no registrados
                   </span>
                   <span className="text-lg font-semibold">
-                    {formatMoney(unregisteredSubtotal)}
+                    {moneyMX(unregisteredSubtotal)}
                   </span>
                 </div>
               </div>
@@ -196,9 +192,7 @@ export function SalesNoteSummaryStep({ form }: Props) {
         <div className="card-body">
           <div className="flex items-center justify-between">
             <span className="text-sm opacity-70">Total general</span>
-            <span className="text-2xl font-bold">
-              {formatMoney(grandTotal)}
-            </span>
+            <span className="text-2xl font-bold">{moneyMX(grandTotal)}</span>
           </div>
         </div>
       </div>

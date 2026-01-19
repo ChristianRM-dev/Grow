@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { PurchasesReportPurchaseDto } from "@/modules/reports/queries/getPurchasesReport.dto";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 const styles = StyleSheet.create({
   table: {
@@ -62,11 +63,7 @@ function formatDateMXShort(iso: string): string {
   });
 }
 
-function formatMoney(n: number): string {
-  const sign = n < 0 ? "-" : "";
-  const abs = Math.abs(n);
-  return `${sign}$${abs.toFixed(2)}`;
-}
+
 
 type Props = {
   rows: PurchasesReportPurchaseDto[];
@@ -125,13 +122,13 @@ export function PurchasesReportPdfResultsTable({
             {formatDateMXShort(r.occurredAt)}
           </Text>
           <Text style={[styles.cell, styles.colTotal, styles.right]}>
-            {formatMoney(r.total)}
+            {moneyMX(r.total)}
           </Text>
           <Text style={[styles.cell, styles.colPaid, styles.right]}>
-            {formatMoney(r.paidTotal)}
+            {moneyMX(r.paidTotal)}
           </Text>
           <Text style={[styles.cell, styles.colBalance, styles.right]}>
-            {formatMoney(r.balanceDue)}
+            {moneyMX(r.balanceDue)}
           </Text>
         </View>
       ))}
@@ -150,7 +147,7 @@ export function PurchasesReportPdfResultsTable({
             styles.totalsLabel,
           ]}
         >
-          {formatMoney(grandTotal)}
+          {moneyMX(grandTotal)}
         </Text>
         <Text
           style={[
@@ -160,7 +157,7 @@ export function PurchasesReportPdfResultsTable({
             styles.totalsLabel,
           ]}
         >
-          {formatMoney(grandPaidTotal)}
+          {moneyMX(grandPaidTotal)}
         </Text>
         <Text
           style={[
@@ -170,7 +167,7 @@ export function PurchasesReportPdfResultsTable({
             styles.totalsLabel,
           ]}
         >
-          {formatMoney(grandBalanceDue)}
+          {moneyMX(grandBalanceDue)}
         </Text>
       </View>
     </View>

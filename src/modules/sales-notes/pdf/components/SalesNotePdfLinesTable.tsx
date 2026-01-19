@@ -1,8 +1,8 @@
 // src/modules/sales-notes/pdf/components/SalesNotePdfLinesTable.tsx
 import React from "react";
 import { StyleSheet, Text, View } from "@react-pdf/renderer";
-import { formatMoney, formatQty } from "@/modules/shared/pdf/formatters";
 import { PdfLineDto } from "@/modules/shared/pdf/pdfDtos";
+import { formatQty, moneyMX } from "@/modules/shared/utils/formatters";
 
 type SalesNotePdfLinesTableProps = {
   lines: PdfLineDto[];
@@ -14,14 +14,12 @@ const styles = StyleSheet.create({
     borderColor: "#000",
     marginTop: 10,
   },
-
   headerRow: {
     flexDirection: "row",
     backgroundColor: "#F3F4F6",
     borderBottomWidth: 1,
     borderBottomColor: "#000",
   },
-
   row: {
     flexDirection: "row",
     borderBottomWidth: 1,
@@ -30,21 +28,25 @@ const styles = StyleSheet.create({
   rowLast: {
     flexDirection: "row",
   },
-
   cell: {
     paddingVertical: 4,
     paddingHorizontal: 6,
     fontSize: 10,
   },
-
+  colIndex: {
+    width: "8%",
+    borderRightWidth: 1,
+    borderRightColor: "#000",
+    textAlign: "center" as const,
+  },
   colQty: {
-    width: "16%",
+    width: "14%",
     borderRightWidth: 1,
     borderRightColor: "#000",
     textAlign: "center" as const,
   },
   colDesc: {
-    width: "54%",
+    width: "48%",
     borderRightWidth: 1,
     borderRightColor: "#000",
   },
@@ -58,7 +60,6 @@ const styles = StyleSheet.create({
     width: "15%",
     textAlign: "right" as const,
   },
-
   headerText: {
     fontWeight: 700,
   },
@@ -68,6 +69,7 @@ export function SalesNotePdfLinesTable({ lines }: SalesNotePdfLinesTableProps) {
   return (
     <View style={styles.table}>
       <View style={styles.headerRow}>
+        <Text style={[styles.cell, styles.colIndex, styles.headerText]}>#</Text>
         <Text style={[styles.cell, styles.colQty, styles.headerText]}>
           Cantidad
         </Text>
@@ -86,15 +88,16 @@ export function SalesNotePdfLinesTable({ lines }: SalesNotePdfLinesTableProps) {
         const isLast = idx === lines.length - 1;
         return (
           <View key={idx} style={isLast ? styles.rowLast : styles.row}>
+            <Text style={[styles.cell, styles.colIndex]}>{idx + 1}</Text>
             <Text style={[styles.cell, styles.colQty]}>
               {formatQty(l.quantity)}
             </Text>
             <Text style={[styles.cell, styles.colDesc]}>{l.description}</Text>
             <Text style={[styles.cell, styles.colUnit]}>
-              {formatMoney(l.unitPrice)}
+              {moneyMX(l.unitPrice)}
             </Text>
             <Text style={[styles.cell, styles.colTotal]}>
-              {formatMoney(l.lineTotal)}
+              {moneyMX(l.lineTotal)}
             </Text>
           </View>
         );

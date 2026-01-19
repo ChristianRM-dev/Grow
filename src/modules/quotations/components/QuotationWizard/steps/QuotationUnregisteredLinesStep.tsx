@@ -8,16 +8,14 @@ import type {
   QuotationFormInput,
   QuotationFormValues,
 } from "@/modules/quotations/forms/quotationForm.schemas";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 function parseMoney(v: string): number {
   const n = Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : NaN;
 }
 
-function formatMoney(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
+
 
 function isPriceLike(v: string) {
   const s = String(v ?? "").trim();
@@ -136,7 +134,7 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
                           }`}
                           placeholder="Ej: Servicio de instalación"
                           {...register(
-                            `unregisteredLines.${index}.name` as const
+                            `unregisteredLines.${index}.name` as const,
                           )}
                         />
                         {rowErr?.name?.message ? (
@@ -155,7 +153,7 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
                           }`}
                           {...register(
                             `unregisteredLines.${index}.quantity` as const,
-                            { valueAsNumber: true }
+                            { valueAsNumber: true },
                           )}
                         />
                         {rowErr?.quantity?.message ? (
@@ -181,10 +179,10 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
                                 setValue(
                                   `unregisteredLines.${index}.quotedUnitPrice`,
                                   String(e.target.value ?? ""),
-                                  { shouldDirty: true, shouldValidate: true }
+                                  { shouldDirty: true, shouldValidate: true },
                                 );
                               },
-                            }
+                            },
                           )}
                         />
                         {rowErr?.quotedUnitPrice?.message ? (
@@ -201,7 +199,7 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
                           }`}
                           placeholder="Opcional"
                           {...register(
-                            `unregisteredLines.${index}.description` as const
+                            `unregisteredLines.${index}.description` as const,
                           )}
                         />
                         {rowErr?.description?.message ? (
@@ -212,7 +210,7 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
                       </td>
 
                       <td className="text-right font-medium">
-                        {formatMoney(rowTotal)}
+                        {moneyMX(rowTotal)}
                       </td>
 
                       <td>
@@ -241,7 +239,7 @@ export function QuotationUnregisteredLinesStep({ form }: Props) {
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-sm opacity-70">Subtotal</span>
                   <span className="text-lg font-semibold">
-                    {formatMoney(totals.subtotal)}
+                    {moneyMX(totals.subtotal)}
                   </span>
                 </div>
               </div>

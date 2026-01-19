@@ -1,13 +1,4 @@
 /**
- * Formats a numeric string into MX money display with 2 decimals.
- * Returns the original input if it's not a valid number.
- */
-export function money(v: string | number): string {
-  const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(2) : v.toString();
-}
-
-/**
  * Formats an ISO date string to a readable es-MX locale string.
  * Returns the original input if it's not a valid date.
  */
@@ -43,7 +34,6 @@ export function moneySafe(v: string): string {
   const n = toNumberSafe(v);
   return n.toFixed(2);
 }
-
 
 /**
  * Formats phone numbers for MX display.
@@ -115,3 +105,42 @@ export function monthLabelMX(month: number | string): string {
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : name;
 }
 
+/**
+ * Formatter for MX money display with thousand separators and 2 decimals.
+ * Reusable instance for better performance.
+ */
+const MONEY_MX_FORMATTER = new Intl.NumberFormat("es-MX", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * Formats a numeric value into MX money display with thousand separators.
+ * Examples: 1234.56 -> "1,234.56", 1000000 -> "1,000,000.00"
+ * Returns the original input if it's not a valid number.
+ */
+export function moneyMX(v: string | number): string {
+  const n = Number(v);
+  return Number.isFinite(n) ? MONEY_MX_FORMATTER.format(n) : v.toString();
+}
+
+/**
+ * Formats a numeric string to MX money display with thousand separators.
+ * Invalid values become "0.00".
+ * Useful for forms and money inputs where you want a stable display.
+ */
+export function moneySafeMX(v: string): string {
+  const n = toNumberSafe(v);
+  return MONEY_MX_FORMATTER.format(n);
+}
+
+function toNumberOrZero(v: string): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function formatQty(v: string): string {
+  const n = toNumberOrZero(v);
+  const s = n.toFixed(3);
+  return s.replace(/\.?0+$/, "");
+}

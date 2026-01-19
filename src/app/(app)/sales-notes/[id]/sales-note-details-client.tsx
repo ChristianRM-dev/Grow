@@ -7,7 +7,7 @@ import type { SalesNoteDetailsDto } from "@/modules/sales-notes/queries/getSales
 import type { SalesNoteAuditLogRowDto } from "@/modules/sales-notes/queries/getSalesNoteAuditLog.query";
 
 import { routes } from "@/lib/routes";
-import { dateMX, money } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 import {
   auditChangeLabel,
   auditEventTitle,
@@ -155,7 +155,7 @@ export function SalesNoteDetailsClient({
         <div className="card bg-base-200">
           <div className="card-body">
             <div className="text-sm opacity-70">Total</div>
-            <div className="text-2xl font-semibold">${money(dto.total)}</div>
+            <div className="text-2xl font-semibold">${moneyMX(dto.total)}</div>
           </div>
         </div>
 
@@ -163,7 +163,7 @@ export function SalesNoteDetailsClient({
           <div className="card-body">
             <div className="text-sm opacity-70">Pagado</div>
             <div className="text-2xl font-semibold">
-              ${money(dto.paidTotal)}
+              ${moneyMX(dto.paidTotal)}
             </div>
           </div>
         </div>
@@ -172,7 +172,7 @@ export function SalesNoteDetailsClient({
           <div className="card-body">
             <div className="text-sm opacity-70">Pendiente</div>
             <div className="text-2xl font-semibold">
-              ${money(dto.remainingTotal)}
+              ${moneyMX(dto.remainingTotal)}
             </div>
           </div>
         </div>
@@ -207,8 +207,8 @@ export function SalesNoteDetailsClient({
                       <tr key={l.id}>
                         <td>{l.descriptionSnapshot}</td>
                         <td className="text-right">{l.quantity}</td>
-                        <td className="text-right">${money(l.unitPrice)}</td>
-                        <td className="text-right">${money(l.lineTotal)}</td>
+                        <td className="text-right">${moneyMX(l.unitPrice)}</td>
+                        <td className="text-right">${moneyMX(l.lineTotal)}</td>
                       </tr>
                     ))
                   )}
@@ -241,8 +241,8 @@ export function SalesNoteDetailsClient({
                       <tr key={l.id}>
                         <td>{l.descriptionSnapshot}</td>
                         <td className="text-right">{l.quantity}</td>
-                        <td className="text-right">${money(l.unitPrice)}</td>
-                        <td className="text-right">${money(l.lineTotal)}</td>
+                        <td className="text-right">${moneyMX(l.unitPrice)}</td>
+                        <td className="text-right">${moneyMX(l.lineTotal)}</td>
                       </tr>
                     ))
                   )}
@@ -254,12 +254,12 @@ export function SalesNoteDetailsClient({
           <div className="flex flex-col gap-1 border-t border-base-300 pt-2 text-sm opacity-80">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span className="font-medium">${money(dto.subtotal)}</span>
+              <span className="font-medium">${moneyMX(dto.subtotal)}</span>
             </div>
 
             <div className="flex justify-between text-base">
               <span className="font-semibold">Total</span>
-              <span className="font-semibold">${money(dto.total)}</span>
+              <span className="font-semibold">${moneyMX(dto.total)}</span>
             </div>
           </div>
         </div>
@@ -306,7 +306,7 @@ export function SalesNoteDetailsClient({
                     <tr key={p.id}>
                       <td>{dateMX(p.occurredAt)}</td>
                       <td>{p.paymentType}</td>
-                      <td className="text-right">${money(p.amount)}</td>
+                      <td className="text-right">${moneyMX(p.amount)}</td>
                       <td>{p.reference ?? "—"}</td>
                       <td className="max-w-[320px] truncate">
                         {p.notes ?? "—"}
@@ -333,7 +333,7 @@ export function SalesNoteDetailsClient({
           ) : (
             <div className="alert">
               <span>
-                Saldo pendiente: <b>${money(dto.remainingTotal)}</b>
+                Saldo pendiente: <b>${moneyMX(dto.remainingTotal)}</b>
               </span>
             </div>
           )}

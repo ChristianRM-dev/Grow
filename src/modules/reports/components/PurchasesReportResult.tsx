@@ -1,6 +1,6 @@
 // src/modules/reports/components/PurchasesReportResult.tsx
 import type { PurchasesReportDto } from "@/modules/reports/queries/getPurchasesReport.dto";
-import { money, dateMX } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 function formatQty(qty: number) {
   return qty.toFixed(3).replace(/\.?0+$/, "");
@@ -33,7 +33,9 @@ export function PurchasesReportResult({
           <div className="flex flex-col gap-2 sm:items-end">
             <div className="text-sm">
               <span className="opacity-70">Gran total: </span>
-              <span className="font-semibold">{money(report.grandTotal)}</span>
+              <span className="font-semibold">
+                {moneyMX(report.grandTotal)}
+              </span>
             </div>
 
             <a
@@ -73,7 +75,9 @@ export function PurchasesReportResult({
 
                 <div className="text-right">
                   <div className="text-sm opacity-70">Total de la compra</div>
-                  <div className="text-lg font-semibold">{money(p.total)}</div>
+                  <div className="text-lg font-semibold">
+                    {moneyMX(p.total)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -94,9 +98,9 @@ export function PurchasesReportResult({
                     {p.lines.map((l, idx) => (
                       <tr key={`${p.id}-line-${idx}`}>
                         <td>{l.description}</td>
-                        <td className="text-right">{money(l.unitPrice)}</td>
+                        <td className="text-right">{moneyMX(l.unitPrice)}</td>
                         <td className="text-right">{formatQty(l.quantity)}</td>
-                        <td className="text-right">{money(l.lineTotal)}</td>
+                        <td className="text-right">{moneyMX(l.lineTotal)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -106,7 +110,7 @@ export function PurchasesReportResult({
               <div className="mt-3 flex justify-end">
                 <div className="text-right">
                   <div className="text-sm opacity-70">Total</div>
-                  <div className="font-semibold">{money(p.total)}</div>
+                  <div className="font-semibold">{moneyMX(p.total)}</div>
                 </div>
               </div>
             </div>

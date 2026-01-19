@@ -13,6 +13,7 @@ import type {
   PartyPdfLedgerRowDto,
   PartyPdfSummaryDto,
 } from "@/modules/parties/queries/getPartyPdfDataById.query";
+import { moneyMX, dateMX } from "@/modules/shared/utils/formatters";
 
 type Header = {
   logoPublicPath: string;
@@ -22,20 +23,7 @@ type Header = {
   phone: string;
 };
 
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
-}
 
-function formatMoney(v: string) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
 
 function roleLabel(r: string) {
   const x = String(r).toUpperCase();
@@ -212,19 +200,19 @@ export function PartyPdfDocument(props: {
             <View style={styles.stat}>
               <Text style={styles.statLabel}>Por cobrar</Text>
               <Text style={styles.statValue}>
-                {formatMoney(summary.receivableTotal)}
+                {moneyMX(summary.receivableTotal)}
               </Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statLabel}>Por pagar</Text>
               <Text style={styles.statValue}>
-                {formatMoney(summary.payableTotal)}
+                {moneyMX(summary.payableTotal)}
               </Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statLabel}>{netLabel}</Text>
               <Text style={styles.statValue}>
-                {netIsValid ? formatMoney(String(Math.abs(net))) : "—"}
+                {netIsValid ? moneyMX(String(Math.abs(net))) : "—"}
               </Text>
               <Text style={{ marginTop: 2, opacity: 0.7 }}>
                 Neto = cobrar − pagar
@@ -250,7 +238,7 @@ export function PartyPdfDocument(props: {
               ledger.map((r) => (
                 <View key={r.id} style={styles.tr}>
                   <Text style={[styles.td, styles.cellDate]}>
-                    {formatDateTime(r.occurredAt)}
+                    {dateMX(r.occurredAt)}
                   </Text>
                   <Text style={[styles.td, styles.cellRef]}>
                     {safeText(r.reference)}
@@ -262,7 +250,7 @@ export function PartyPdfDocument(props: {
                     {sideLabel(r.side)}
                   </Text>
                   <Text style={[styles.td, styles.cellAmt]}>
-                    {formatMoney(r.amount)}
+                    {moneyMX(r.amount)}
                   </Text>
                   <Text style={[styles.td, styles.cellNotes]}>
                     {safeText(r.notes)}

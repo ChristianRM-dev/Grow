@@ -1,12 +1,6 @@
 import type { DashboardTopDelinquentsDto } from "@/modules/dashboard/queries/getDashboardTopDelinquentCustomers.query";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 export function TopDelinquentCustomersCard({
   data,
@@ -38,7 +32,7 @@ export function TopDelinquentCustomersCard({
                     </div>
                   </div>
                   <div className="text-right font-semibold">
-                    {formatMoney(row.balance)}
+                    {moneyMX(row.balance)}
                   </div>
                 </div>
               </li>

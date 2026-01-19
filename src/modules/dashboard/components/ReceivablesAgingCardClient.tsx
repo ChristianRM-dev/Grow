@@ -10,14 +10,9 @@ import {
   YAxis,
 } from "recharts";
 import { DashboardReceivablesSummaryDto } from "../queries/getDashboardReceivablesSummary.query";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
+
 
 export function ReceivablesAgingCardClient({
   data,
@@ -30,7 +25,7 @@ export function ReceivablesAgingCardClient({
         <div>
           <h2 className="card-title">Por cobrar</h2>
           <p className="text-sm opacity-70">
-            Total estimado: {formatMoney(data.totalReceivable)}
+            Total estimado: {moneyMX(data.totalReceivable)}
           </p>
         </div>
 
@@ -40,7 +35,7 @@ export function ReceivablesAgingCardClient({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" />
               <YAxis tickFormatter={(v) => `${v}`} />
-              <Tooltip formatter={(v) => formatMoney(Number(v))} />
+              <Tooltip formatter={(v) => moneyMX(Number(v))} />
               <Bar dataKey="amount" />
             </BarChart>
           </ResponsiveContainer>

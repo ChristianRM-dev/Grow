@@ -8,6 +8,7 @@ import {
   searchProductVariantsAction,
   type ProductVariantLookupDto,
 } from "@/modules/products/actions/searchProductVariants.action";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 // type Props = StepComponentProps<SalesNoteFormValues>;
 type Props = StepComponentProps<SalesNoteFormInput>;
@@ -16,10 +17,7 @@ function parseMoney(v: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function formatMoney(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
+
 
 function isPriceLike(v: string) {
   const s = String(v ?? "").trim();
@@ -385,7 +383,7 @@ export function SalesNoteLinesStep({ form }: Props) {
 
                           {/* Total */}
                           <td className="text-right font-medium">
-                            {formatMoney(rowTotal)}
+                            {moneyMX(rowTotal)}
                           </td>
 
                           {/* Actions */}
@@ -426,7 +424,7 @@ export function SalesNoteLinesStep({ form }: Props) {
                   <div className="mt-2 flex items-center justify-between">
                     <span className="text-sm opacity-70">Subtotal</span>
                     <span className="text-lg font-semibold">
-                      {formatMoney(computedTotals.subtotal)}
+                      {moneyMX(computedTotals.subtotal)}
                     </span>
                   </div>
                 </div>

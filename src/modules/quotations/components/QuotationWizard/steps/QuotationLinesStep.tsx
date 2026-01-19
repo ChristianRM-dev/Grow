@@ -8,6 +8,7 @@ import {
   searchProductVariantsAction,
   type ProductVariantLookupDto,
 } from "@/modules/products/actions/searchProductVariants.action";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 // type Props = StepComponentProps<QuotationFormValues>;
 type Props = StepComponentProps<QuotationFormInput>;
@@ -17,10 +18,7 @@ function parseMoney(v: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function formatMoney(n: number): string {
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
+
 
 function isPriceLike(v: string) {
   const s = String(v ?? "").trim();
@@ -224,12 +222,12 @@ export function QuotationLinesStep({ form }: Props) {
                       const term = termRow[rowKey] ?? row?.productName ?? "";
                       const rowErr = linesErrors?.[index];
                       const excludeIdsForRow = selectedIds.filter(
-                        (id) => id !== row?.productVariantId
+                        (id) => id !== row?.productVariantId,
                       );
 
                       const qty = Number(row?.quantity ?? 0);
                       const price = parseMoney(
-                        String(row?.quotedUnitPrice ?? "")
+                        String(row?.quotedUnitPrice ?? ""),
                       );
                       const rowTotal =
                         Number.isFinite(qty) &&
@@ -307,13 +305,13 @@ export function QuotationLinesStep({ form }: Props) {
                             <input
                               type="hidden"
                               {...register(
-                                `lines.${index}.productVariantId` as const
+                                `lines.${index}.productVariantId` as const,
                               )}
                             />
                             <input
                               type="hidden"
                               {...register(
-                                `lines.${index}.productName` as const
+                                `lines.${index}.productName` as const,
                               )}
                             />
 
@@ -350,7 +348,7 @@ export function QuotationLinesStep({ form }: Props) {
                               placeholder="12.50"
                               inputMode="decimal"
                               {...register(
-                                `lines.${index}.quotedUnitPrice` as const
+                                `lines.${index}.quotedUnitPrice` as const,
                               )}
                             />
                             {rowErr?.quotedUnitPrice?.message ? (
@@ -367,7 +365,7 @@ export function QuotationLinesStep({ form }: Props) {
                               }`}
                               placeholder="Opcional"
                               {...register(
-                                `lines.${index}.description` as const
+                                `lines.${index}.description` as const,
                               )}
                             />
                             {rowErr?.description?.message ? (
@@ -378,7 +376,7 @@ export function QuotationLinesStep({ form }: Props) {
                           </td>
 
                           <td className="text-right font-medium">
-                            {formatMoney(rowTotal)}
+                            {moneyMX(rowTotal)}
                           </td>
 
                           <td>
@@ -417,7 +415,7 @@ export function QuotationLinesStep({ form }: Props) {
                   <div className="mt-2 flex items-center justify-between">
                     <span className="text-sm opacity-70">Subtotal</span>
                     <span className="text-lg font-semibold">
-                      {formatMoney(computedTotals.subtotal)}
+                      {moneyMX(computedTotals.subtotal)}
                     </span>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { SalesReportSalesNoteDto } from "@/modules/reports/queries/getSalesReport.dto";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 const styles = StyleSheet.create({
   table: {
@@ -53,20 +54,7 @@ const styles = StyleSheet.create({
   },
 });
 
-function formatDateMX(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("es-MX", {
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
 
-function formatMoney(n: number): string {
-  const sign = n < 0 ? "-" : "";
-  const abs = Math.abs(n);
-  return `${sign}$${abs.toFixed(2)}`;
-}
 
 type Props = {
   rows: SalesReportSalesNoteDto[];
@@ -120,16 +108,16 @@ export function SalesReportPdfResultsTable({
           <Text style={[styles.cell, styles.colCustomer]}>{r.partyName}</Text>
           <Text style={[styles.cell, styles.colFolio]}>{r.folio}</Text>
           <Text style={[styles.cell, styles.colDate]}>
-            {formatDateMX(r.createdAt)}
+            {dateMX(r.createdAt)}
           </Text>
           <Text style={[styles.cell, styles.colTotal, styles.right]}>
-            {formatMoney(r.total)}
+            {moneyMX(r.total)}
           </Text>
           <Text style={[styles.cell, styles.colPaid, styles.right]}>
-            {formatMoney(r.paidTotal)}
+            {moneyMX(r.paidTotal)}
           </Text>
           <Text style={[styles.cell, styles.colBalance, styles.right]}>
-            {formatMoney(r.balanceDue)}
+            {moneyMX(r.balanceDue)}
           </Text>
         </View>
       ))}
@@ -148,7 +136,7 @@ export function SalesReportPdfResultsTable({
             styles.totalsLabel,
           ]}
         >
-          {formatMoney(grandTotal)}
+          {moneyMX(grandTotal)}
         </Text>
         <Text
           style={[
@@ -158,7 +146,7 @@ export function SalesReportPdfResultsTable({
             styles.totalsLabel,
           ]}
         >
-          {formatMoney(grandPaidTotal)}
+          {moneyMX(grandPaidTotal)}
         </Text>
         <Text
           style={[
@@ -168,7 +156,7 @@ export function SalesReportPdfResultsTable({
             styles.totalsLabel,
           ]}
         >
-          {formatMoney(grandBalanceDue)}
+          {moneyMX(grandBalanceDue)}
         </Text>
       </View>
     </View>

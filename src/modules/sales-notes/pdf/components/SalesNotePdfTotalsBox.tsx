@@ -1,7 +1,7 @@
 // src/modules/sales-notes/pdf/components/SalesNotePdfTotalsBox.tsx
 import React from "react";
 import { StyleSheet, Text, View } from "@react-pdf/renderer";
-import { formatMoney } from "@/modules/shared/pdf/formatters";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
 type SalesNotePdfTotalsBoxProps = {
   total: string;
@@ -50,7 +50,7 @@ export function SalesNotePdfTotalsBox({ total }: SalesNotePdfTotalsBoxProps) {
           <Text style={styles.label}>Total</Text>
         </View>
         <View style={styles.rowLast}>
-          <Text style={styles.value}>{formatMoney(total)}</Text>
+          <Text style={styles.value}>{moneyMX(total)}</Text>
         </View>
       </View>
     </View>

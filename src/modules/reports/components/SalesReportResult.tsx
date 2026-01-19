@@ -1,5 +1,5 @@
 import type { SalesReportDto } from "@/modules/reports/queries/getSalesReport.dto";
-import { money, dateMX } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 function formatQty(qty: number) {
   return qty.toFixed(3).replace(/\.?0+$/, "");
@@ -32,20 +32,22 @@ export function SalesReportResult({
           <div className="flex flex-col gap-2 sm:items-end">
             <div className="text-sm">
               <span className="opacity-70">Total: </span>
-              <span className="font-semibold">{money(report.grandTotal)}</span>
+              <span className="font-semibold">
+                {moneyMX(report.grandTotal)}
+              </span>
             </div>
 
             <div className="text-sm">
               <span className="opacity-70">Abonado: </span>
               <span className="font-semibold">
-                {money(report.grandPaidTotal)}
+                {moneyMX(report.grandPaidTotal)}
               </span>
             </div>
 
             <div className="text-sm">
               <span className="opacity-70">Restante: </span>
               <span className="font-semibold">
-                {money(report.grandBalanceDue)}
+                {moneyMX(report.grandBalanceDue)}
               </span>
             </div>
 
@@ -82,13 +84,15 @@ export function SalesReportResult({
 
                 <div className="text-right">
                   <div className="text-sm opacity-70">Total</div>
-                  <div className="text-lg font-semibold">{money(sn.total)}</div>
+                  <div className="text-lg font-semibold">
+                    {moneyMX(sn.total)}
+                  </div>
 
                   <div className="mt-2 text-sm opacity-70">Abonado</div>
-                  <div className="font-semibold">{money(sn.paidTotal)}</div>
+                  <div className="font-semibold">{moneyMX(sn.paidTotal)}</div>
 
                   <div className="mt-2 text-sm opacity-70">Restante</div>
-                  <div className="font-semibold">{money(sn.balanceDue)}</div>
+                  <div className="font-semibold">{moneyMX(sn.balanceDue)}</div>
                 </div>
               </div>
             </div>
@@ -109,9 +113,9 @@ export function SalesReportResult({
                     {sn.lines.map((l, idx) => (
                       <tr key={`${sn.id}-line-${idx}`}>
                         <td>{l.description}</td>
-                        <td className="text-right">{money(l.unitPrice)}</td>
+                        <td className="text-right">{moneyMX(l.unitPrice)}</td>
                         <td className="text-right">{formatQty(l.quantity)}</td>
-                        <td className="text-right">{money(l.lineTotal)}</td>
+                        <td className="text-right">{moneyMX(l.lineTotal)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -121,7 +125,7 @@ export function SalesReportResult({
               <div className="mt-3 flex justify-end">
                 <div className="text-right">
                   <div className="text-sm opacity-70">Total</div>
-                  <div className="font-semibold">{money(sn.total)}</div>
+                  <div className="font-semibold">{moneyMX(sn.total)}</div>
                 </div>
               </div>
             </div>

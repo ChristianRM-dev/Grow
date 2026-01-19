@@ -20,7 +20,7 @@ import {
   TrashIcon,
 } from "@heroicons/react/16/solid";
 import { routes } from "@/lib/routes";
-import { dateMX, money } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 import { useBlockingDialogs } from "@/components/ui/Dialogs";
 import { softDeleteSalesNoteAction } from "@/modules/sales-notes/actions/softDeleteSalesNote.action";
@@ -52,7 +52,7 @@ export function SalesNotesTableClient({
             Los pagos relacionados y los movimientos del libro mayor también se
             marcarán como eliminados.
           </p>
-          <p className="text-sm font-medium">Total: {money(row.total)}</p>
+          <p className="text-sm font-medium">Total: {moneyMX(row.total)}</p>
         </div>
       ),
       confirmText: "Eliminar",
@@ -101,14 +101,14 @@ export function SalesNotesTableClient({
       header: "Total",
       field: "total",
       sortable: true,
-      cell: (v) => money(v),
+      cell: (v) => moneyMX(v),
       sortField: "total",
     },
     {
       header: "Total pagado",
       field: "paidTotal",
       sortable: false, // calculado
-      cell: (v) => money(v),
+      cell: (v) => moneyMX(v),
     },
     {
       header: "Creado",

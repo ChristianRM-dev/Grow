@@ -18,12 +18,9 @@ import type {
 } from "@/modules/parties/queries/getPartyDetailsWithLedger.query";
 
 import { EyeIcon, PencilSquareIcon } from "@heroicons/react/16/solid";
+import { moneyMX } from "@/modules/shared/utils/formatters";
 
-function formatMoney(v: string) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "—";
-  return `$${n.toFixed(2)}`;
-}
+
 
 function sideBadge(side: string) {
   const s = String(side).toUpperCase();
@@ -122,7 +119,7 @@ export function PartyDetailsClient({
         field: "amount",
         sortable: true,
         sortField: "amount",
-        cell: (v) => formatMoney(v),
+        cell: (v) => moneyMX(v),
       },
       {
         header: "Notas",
@@ -131,7 +128,7 @@ export function PartyDetailsClient({
         cell: (v) => (v ? v : "—"),
       },
     ],
-    []
+    [],
   );
 
   const actions: Array<TableActionDef<PartyLedgerRowDto>> = [
@@ -203,7 +200,7 @@ export function PartyDetailsClient({
         <div className="stat bg-base-100 shadow-sm rounded-box">
           <div className="stat-title">Por cobrar</div>
           <div className="stat-value text-info">
-            {formatMoney(summary.receivableTotal)}
+            {moneyMX(summary.receivableTotal)}
           </div>
           {/* <div className="stat-desc">Movimientos RECEIVABLE</div> */}
         </div>
@@ -211,14 +208,14 @@ export function PartyDetailsClient({
         <div className="stat bg-base-100 shadow-sm rounded-box">
           <div className="stat-title">Por pagar</div>
           <div className="stat-value text-warning">
-            {formatMoney(summary.payableTotal)}
+            {moneyMX(summary.payableTotal)}
           </div>
           {/* <div className="stat-desc">Movimientos PAYABLE</div> */}
         </div>
 
         <div className="stat bg-base-100 shadow-sm rounded-box">
           <div className="stat-title">{netLabel}</div>
-          <div className="stat-value">{formatMoney(String(Math.abs(net)))}</div>
+          <div className="stat-value">{moneyMX(String(Math.abs(net)))}</div>
           <div className="stat-desc">Neto = cobrar − pagar</div>
         </div>
       </div>

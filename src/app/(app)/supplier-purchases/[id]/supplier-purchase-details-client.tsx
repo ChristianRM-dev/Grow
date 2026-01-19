@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import type { SupplierPurchaseDetailsDto } from "@/modules/supplier-purchases/queries/getSupplierPurchaseDetails.query";
 import { routes } from "@/lib/routes";
-import { dateMX, money } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 export function SupplierPurchaseDetailsClient({
   dto,
@@ -21,7 +21,7 @@ export function SupplierPurchaseDetailsClient({
         <div className="card bg-base-200">
           <div className="card-body">
             <div className="text-sm opacity-70">Total</div>
-            <div className="text-2xl font-semibold">${money(dto.total)}</div>
+            <div className="text-2xl font-semibold">${moneyMX(dto.total)}</div>
           </div>
         </div>
 
@@ -29,7 +29,7 @@ export function SupplierPurchaseDetailsClient({
           <div className="card-body">
             <div className="text-sm opacity-70">Pagado</div>
             <div className="text-2xl font-semibold">
-              ${money(dto.paidTotal)}
+              ${moneyMX(dto.paidTotal)}
             </div>
           </div>
         </div>
@@ -38,7 +38,7 @@ export function SupplierPurchaseDetailsClient({
           <div className="card-body">
             <div className="text-sm opacity-70">Pendiente</div>
             <div className="text-2xl font-semibold">
-              ${money(dto.remainingTotal)}
+              ${moneyMX(dto.remainingTotal)}
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@ export function SupplierPurchaseDetailsClient({
                     <tr key={p.id}>
                       <td>{dateMX(p.occurredAt)}</td>
                       <td>{p.paymentType}</td>
-                      <td className="text-right">${money(p.amount)}</td>
+                      <td className="text-right">${moneyMX(p.amount)}</td>
                       <td>{p.reference ?? "—"}</td>
                       <td className="max-w-[320px] truncate">
                         {p.notes ?? "—"}
@@ -119,7 +119,7 @@ export function SupplierPurchaseDetailsClient({
                           className="btn btn-ghost btn-sm"
                           href={routes.supplierPurchases.payments.edit(
                             dto.id,
-                            p.id
+                            p.id,
                           )}
                         >
                           Editar
@@ -139,7 +139,7 @@ export function SupplierPurchaseDetailsClient({
           ) : (
             <div className="alert">
               <span>
-                Saldo pendiente: <b>${money(dto.remainingTotal)}</b>
+                Saldo pendiente: <b>${moneyMX(dto.remainingTotal)}</b>
               </span>
             </div>
           )}
