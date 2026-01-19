@@ -32,21 +32,20 @@ const styles = StyleSheet.create({
   },
 
   left: {
-    width: 140, // Increased from 110
+    width: 180, // Increased from 140
     paddingRight: 8,
     justifyContent: "center",
   },
   logoBox: {
-    borderWidth: 1,
-    borderColor: "#ffffff",
+    borderWidth: 0.1,
     padding: 6,
-    height: 90, // Increased from 68
+    height: 130, // Increased from 90
     justifyContent: "center",
     alignItems: "center",
   },
   logo: {
-    width: 150, // Increased from 92
-    height: 80, // Increased from 50
+    width: 160, // Increased from 120
+    height: 90, // Increased from 70
     objectFit: "contain",
   },
   logoFallback: {
@@ -80,7 +79,7 @@ const styles = StyleSheet.create({
   },
 
   right: {
-    width: 150,
+    width: 100, // Reduced from 150
     paddingLeft: 8,
     alignSelf: "stretch",
     justifyContent: "center",
@@ -104,11 +103,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   boxLabel: {
-    fontSize: 11,
+    fontSize: 10, // Reduced from 11
     fontWeight: 700,
   },
   boxValue: {
-    fontSize: 11,
+    fontSize: 10, // Reduced from 11
     fontWeight: 700,
   },
 
