@@ -33,31 +33,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     fontSize: 10,
   },
-  colIndex: {
-    width: "8%",
-    borderRightWidth: 1,
-    borderRightColor: "#000",
-    textAlign: "center" as const,
-  },
   colQty: {
-    width: "14%",
+    width: "18%",
     borderRightWidth: 1,
     borderRightColor: "#000",
     textAlign: "center" as const,
   },
   colDesc: {
-    width: "48%",
+    width: "50%",
     borderRightWidth: 1,
     borderRightColor: "#000",
   },
   colUnit: {
-    width: "15%",
+    width: "16%",
     borderRightWidth: 1,
     borderRightColor: "#000",
     textAlign: "right" as const,
   },
   colTotal: {
-    width: "15%",
+    width: "16%",
     textAlign: "right" as const,
   },
   headerText: {
@@ -69,7 +63,6 @@ export function SalesNotePdfLinesTable({ lines }: SalesNotePdfLinesTableProps) {
   return (
     <View style={styles.table}>
       <View style={styles.headerRow}>
-        <Text style={[styles.cell, styles.colIndex, styles.headerText]}>#</Text>
         <Text style={[styles.cell, styles.colQty, styles.headerText]}>
           Cantidad
         </Text>
@@ -88,7 +81,6 @@ export function SalesNotePdfLinesTable({ lines }: SalesNotePdfLinesTableProps) {
         const isLast = idx === lines.length - 1;
         return (
           <View key={idx} style={isLast ? styles.rowLast : styles.row}>
-            <Text style={[styles.cell, styles.colIndex]}>{idx + 1}</Text>
             <Text style={[styles.cell, styles.colQty]}>
               {formatQty(l.quantity)}
             </Text>

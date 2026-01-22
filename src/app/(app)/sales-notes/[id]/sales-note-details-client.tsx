@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 
 import type { SalesNoteDetailsDto } from "@/modules/sales-notes/queries/getSalesNoteDetails.query";
@@ -147,6 +147,11 @@ export function SalesNoteDetailsClient({
   auditLog: SalesNoteAuditLogRowDto[];
 }) {
   const canAddPayment = !dto.isFullyPaid;
+  const totalLines = useMemo(() => {
+    const registeredLines = dto.registeredLines.length;
+    const unregisteredLines = dto.externalLines.length;
+    return registeredLines + unregisteredLines;
+  }, [dto]);
 
   return (
     <>
@@ -174,6 +179,12 @@ export function SalesNoteDetailsClient({
             <div className="text-2xl font-semibold">
               ${moneyMX(dto.remainingTotal)}
             </div>
+          </div>
+        </div>
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <div className="text-sm opacity-70">Total de plantan agregadas</div>
+            <div className="text-2xl font-semibold">{totalLines}</div>
           </div>
         </div>
       </div>

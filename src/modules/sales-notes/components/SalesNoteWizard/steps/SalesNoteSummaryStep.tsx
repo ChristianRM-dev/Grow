@@ -72,7 +72,9 @@ export function SalesNoteSummaryStep({ form }: Props) {
       {/* Registered products */}
       <div className="card bg-base-200">
         <div className="card-body">
-          <h4 className="font-semibold">Productos</h4>
+          <h4 className="font-semibold">
+            Productos (Total de agregadas:{values.lines.length})
+          </h4>
 
           <div className="mt-3 overflow-x-auto">
             <table className="table table-zebra w-full">
@@ -130,7 +132,10 @@ export function SalesNoteSummaryStep({ form }: Props) {
       {(values.unregisteredLines?.length ?? 0) > 0 ? (
         <div className="card bg-base-200">
           <div className="card-body">
-            <h4 className="font-semibold">Productos no registrados</h4>
+            <h4 className="font-semibold">
+              Productos no registrados (Total de agregadas:
+              {values.unregisteredLines?.length})
+            </h4>
 
             <div className="mt-3 overflow-x-auto">
               <table className="table table-zebra w-full">

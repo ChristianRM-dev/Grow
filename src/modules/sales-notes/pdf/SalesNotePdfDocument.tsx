@@ -1,6 +1,6 @@
 // src/modules/sales-notes/pdf/SalesNotePdfDocument.tsx
 import React from "react";
-import { Document, Page, StyleSheet, View } from "@react-pdf/renderer";
+import { Document, Page, StyleSheet, View, Text } from "@react-pdf/renderer";
 import {
   SalesNotePdfHeader,
   type SalesNotePdfHeaderConfig,
@@ -22,6 +22,12 @@ type SalesNotePdfDocumentProps = {
 const styles = StyleSheet.create({
   page: {
     padding: 24,
+    fontSize: 10,
+    fontFamily: "Helvetica",
+  },
+  text: {
+    padding: 5,
+    color: "black",
     fontSize: 10,
     fontFamily: "Helvetica",
   },
@@ -62,6 +68,10 @@ export function SalesNotePdfDocument({
             address=""
             city=""
           />
+
+          <View style={styles.text}>
+            <Text> Total de plantas: {salesNote.lines.length}</Text>
+          </View>
 
           <SalesNotePdfLinesTable lines={salesNote.lines} />
           <SalesNotePdfTotalsBox total={salesNote.total} />
