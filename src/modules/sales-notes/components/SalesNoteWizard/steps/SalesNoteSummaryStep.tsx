@@ -11,6 +11,7 @@ import { moneyMX } from "@/modules/shared/utils/formatters";
 
 // type Props = StepComponentProps<SalesNoteFormValues>;
 type Props = StepComponentProps<SalesNoteFormInput>;
+
 function toNumber(v: string): number {
   const n = Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : NaN;
@@ -29,6 +30,19 @@ export function SalesNoteSummaryStep({ form }: Props) {
     return values.customer.existingPartyName?.trim() || "—";
   }, [values.customer]);
 
+  /**
+   * Calculate total quantity of registered plants
+   */
+  const registeredPlantsCount = useMemo(() => {
+    return (values.lines ?? []).reduce((sum, line) => {
+      const qty = Number(line.quantity ?? 0);
+      return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
+    }, 0);
+  }, [values.lines]);
+
+  /**
+   * Calculate subtotal for registered products
+   */
   const productsSubtotal = useMemo(() => {
     let total = 0;
     for (const r of values.lines ?? []) {
@@ -41,6 +55,19 @@ export function SalesNoteSummaryStep({ form }: Props) {
     return total;
   }, [values.lines]);
 
+  /**
+   * Calculate total quantity of unregistered plants
+   */
+  const unregisteredPlantsCount = useMemo(() => {
+    return (values.unregisteredLines ?? []).reduce((sum, line) => {
+      const qty = Number(line.quantity ?? 0);
+      return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
+    }, 0);
+  }, [values.unregisteredLines]);
+
+  /**
+   * Calculate subtotal for unregistered products
+   */
   const unregisteredSubtotal = useMemo(() => {
     let total = 0;
     for (const r of values.unregisteredLines ?? []) {
@@ -54,6 +81,7 @@ export function SalesNoteSummaryStep({ form }: Props) {
   }, [values.unregisteredLines]);
 
   const grandTotal = productsSubtotal + unregisteredSubtotal;
+  const totalPlants = registeredPlantsCount + unregisteredPlantsCount;
 
   return (
     <div className="w-full space-y-4">
@@ -69,12 +97,42 @@ export function SalesNoteSummaryStep({ form }: Props) {
         </div>
       </div>
 
+      {/* Total plants summary card */}
+      <div className="card border-l-4 border-l-success bg-success/10">
+        <div className="card-body py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium opacity-70">
+                Total de plantas
+              </div>
+              {totalPlants > 0 && (
+                <div className="mt-1 text-xs opacity-60">
+                  {registeredPlantsCount > 0 && (
+                    <span>{registeredPlantsCount} registradas</span>
+                  )}
+                  {registeredPlantsCount > 0 && unregisteredPlantsCount > 0 && (
+                    <span className="mx-1">·</span>
+                  )}
+                  {unregisteredPlantsCount > 0 && (
+                    <span>{unregisteredPlantsCount} externas</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="text-3xl font-bold text-success">{totalPlants}</div>
+          </div>
+        </div>
+      </div>
+
       {/* Registered products */}
       <div className="card bg-base-200">
         <div className="card-body">
-          <h4 className="font-semibold">
-            Productos (Total de agregadas:{values.lines.length})
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold">Productos registrados</h4>
+            <div className="badge badge-success badge-lg">
+              {registeredPlantsCount} plantas
+            </div>
+          </div>
 
           <div className="mt-3 overflow-x-auto">
             <table className="table table-zebra w-full">
@@ -132,10 +190,12 @@ export function SalesNoteSummaryStep({ form }: Props) {
       {(values.unregisteredLines?.length ?? 0) > 0 ? (
         <div className="card bg-base-200">
           <div className="card-body">
-            <h4 className="font-semibold">
-              Productos no registrados (Total de agregadas:
-              {values.unregisteredLines?.length})
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold">Productos externos</h4>
+              <div className="badge badge-warning badge-lg">
+                {unregisteredPlantsCount} plantas
+              </div>
+            </div>
 
             <div className="mt-3 overflow-x-auto">
               <table className="table table-zebra w-full">
@@ -179,9 +239,7 @@ export function SalesNoteSummaryStep({ form }: Props) {
             <div className="mt-4 flex justify-end">
               <div className="w-full max-w-sm rounded-box border border-base-300 bg-base-100 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm opacity-70">
-                    Subtotal no registrados
-                  </span>
+                  <span className="text-sm opacity-70">Subtotal externos</span>
                   <span className="text-lg font-semibold">
                     {moneyMX(unregisteredSubtotal)}
                   </span>

@@ -147,11 +147,22 @@ export function SalesNoteDetailsClient({
   auditLog: SalesNoteAuditLogRowDto[];
 }) {
   const canAddPayment = !dto.isFullyPaid;
-  const totalLines = useMemo(() => {
-    const registeredLines = dto.registeredLines.length;
-    const unregisteredLines = dto.externalLines.length;
-    return registeredLines + unregisteredLines;
-  }, [dto]);
+
+  /**
+   * Calculate total number of plants by summing quantities from all lines
+   * (both registered and external lines)
+   */
+  const totalPlants = useMemo(() => {
+    const registeredTotal = dto.registeredLines.reduce(
+      (sum, line) => sum + Number(line.quantity),
+      0,
+    );
+    const externalTotal = dto.externalLines.reduce(
+      (sum, line) => sum + Number(line.quantity),
+      0,
+    );
+    return registeredTotal + externalTotal;
+  }, [dto.registeredLines, dto.externalLines]);
 
   return (
     <>
@@ -181,10 +192,14 @@ export function SalesNoteDetailsClient({
             </div>
           </div>
         </div>
-        <div className="card bg-base-200">
+
+        {/* Total plants card with highlighted style */}
+        <div className="card border-l-4 border-l-success bg-success/10">
           <div className="card-body">
-            <div className="text-sm opacity-70">Total de plantan agregadas</div>
-            <div className="text-2xl font-semibold">{totalLines}</div>
+            <div className="text-sm font-medium opacity-70">
+              Total de plantas agregadas
+            </div>
+            <div className="text-2xl font-bold text-success">{totalPlants}</div>
           </div>
         </div>
       </div>
