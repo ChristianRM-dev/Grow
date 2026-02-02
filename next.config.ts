@@ -27,9 +27,14 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  // ✅ reactCompiler va en root (Next.js 16+)
+  reactCompiler: !isDev || !isDocker,
+
+  // ✅ Configuración vacía de turbopack para silenciar el error
+  turbopack: {},
+
   experimental: {
-    // Desactiva React Compiler en dev si estás en Docker
-    reactCompiler: !isDev || !isDocker,
+    // Ya no va reactCompiler aquí
   },
 
   webpack: (config, { isServer, dev }) => {
@@ -39,7 +44,7 @@ const nextConfig: NextConfig = {
       config.resolve.alias.encoding = false;
     }
 
-    // Optimizaciones para Docker
+    // Optimizaciones para Docker en desarrollo
     if (dev && isDocker) {
       config.watchOptions = {
         poll: 1000,
@@ -47,7 +52,6 @@ const nextConfig: NextConfig = {
         ignored: ["**/node_modules", "**/.next", "**/.turbo", "**/.git"],
       };
 
-      // Snapshot optimization
       config.snapshot = {
         managedPaths: [/^(.+?[\\/]node_modules[\\/])/],
       };
@@ -56,13 +60,11 @@ const nextConfig: NextConfig = {
     return config;
   },
 
-  // Optimiza imágenes en dev
   images: {
     remotePatterns: [],
     unoptimized: isDev,
   },
 
-  // Reduce el buffer de páginas en Docker
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: isDocker ? 2 : 5,

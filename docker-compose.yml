@@ -11,10 +11,6 @@ services:
       - "5432:5432"
     volumes:
       - grow_db_data:/var/lib/postgresql/data
-    deploy:
-      resources:
-        limits:
-          memory: 512M
 
   devcontainer:
     build:
@@ -25,24 +21,18 @@ services:
     depends_on:
       - db
     volumes:
-      # Volumen principal con delegated para mejor performance
       - ./:/workspace:delegated
-      # Named volumes para directorios que cambian mucho
-      - node_modules:/workspace/node_modules
-      - nextjs_cache:/workspace/.next
-      - turbo_cache:/workspace/.turbo
     environment:
       DATABASE_URL: postgresql://grow:grow@db:5432/grow?schema=public
       AUTH_URL: http://localhost:3000
       NODE_ENV: development
-      # 🔥 Configuración crítica para Docker + Next.js
       NODE_OPTIONS: --max-old-space-size=4096
       WATCHPACK_POLLING: true
       CHOKIDAR_USEPOLLING: true
       CHOKIDAR_INTERVAL: 1000
       NEXT_TELEMETRY_DISABLED: 1
-      # Desactiva el react compiler en dev para mejor performance
-      REACT_COMPILER: false
+      # ✅ Suprime el warning de Serwist
+      SERWIST_SUPPRESS_TURBOPACK_WARNING: 1
     ports:
       - "3000:3000"
       - "5555:5555"
@@ -55,6 +45,3 @@ services:
 
 volumes:
   grow_db_data:
-  node_modules:
-  nextjs_cache:
-  turbo_cache:
