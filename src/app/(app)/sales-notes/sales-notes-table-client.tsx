@@ -23,7 +23,34 @@ import { routes } from "@/lib/routes";
 import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 import { useBlockingDialogs } from "@/components/ui/Dialogs";
-import { softDeleteSalesNoteAction } from "@/modules/sales-notes/actions/softDeleteSalesNote.action";
+import { toggleSalesNoteActiveAction } from "@/modules/sales-notes/actions/toggleSalesNoteActive.action";
+
+function getStatusLabel(status: SalesNoteRowDto["status"]) {
+  switch (status) {
+    case "DRAFT":
+      return "Borrador";
+    case "CONFIRMED":
+      return "Confirmada";
+    case "CANCELLED":
+      return "Cancelada";
+    default:
+      return "—";
+  }
+}
+
+function getStatusBadgeClass(status: SalesNoteRowDto["status"]) {
+  // DaisyUI badges (adjust if you use different classes)
+  switch (status) {
+    case "DRAFT":
+      return "badge badge-warning";
+    case "CONFIRMED":
+      return "badge badge-success";
+    case "CANCELLED":
+      return "badge badge-error";
+    default:
+      return "badge";
+  }
+}
 
 export function SalesNotesTableClient({
   data,
@@ -37,51 +64,77 @@ export function SalesNotesTableClient({
   const dialogs = useBlockingDialogs();
   const [isPending, startTransition] = useTransition();
 
-  // Delete flow isolated and reusable
-  const handleDeleteSalesNote = async (row: SalesNoteRowDto) => {
-    // 1) Open modal OUTSIDE of transition so it renders immediately
+  const handleToggleSalesNoteActive = async (row: SalesNoteRowDto) => {
+    const isCurrentlyCancelled = row.status === "CANCELLED";
+    const nextIsActive = isCurrentlyCancelled; // if cancelled -> activate, else -> deactivate
+
+    const actionLabel = nextIsActive ? "Activar" : "Desactivar";
+
     const ok = await dialogs.confirmDelete({
       resourceLabel: "nota de venta",
       message: (
         <div className="space-y-2">
           <p>
-            Se eliminará la nota de venta <strong>{row.folio}</strong> del
-            cliente <strong>{row.partyName}</strong>.
+            {nextIsActive ? (
+              <>
+                Se activará la nota de venta <strong>{row.folio}</strong> del
+                cliente <strong>{row.partyName}</strong>.
+              </>
+            ) : (
+              <>
+                Se desactivará la nota de venta <strong>{row.folio}</strong> del
+                cliente <strong>{row.partyName}</strong>.
+              </>
+            )}
           </p>
-          <p className="text-sm opacity-80">
-            Los pagos relacionados y los movimientos del libro mayor también se
-            marcarán como eliminados.
-          </p>
+
+          {!nextIsActive ? (
+            <>
+              <p className="text-sm opacity-80">
+                La nota seguirá visible en las listas, pero quedará marcada como{" "}
+                <strong>Cancelada</strong> y no permitirá registrar pagos.
+              </p>
+              <p className="text-sm opacity-80">
+                Los pagos relacionados y los movimientos del libro mayor se
+                marcarán como eliminados para que no afecten los saldos.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm opacity-80">
+              La nota volverá a estado <strong>Confirmada</strong>. Los pagos
+              previamente anulados no se restauran automáticamente.
+            </p>
+          )}
+
           <p className="text-sm font-medium">Total: {moneyMX(row.total)}</p>
         </div>
       ),
-      confirmText: "Eliminar",
+      confirmText: actionLabel,
       cancelText: "Cancelar",
     });
 
     if (!ok) return;
 
-    // 2) Only the server action + refresh goes into transition
     startTransition(async () => {
       try {
-        const result = await softDeleteSalesNoteAction({ id: row.id });
+        await toggleSalesNoteActiveAction({
+          id: row.id,
+          isActive: nextIsActive,
+        });
         router.refresh();
 
-        const paymentsMsg =
-          result.deletedPaymentsCount && result.deletedPaymentsCount > 0
-            ? ` Se eliminaron ${result.deletedPaymentsCount} pago(s) relacionado(s).`
-            : "";
-
         await dialogs.success({
-          title: "Eliminado",
-          message: `La nota de venta se eliminó correctamente.${paymentsMsg}`,
+          title: nextIsActive ? "Activada" : "Desactivada",
+          message: nextIsActive
+            ? "La nota de venta se activó correctamente."
+            : "La nota de venta se desactivó correctamente (Cancelada).",
           labels: { confirmText: "Listo" },
         });
       } catch (err) {
         await dialogs.error({
-          title: "No se pudo eliminar",
+          title: "No se pudo actualizar",
           message:
-            "Ocurrió un error al eliminar la nota de venta. Inténtalo de nuevo.",
+            "Ocurrió un error al actualizar el estado de la nota de venta. Inténtalo de nuevo.",
           details: err instanceof Error ? err.message : String(err),
           labels: { confirmText: "Entendido" },
         });
@@ -92,10 +145,27 @@ export function SalesNotesTableClient({
   const columns: Array<ColumnDef<SalesNoteRowDto>> = [
     { header: "Folio", field: "folio", sortable: true },
     {
+      header: "Estado",
+      field: "status",
+      sortable: true,
+      cell: (v) => (
+        <span className={getStatusBadgeClass(v)}>{getStatusLabel(v)}</span>
+      ),
+      sortField: "status",
+    },
+    {
       header: "Cliente",
       field: "partyName",
       sortable: true,
       sortField: "partyName",
+      cell: (v, row) => (
+        <div className="space-y-1">
+          <div>{v}</div>
+          {row.status === "CANCELLED" ? (
+            <div className="text-xs opacity-70">Esta nota está desactivada</div>
+          ) : null}
+        </div>
+      ),
     },
     {
       header: "Total",
@@ -131,13 +201,14 @@ export function SalesNotesTableClient({
       label: "Editar",
       tooltip: "Editar nota de venta",
       icon: <PencilSquareIcon className="h-5 w-5" />,
+      disabled: (row) => row.status === "CANCELLED",
     },
     {
       type: "payment",
       label: "Agregar pago",
       tooltip: "Registrar pago",
       icon: <CurrencyDollarIcon className="h-5 w-5" />,
-      disabled: (row) => row.isFullyPaid,
+      disabled: (row) => row.isFullyPaid || row.status === "CANCELLED",
     },
     {
       type: "pdf",
@@ -146,9 +217,10 @@ export function SalesNotesTableClient({
       icon: <DocumentIcon className="h-5 w-5" />,
     },
     {
-      type: "delete",
-      label: "Eliminar",
-      tooltip: "Eliminar nota de venta",
+      // "delete" action becomes activate/deactivate toggle
+      type: "toggleActive",
+      label: "Activar / Desactivar",
+      tooltip: "Activar o desactivar la nota de venta",
       icon: <TrashIcon className="h-5 w-5" />,
       disabled: () => isPending,
     } as unknown as TableActionDef<SalesNoteRowDto>,
@@ -178,9 +250,8 @@ export function SalesNotesTableClient({
             window.open(url, "_blank", "noopener,noreferrer");
             break;
           }
-          case "delete":
-            // no transition wrapper here
-            void handleDeleteSalesNote(e.row);
+          case "toggleActive":
+            void handleToggleSalesNoteActive(e.row);
             break;
         }
       }}

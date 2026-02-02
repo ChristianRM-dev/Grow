@@ -4,16 +4,15 @@ import {
   parseTableSearchParams,
   type ParsedTableQuery,
 } from "@/modules/shared/tables/parseTableSearchParams";
-import {
-  excludeSoftDeleted,
-  excludeSoftDeletedPayments,
-} from "@/modules/shared/queries/softDeleteHelpers";
+import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SalesNoteRowDto = {
   id: string;
   folio: string;
   createdAt: string; // ISO
   partyName: string;
+
+  status: "DRAFT" | "CONFIRMED" | "CANCELLED";
 
   total: string;
   paidTotal: string;
@@ -32,6 +31,7 @@ function toPrismaOrderBy(
     folio: { folio: sortOrder },
     total: { total: sortOrder },
     partyName: { party: { name: sortOrder } },
+    status: { status: sortOrder },
   };
 
   return [allowed[sortField] ?? { createdAt: sortOrder }];
@@ -40,10 +40,10 @@ function toPrismaOrderBy(
 function toWhere(q: ParsedTableQuery): Prisma.SalesNoteWhereInput {
   const term = (q.search ?? "").trim();
 
-  // Base filter: always exclude soft-deleted records
-  const baseWhere: Prisma.SalesNoteWhereInput = {
-    ...excludeSoftDeleted,
-  };
+  // IMPORTANT:
+  // SalesNotes are no longer hidden by soft-delete.
+  // We show all and rely on `status` to indicate "cancelled".
+  const baseWhere: Prisma.SalesNoteWhereInput = {};
 
   if (!term) return baseWhere;
 
@@ -76,6 +76,7 @@ export async function getSalesNotesTableQuery(rawSearchParams: unknown) {
         id: true,
         folio: true,
         createdAt: true,
+        status: true,
         total: true,
         party: { select: { name: true } },
       },
@@ -90,7 +91,7 @@ export async function getSalesNotesTableQuery(rawSearchParams: unknown) {
         where: {
           salesNoteId: { in: ids },
           direction: PaymentDirection.IN,
-          ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
+          ...excludeSoftDeletedPayments, // payments may be soft-deleted (cancel flow)
         },
         _sum: { amount: true },
       })
@@ -115,9 +116,13 @@ export async function getSalesNotesTableQuery(rawSearchParams: unknown) {
       folio: r.folio,
       createdAt: r.createdAt.toISOString(),
       partyName: r.party.name,
+      status: r.status,
       total: (r.total as Prisma.Decimal).toString(),
       paidTotal: paid.toString(),
       remainingTotal: remaining.toString(),
+      // Business choice:
+      // if cancelled, we treat it as "not payable" (disable payment anyway in UI),
+      // but keeping the original computation is fine for display.
       isFullyPaid: remaining.lte(0),
     };
   });

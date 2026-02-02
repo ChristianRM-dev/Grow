@@ -1,8 +1,36 @@
+import React from "react";
+
 import type { SalesReportDto } from "@/modules/reports/queries/getSalesReport.dto";
 import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 function formatQty(qty: number) {
   return qty.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function getStatusLabel(status: string) {
+  switch (status) {
+    case "DRAFT":
+      return "Borrador";
+    case "CONFIRMED":
+      return "Confirmada";
+    case "CANCELLED":
+      return "Cancelada";
+    default:
+      return status;
+  }
+}
+
+function getStatusBadgeClass(status: string) {
+  switch (status) {
+    case "DRAFT":
+      return "badge badge-warning";
+    case "CONFIRMED":
+      return "badge badge-success";
+    case "CANCELLED":
+      return "badge badge-error";
+    default:
+      return "badge";
+  }
 }
 
 export function SalesReportResult({
@@ -27,6 +55,9 @@ export function SalesReportResult({
           <div>
             <h3 className="text-lg font-semibold">Resultados</h3>
             <p className="text-sm opacity-70">{report.rangeLabel}</p>
+            <p className="mt-1 text-xs opacity-60">
+              Nota: las notas canceladas no se incluyen en este reporte.
+            </p>
           </div>
 
           <div className="flex flex-col gap-2 sm:items-end">
@@ -63,77 +94,92 @@ export function SalesReportResult({
         </div>
       </div>
 
-      {report.salesNotes.map((sn) => (
-        <>
-          <div
-            key={sn.id}
-            className="rounded-box border border-base-300 bg-base-100"
-          >
-            <div className="border-b border-base-300 p-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="text-sm opacity-70">Folio</div>
-                  <div className="font-semibold">{sn.folio}</div>
+      {report.salesNotes.map((sn) => {
+        // Backward compatible: show badge only if status exists in DTO
+        const status = (sn as any).status as string | undefined;
 
-                  <div className="mt-2 text-sm opacity-70">Cliente</div>
-                  <div>{sn.partyName}</div>
+        return (
+          <React.Fragment key={sn.id}>
+            <div className="rounded-box border border-base-300 bg-base-100">
+              <div className="border-b border-base-300 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div>
+                        <div className="text-sm opacity-70">Folio</div>
+                        <div className="font-semibold">{sn.folio}</div>
+                      </div>
 
-                  <div className="mt-2 text-sm opacity-70">Fecha</div>
-                  <div>{dateMX(sn.createdAt)}</div>
-                </div>
+                      {status ? (
+                        <span className={getStatusBadgeClass(status)}>
+                          {getStatusLabel(status)}
+                        </span>
+                      ) : null}
+                    </div>
 
-                <div className="text-right">
-                  <div className="text-sm opacity-70">Total</div>
-                  <div className="text-lg font-semibold">
-                    {moneyMX(sn.total)}
+                    <div className="mt-2 text-sm opacity-70">Cliente</div>
+                    <div>{sn.partyName}</div>
+
+                    <div className="mt-2 text-sm opacity-70">Fecha</div>
+                    <div>{dateMX(sn.createdAt)}</div>
                   </div>
 
-                  <div className="mt-2 text-sm opacity-70">Abonado</div>
-                  <div className="font-semibold">{moneyMX(sn.paidTotal)}</div>
+                  <div className="text-right">
+                    <div className="text-sm opacity-70">Total</div>
+                    <div className="text-lg font-semibold">
+                      {moneyMX(sn.total)}
+                    </div>
 
-                  <div className="mt-2 text-sm opacity-70">Restante</div>
-                  <div className="font-semibold">{moneyMX(sn.balanceDue)}</div>
+                    <div className="mt-2 text-sm opacity-70">Abonado</div>
+                    <div className="font-semibold">{moneyMX(sn.paidTotal)}</div>
+
+                    <div className="mt-2 text-sm opacity-70">Restante</div>
+                    <div className="font-semibold">
+                      {moneyMX(sn.balanceDue)}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* resto igual */}
-            <div className="p-4">
-              <div className="overflow-x-auto">
-                <table className="table table-zebra w-full">
-                  <thead>
-                    <tr>
-                      <th>Descripción</th>
-                      <th className="text-right">P. Unit.</th>
-                      <th className="text-right">Cant.</th>
-                      <th className="text-right">Importe</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sn.lines.map((l, idx) => (
-                      <tr key={`${sn.id}-line-${idx}`}>
-                        <td>{l.description}</td>
-                        <td className="text-right">{moneyMX(l.unitPrice)}</td>
-                        <td className="text-right">{formatQty(l.quantity)}</td>
-                        <td className="text-right">{moneyMX(l.lineTotal)}</td>
+              <div className="p-4">
+                <div className="overflow-x-auto">
+                  <table className="table table-zebra w-full">
+                    <thead>
+                      <tr>
+                        <th>Descripción</th>
+                        <th className="text-right">P. Unit.</th>
+                        <th className="text-right">Cant.</th>
+                        <th className="text-right">Importe</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {sn.lines.map((l, idx) => (
+                        <tr key={`${sn.id}-line-${idx}`}>
+                          <td>{l.description}</td>
+                          <td className="text-right">{moneyMX(l.unitPrice)}</td>
+                          <td className="text-right">
+                            {formatQty(l.quantity)}
+                          </td>
+                          <td className="text-right">{moneyMX(l.lineTotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-              <div className="mt-3 flex justify-end">
-                <div className="text-right">
-                  <div className="text-sm opacity-70">Total</div>
-                  <div className="font-semibold">{moneyMX(sn.total)}</div>
+                <div className="mt-3 flex justify-end">
+                  <div className="text-right">
+                    <div className="text-sm opacity-70">Total</div>
+                    <div className="font-semibold">{moneyMX(sn.total)}</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="divider"></div>
-        </>
-      ))}
+            <div className="divider"></div>
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }

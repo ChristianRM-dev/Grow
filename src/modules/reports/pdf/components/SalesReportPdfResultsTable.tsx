@@ -23,6 +23,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "#000",
   },
 
+  cancelledRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#000",
+    backgroundColor: "#ffeaea",
+  },
+
   cell: {
     paddingVertical: 6,
     paddingHorizontal: 6,
@@ -35,12 +42,14 @@ const styles = StyleSheet.create({
   },
 
   // Column widths (sum should fit within A4 content width)
-  colCustomer: { width: 170 },
-  colFolio: { width: 70 },
-  colDate: { width: 70 },
-  colTotal: { width: 70 },
-  colPaid: { width: 70 },
-  colBalance: { width: 70 },
+  // Adjusted to include "Estado" column.
+  colCustomer: { width: 150 },
+  colStatus: { width: 55 },
+  colFolio: { width: 65 },
+  colDate: { width: 65 },
+  colTotal: { width: 60 },
+  colPaid: { width: 60 },
+  colBalance: { width: 60 },
 
   right: { textAlign: "right" },
 
@@ -54,7 +63,13 @@ const styles = StyleSheet.create({
   },
 });
 
-
+function getStatusLabel(status: string | undefined): string {
+  if (!status) return "—";
+  if (status === "DRAFT") return "Borrador";
+  if (status === "CONFIRMED") return "Activa";
+  if (status === "CANCELLED") return "Desact.";
+  return status;
+}
 
 type Props = {
   rows: SalesReportSalesNoteDto[];
@@ -69,12 +84,22 @@ export function SalesReportPdfResultsTable({
   grandPaidTotal,
   grandBalanceDue,
 }: Props) {
+  // Backward compatible: only show status column if at least one row has it.
+  const hasStatus = rows.some((r) => Boolean((r as any).status));
+
   return (
     <View style={styles.table} wrap>
       <View style={styles.headerRow} fixed>
         <Text style={[styles.cell, styles.headCell, styles.colCustomer]}>
           Cliente
         </Text>
+
+        {hasStatus ? (
+          <Text style={[styles.cell, styles.headCell, styles.colStatus]}>
+            Estado
+          </Text>
+        ) : null}
+
         <Text style={[styles.cell, styles.headCell, styles.colFolio]}>
           Folio
         </Text>
@@ -103,29 +128,47 @@ export function SalesReportPdfResultsTable({
         </Text>
       </View>
 
-      {rows.map((r) => (
-        <View key={r.id} style={styles.row}>
-          <Text style={[styles.cell, styles.colCustomer]}>{r.partyName}</Text>
-          <Text style={[styles.cell, styles.colFolio]}>{r.folio}</Text>
-          <Text style={[styles.cell, styles.colDate]}>
-            {dateMX(r.createdAt)}
-          </Text>
-          <Text style={[styles.cell, styles.colTotal, styles.right]}>
-            {moneyMX(r.total)}
-          </Text>
-          <Text style={[styles.cell, styles.colPaid, styles.right]}>
-            {moneyMX(r.paidTotal)}
-          </Text>
-          <Text style={[styles.cell, styles.colBalance, styles.right]}>
-            {moneyMX(r.balanceDue)}
-          </Text>
-        </View>
-      ))}
+      {rows.map((r) => {
+        const status = (r as any).status as string | undefined;
+        const isCancelled = status === "CANCELLED";
+
+        return (
+          <View
+            key={r.id}
+            style={isCancelled ? styles.cancelledRow : styles.row}
+          >
+            <Text style={[styles.cell, styles.colCustomer]}>{r.partyName}</Text>
+
+            {hasStatus ? (
+              <Text style={[styles.cell, styles.colStatus]}>
+                {getStatusLabel(status)}
+              </Text>
+            ) : null}
+
+            <Text style={[styles.cell, styles.colFolio]}>{r.folio}</Text>
+            <Text style={[styles.cell, styles.colDate]}>
+              {dateMX(r.createdAt)}
+            </Text>
+            <Text style={[styles.cell, styles.colTotal, styles.right]}>
+              {moneyMX(r.total)}
+            </Text>
+            <Text style={[styles.cell, styles.colPaid, styles.right]}>
+              {moneyMX(r.paidTotal)}
+            </Text>
+            <Text style={[styles.cell, styles.colBalance, styles.right]}>
+              {moneyMX(r.balanceDue)}
+            </Text>
+          </View>
+        );
+      })}
 
       <View style={styles.totalsRow}>
         <Text style={[styles.cell, styles.colCustomer, styles.totalsLabel]}>
           Totales
         </Text>
+
+        {hasStatus ? <Text style={[styles.cell, styles.colStatus]} /> : null}
+
         <Text style={[styles.cell, styles.colFolio]} />
         <Text style={[styles.cell, styles.colDate]} />
         <Text

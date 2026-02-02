@@ -5,10 +5,7 @@ import type { SalesReportFilters } from "@/modules/reports/domain/salesReportFil
 import { getReportDateRange } from "@/modules/reports/domain/reportDateRange";
 import { toNumber } from "@/modules/shared/utils/toNumber";
 import { parseDescriptionSnapshotName } from "@/modules/shared/snapshots/parseDescriptionSnapshotName";
-import {
-  excludeSoftDeleted,
-  excludeSoftDeletedPayments,
-} from "@/modules/shared/queries/softDeleteHelpers";
+import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers";
 
 import type { SalesReportDto } from "./getSalesReport.dto";
 
@@ -32,9 +29,13 @@ export async function getSalesReport(
   const status = filters.status ?? "all";
   const partyId = filters.partyId?.trim() ? filters.partyId.trim() : null;
 
+  // IMPORTANT:
+  // SalesNotes are no longer hidden by soft-delete.
+  // For the sales report, we should exclude CANCELLED notes by default
+  // to avoid inflating sales totals.
   const where: any = {
     createdAt: { gte: from, lt: toExclusive },
-    ...excludeSoftDeleted, // ← Filtrar notas eliminadas
+    status: { not: "CANCELLED" },
   };
 
   if (partyId) {
@@ -62,7 +63,7 @@ export async function getSalesReport(
         where: {
           direction: PaymentDirection.IN,
           amount: { not: null },
-          ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
+          ...excludeSoftDeletedPayments, // payments can be soft-deleted by cancel flow
         },
         select: { amount: true },
       },

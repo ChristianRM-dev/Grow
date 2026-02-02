@@ -1,9 +1,6 @@
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import {
-  assertNotSoftDeleted,
-  excludeSoftDeletedPayments,
-} from "@/modules/shared/queries/softDeleteHelpers";
+import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers";
 
 export type SalesNoteLineDetailsDto = {
   id: string;
@@ -29,6 +26,9 @@ export type SalesNoteDetailsDto = {
   folio: string;
   createdAt: string; // ISO
   updatedAt: string; // ISO
+
+  status: "DRAFT" | "CONFIRMED" | "CANCELLED";
+
   party: { id: string; name: string };
 
   subtotal: string;
@@ -59,10 +59,10 @@ export async function getSalesNoteDetailsById(
       folio: true,
       createdAt: true,
       updatedAt: true,
+      status: true,
       subtotal: true,
       discountTotal: true,
       total: true,
-      isDeleted: true,
       party: { select: { id: true, name: true } },
       lines: {
         select: {
@@ -78,13 +78,13 @@ export async function getSalesNoteDetailsById(
     },
   });
 
-  assertNotSoftDeleted(note, "Nota de venta");
+  if (!note) return null;
 
   const payments = await prisma.payment.findMany({
     where: {
       salesNoteId: note.id,
       direction: PaymentDirection.IN,
-      ...excludeSoftDeletedPayments,
+      ...excludeSoftDeletedPayments, // payments can be soft-deleted by cancel flow
     },
     select: {
       id: true,
@@ -125,6 +125,9 @@ export async function getSalesNoteDetailsById(
     folio: note.folio,
     createdAt: note.createdAt.toISOString(),
     updatedAt: note.updatedAt.toISOString(),
+
+    status: note.status,
+
     party: note.party,
 
     subtotal: decToString(note.subtotal),

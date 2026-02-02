@@ -139,6 +139,19 @@ function AuditLogSection({
   );
 }
 
+function getStatusLabel(status: SalesNoteDetailsDto["status"]) {
+  switch (status) {
+    case "DRAFT":
+      return "Borrador";
+    case "CONFIRMED":
+      return "Confirmada";
+    case "CANCELLED":
+      return "Cancelada";
+    default:
+      return "—";
+  }
+}
+
 export function SalesNoteDetailsClient({
   dto,
   auditLog,
@@ -146,7 +159,10 @@ export function SalesNoteDetailsClient({
   dto: SalesNoteDetailsDto;
   auditLog: SalesNoteAuditLogRowDto[];
 }) {
-  const canAddPayment = !dto.isFullyPaid;
+  const isCancelled = dto.status === "CANCELLED";
+
+  // Only allow adding payment if not fully paid AND not cancelled
+  const canAddPayment = !dto.isFullyPaid && !isCancelled;
 
   /**
    * Calculate total number of plants by summing quantities from all lines
@@ -166,6 +182,27 @@ export function SalesNoteDetailsClient({
 
   return (
     <>
+      {/* Status banner */}
+      {isCancelled ? (
+        <div className="alert alert-error mb-3">
+          <div className="flex flex-col gap-1">
+            <div className="font-semibold">Nota desactivada</div>
+            <div className="text-sm">
+              Esta nota está marcada como <b>{getStatusLabel(dto.status)}</b>.
+              Solo lectura: no se pueden registrar pagos ni editar información.
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="alert mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm">
+              Estado: <b>{getStatusLabel(dto.status)}</b>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="card bg-base-200">
@@ -303,10 +340,29 @@ export function SalesNoteDetailsClient({
                 canAddPayment ? "" : "btn-disabled"
               }`}
               aria-disabled={!canAddPayment}
+              onClick={(e) => {
+                if (!canAddPayment) e.preventDefault();
+              }}
+              title={
+                isCancelled
+                  ? "No se pueden registrar pagos en una nota desactivada."
+                  : dto.isFullyPaid
+                    ? "La nota ya está completamente pagada."
+                    : undefined
+              }
             >
               Registrar pago
             </Link>
           </div>
+
+          {isCancelled ? (
+            <div className="alert">
+              <span>
+                Esta nota está desactivada. Los pagos están en modo solo
+                lectura.
+              </span>
+            </div>
+          ) : null}
 
           <div className="overflow-x-auto">
             <table className="table table-zebra w-full">
@@ -338,12 +394,16 @@ export function SalesNoteDetailsClient({
                         {p.notes ?? "—"}
                       </td>
                       <td className="text-right">
-                        <Link
-                          className="btn btn-ghost btn-sm"
-                          href={routes.salesNotes.payments.edit(dto.id, p.id)}
-                        >
-                          Editar
-                        </Link>
+                        {isCancelled ? (
+                          <span className="text-sm opacity-60">—</span>
+                        ) : (
+                          <Link
+                            className="btn btn-ghost btn-sm"
+                            href={routes.salesNotes.payments.edit(dto.id, p.id)}
+                          >
+                            Editar
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -352,7 +412,7 @@ export function SalesNoteDetailsClient({
             </table>
           </div>
 
-          {dto.isFullyPaid ? (
+          {isCancelled ? null : dto.isFullyPaid ? (
             <div className="alert alert-success">
               <span>Esta nota de venta está completamente pagada.</span>
             </div>
