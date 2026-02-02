@@ -54,18 +54,18 @@ export default async function DashboardPage({
           <p className="text-sm opacity-70">Resumen operativo</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {/* Row 1 (XL): 2 cols */}
-          <div className="xl:col-span-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 items-stretch">
+          {/* Ventas: full width en md, 2 cols en xl */}
+          <div className="md:col-span-2 xl:col-span-2">
             <MonthlySalesChartCardClient data={monthlySales} />
           </div>
 
-          {/* Row 1 (XL): 1 col */}
-          <div className="xl:col-span-1">
+          {/* Por cobrar: 1 col en md (fila 2), 1 col en xl (fila 1) */}
+          <div className="md:col-span-1 xl:col-span-1">
             <ReceivablesAgingCardClient data={receivables} />
           </div>
 
-          {/* Row 2: full width on md+ and xl */}
+          {/* Top: full width desde md */}
           <div className="md:col-span-2 xl:col-span-3">
             <TopDelinquentCustomersCard data={topDelinquents} />
           </div>
