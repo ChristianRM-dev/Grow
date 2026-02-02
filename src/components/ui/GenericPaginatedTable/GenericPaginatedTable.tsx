@@ -1,4 +1,3 @@
-// src/components/ui/GenericPaginatedTable/GenericPaginatedTable.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -10,6 +9,7 @@ import type {
   TablePagination,
   TableQuery,
   TableRow,
+  TableActionsMenuConfig,
 } from "./GenericPaginatedTable.types";
 import { clamp } from "./helpers";
 import { TableToolbar } from "./TableToolbar";
@@ -34,6 +34,9 @@ type Props<T extends TableRow> = {
 
   pageSizeOptions?: number[];
   showPageSizeSelector?: boolean;
+
+  // NEW: collapsible row actions
+  actionsMenu?: TableActionsMenuConfig;
 };
 
 export function GenericPaginatedTable<T extends TableRow>({
@@ -50,6 +53,7 @@ export function GenericPaginatedTable<T extends TableRow>({
   searchDebounceMs = 300,
   pageSizeOptions = [10, 25, 50],
   showPageSizeSelector = true,
+  actionsMenu,
 }: Props<T>) {
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [sortField, setSortField] = useState(initialSort.sortField);
@@ -58,7 +62,6 @@ export function GenericPaginatedTable<T extends TableRow>({
   const didMountRef = useRef(false);
   const hasActions = actions.length > 0;
 
-  // Debounced search emits query changes; page resets to 1.
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true;
@@ -86,8 +89,8 @@ export function GenericPaginatedTable<T extends TableRow>({
       next.search !== undefined
         ? next.search
         : searchTerm.trim()
-        ? { term: searchTerm.trim() }
-        : undefined;
+          ? { term: searchTerm.trim() }
+          : undefined;
 
     onQueryChange({
       pagination: { page, pageSize },
@@ -152,6 +155,7 @@ export function GenericPaginatedTable<T extends TableRow>({
             data={data}
             columns={columns}
             actions={actions}
+            actionsMenu={actionsMenu}
             hasActions={hasActions}
             loading={loading}
             onAction={onAction}

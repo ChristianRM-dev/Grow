@@ -70,3 +70,17 @@ export type TableActionDef<T> = {
   tooltip?: string | ((row: T) => string); // 👈 Puede ser función
   disabled?: (row: T) => boolean;
 };
+
+
+export type TableActionsMenuConfig = {
+  /**
+   * How many actions should be rendered inline before moving the rest into a dropdown menu.
+   * If undefined, all actions are inline (current behavior).
+   */
+  inlineCount?: number;
+
+  /**
+   * Label used for the dropdown trigger (visually hidden if using icon-only trigger).
+   */
+  menuLabel?: string;
+};

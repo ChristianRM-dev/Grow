@@ -47,17 +47,28 @@ export default async function DashboardPage({
   ]);
 
   return (
-    <div className="relative w-full p-4">
+    <div className="relative w-full p-4 md:p-6">
       <div className="space-y-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <h1 className="text-2xl font-semibold">Tablero</h1>
           <p className="text-sm opacity-70">Resumen operativo</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <MonthlySalesChartCardClient data={monthlySales} />
-          <ReceivablesAgingCardClient data={receivables} />
-          <TopDelinquentCustomersCard data={topDelinquents} />
+          {/* Row 1 (XL): 2 cols */}
+          <div className="xl:col-span-2">
+            <MonthlySalesChartCardClient data={monthlySales} />
+          </div>
+
+          {/* Row 1 (XL): 1 col */}
+          <div className="xl:col-span-1">
+            <ReceivablesAgingCardClient data={receivables} />
+          </div>
+
+          {/* Row 2: full width on md+ and xl */}
+          <div className="md:col-span-2 xl:col-span-3">
+            <TopDelinquentCustomersCard data={topDelinquents} />
+          </div>
         </div>
       </div>
     </div>

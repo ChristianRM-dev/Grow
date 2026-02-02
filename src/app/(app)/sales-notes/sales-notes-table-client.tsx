@@ -1,3 +1,4 @@
+// src/app/(app)/sales-notes/sales-notes-table-client.tsx
 "use client";
 
 import React, { useTransition } from "react";
@@ -39,7 +40,6 @@ function getStatusLabel(status: SalesNoteRowDto["status"]) {
 }
 
 function getStatusBadgeClass(status: SalesNoteRowDto["status"]) {
-  // DaisyUI badges (adjust if you use different classes)
   switch (status) {
     case "DRAFT":
       return "badge badge-warning";
@@ -177,7 +177,7 @@ export function SalesNotesTableClient({
     {
       header: "Total pagado",
       field: "paidTotal",
-      sortable: false, // calculado
+      sortable: false,
       cell: (v) => moneyMX(v),
     },
     {
@@ -189,6 +189,8 @@ export function SalesNotesTableClient({
     },
   ];
 
+  // IMPORTANT: keep the first 3 actions inline (details, edit, pdf).
+  // The rest will go into the "Más" menu via actionsMenu.inlineCount.
   const actions: Array<TableActionDef<SalesNoteRowDto>> = [
     {
       type: "details",
@@ -204,6 +206,12 @@ export function SalesNotesTableClient({
       disabled: (row) => row.status === "CANCELLED",
     },
     {
+      type: "pdf",
+      label: "Ver PDF",
+      tooltip: "Ver PDF",
+      icon: <DocumentIcon className="h-5 w-5" />,
+    },
+    {
       type: "payment",
       label: "Agregar pago",
       tooltip: "Registrar pago",
@@ -211,13 +219,6 @@ export function SalesNotesTableClient({
       disabled: (row) => row.isFullyPaid || row.status === "CANCELLED",
     },
     {
-      type: "pdf",
-      label: "Ver PDF",
-      tooltip: "Ver PDF",
-      icon: <DocumentIcon className="h-5 w-5" />,
-    },
-    {
-      // "delete" action becomes activate/deactivate toggle
       type: "toggleActive",
       label: (row) => (row.status === "CANCELLED" ? "Activar" : "Desactivar"),
       tooltip: "Activar o desactivar la nota de venta",
@@ -231,6 +232,7 @@ export function SalesNotesTableClient({
       data={data}
       columns={columns}
       actions={actions}
+      actionsMenu={{ inlineCount: 3, menuLabel: "Más acciones" }}
       pagination={pagination}
       loading={false}
       onQueryChange={pushTableQuery}

@@ -7,6 +7,7 @@ import type {
   TableActionDef,
   TableActionEvent,
   TableRow,
+  TableActionsMenuConfig,
 } from "./GenericPaginatedTable.types";
 import { TableActions } from "./TableActions";
 
@@ -17,6 +18,9 @@ type TableBodyProps<T extends TableRow> = {
   hasActions: boolean;
   loading: boolean;
   onAction?: (event: TableActionEvent<T>) => void;
+
+  // NEW: allow collapsing row actions into a dropdown menu
+  actionsMenu?: TableActionsMenuConfig;
 };
 
 export function TableBody<T extends TableRow>({
@@ -26,6 +30,7 @@ export function TableBody<T extends TableRow>({
   hasActions,
   loading,
   onAction,
+  actionsMenu,
 }: TableBodyProps<T>) {
   const colSpan = columns.length + (hasActions ? 1 : 0);
 
@@ -33,7 +38,7 @@ export function TableBody<T extends TableRow>({
     <tbody>
       {!loading && data.length === 0 ? (
         <tr>
-          <td colSpan={colSpan} className="text-center py-10 opacity-70">
+          <td colSpan={colSpan} className="py-10 text-center opacity-70">
             No hay registros
           </td>
         </tr>
@@ -52,8 +57,13 @@ export function TableBody<T extends TableRow>({
           })}
 
           {hasActions ? (
-            <td>
-              <TableActions actions={actions} row={row} onAction={onAction} />
+            <td className="whitespace-nowrap">
+              <TableActions
+                actions={actions}
+                row={row}
+                onAction={onAction}
+                actionsMenu={actionsMenu}
+              />
             </td>
           ) : null}
         </tr>
