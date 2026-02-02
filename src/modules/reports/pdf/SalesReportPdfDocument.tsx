@@ -61,7 +61,6 @@ function formatMoneyFromNumber(n: number): string {
   const abs = Math.abs(n);
   return `${sign}$${abs.toFixed(2)}`;
 }
-
 export function SalesReportPdfDocument({
   header,
   headerLogoSrc,
@@ -83,6 +82,11 @@ export function SalesReportPdfDocument({
         <View style={styles.topSummary}>
           <Text style={styles.topTitle}>Reporte de ventas</Text>
           <Text style={styles.topSub}>{report.rangeLabel}</Text>
+
+          <Text style={{ fontSize: 9, marginTop: 4 }}>
+            Nota: las notas canceladas se muestran, pero no se suman a los
+            totales.
+          </Text>
 
           <View style={styles.topTotalsRow}>
             <Text style={styles.topTotalItem}>

@@ -42,7 +42,6 @@ const styles = StyleSheet.create({
   },
 
   // Column widths (sum should fit within A4 content width)
-  // Adjusted to include "Estado" column.
   colCustomer: { width: 150 },
   colStatus: { width: 55 },
   colFolio: { width: 65 },
@@ -63,8 +62,7 @@ const styles = StyleSheet.create({
   },
 });
 
-function getStatusLabel(status: string | undefined): string {
-  if (!status) return "—";
+function getStatusLabel(status: SalesReportSalesNoteDto["status"]): string {
   if (status === "DRAFT") return "Borrador";
   if (status === "CONFIRMED") return "Activa";
   if (status === "CANCELLED") return "Desact.";
@@ -84,9 +82,6 @@ export function SalesReportPdfResultsTable({
   grandPaidTotal,
   grandBalanceDue,
 }: Props) {
-  // Backward compatible: only show status column if at least one row has it.
-  const hasStatus = rows.some((r) => Boolean((r as any).status));
-
   return (
     <View style={styles.table} wrap>
       <View style={styles.headerRow} fixed>
@@ -94,11 +89,9 @@ export function SalesReportPdfResultsTable({
           Cliente
         </Text>
 
-        {hasStatus ? (
-          <Text style={[styles.cell, styles.headCell, styles.colStatus]}>
-            Estado
-          </Text>
-        ) : null}
+        <Text style={[styles.cell, styles.headCell, styles.colStatus]}>
+          Estado
+        </Text>
 
         <Text style={[styles.cell, styles.headCell, styles.colFolio]}>
           Folio
@@ -129,8 +122,7 @@ export function SalesReportPdfResultsTable({
       </View>
 
       {rows.map((r) => {
-        const status = (r as any).status as string | undefined;
-        const isCancelled = status === "CANCELLED";
+        const isCancelled = r.status === "CANCELLED";
 
         return (
           <View
@@ -139,11 +131,9 @@ export function SalesReportPdfResultsTable({
           >
             <Text style={[styles.cell, styles.colCustomer]}>{r.partyName}</Text>
 
-            {hasStatus ? (
-              <Text style={[styles.cell, styles.colStatus]}>
-                {getStatusLabel(status)}
-              </Text>
-            ) : null}
+            <Text style={[styles.cell, styles.colStatus]}>
+              {getStatusLabel(r.status)}
+            </Text>
 
             <Text style={[styles.cell, styles.colFolio]}>{r.folio}</Text>
             <Text style={[styles.cell, styles.colDate]}>
@@ -166,9 +156,7 @@ export function SalesReportPdfResultsTable({
         <Text style={[styles.cell, styles.colCustomer, styles.totalsLabel]}>
           Totales
         </Text>
-
-        {hasStatus ? <Text style={[styles.cell, styles.colStatus]} /> : null}
-
+        <Text style={[styles.cell, styles.colStatus]} />
         <Text style={[styles.cell, styles.colFolio]} />
         <Text style={[styles.cell, styles.colDate]} />
         <Text

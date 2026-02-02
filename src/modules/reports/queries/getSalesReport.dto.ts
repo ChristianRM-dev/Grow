@@ -7,17 +7,20 @@ export type SalesReportLineDto = {
   lineTotal: number;
 };
 
+export type SalesReportSalesNoteStatusDto = "DRAFT" | "CONFIRMED" | "CANCELLED";
+
 export type SalesReportSalesNoteDto = {
   id: string;
   folio: string;
   createdAt: string; // ISO
   partyName: string;
 
+  status: SalesReportSalesNoteStatusDto;
+
   lines: SalesReportLineDto[];
 
   total: number;
 
-  // NEW
   paidTotal: number;
   balanceDue: number;
 };
@@ -29,8 +32,6 @@ export type SalesReportDto = {
   salesNotes: SalesReportSalesNoteDto[];
 
   grandTotal: number;
-
-  // NEW
   grandPaidTotal: number;
   grandBalanceDue: number;
 };

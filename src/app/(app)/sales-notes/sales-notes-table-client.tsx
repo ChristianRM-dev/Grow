@@ -219,11 +219,11 @@ export function SalesNotesTableClient({
     {
       // "delete" action becomes activate/deactivate toggle
       type: "toggleActive",
-      label: "Activar / Desactivar",
+      label: (row) => (row.status === "CANCELLED" ? "Activar" : "Desactivar"),
       tooltip: "Activar o desactivar la nota de venta",
       icon: <TrashIcon className="h-5 w-5" />,
       disabled: () => isPending,
-    } as unknown as TableActionDef<SalesNoteRowDto>,
+    },
   ];
 
   return (

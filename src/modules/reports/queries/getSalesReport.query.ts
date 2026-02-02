@@ -16,14 +16,15 @@ function paymentStatusLabel(status: string | undefined): string | null {
   return null;
 }
 
+function isCancelled(status: string) {
+  return status === "CANCELLED";
+}
+
 export async function getSalesReport(
   filters: SalesReportFilters
 ): Promise<SalesReportDto> {
-  const {
-    from,
-    toExclusive,
-    rangeLabel: baseRangeLabel,
-  } = getReportDateRange(filters);
+  const { from, toExclusive, rangeLabel: baseRangeLabel } =
+    getReportDateRange(filters);
 
   // Optional filters
   const status = filters.status ?? "all";
@@ -31,11 +32,10 @@ export async function getSalesReport(
 
   // IMPORTANT:
   // SalesNotes are no longer hidden by soft-delete.
-  // For the sales report, we should exclude CANCELLED notes by default
-  // to avoid inflating sales totals.
+  // Cancelled notes MUST be included in the report output (for visibility),
+  // but they MUST NOT contribute to totals.
   const where: any = {
     createdAt: { gte: from, lt: toExclusive },
-    status: { not: "CANCELLED" },
   };
 
   if (partyId) {
@@ -48,6 +48,7 @@ export async function getSalesReport(
       id: true,
       folio: true,
       createdAt: true,
+      status: true,
       total: true,
       party: { select: { name: true } },
       lines: {
@@ -92,6 +93,7 @@ export async function getSalesReport(
       folio: sn.folio,
       createdAt: sn.createdAt.toISOString(),
       partyName: sn.party.name,
+      status: sn.status,
       lines,
       total,
       paidTotal,
@@ -99,11 +101,14 @@ export async function getSalesReport(
     };
   });
 
-  // Optional payment status filter
+  // Optional payment status filter:
+  // - When status is "all": show everything (including CANCELLED)
+  // - When filtering paid/pending: exclude CANCELLED, because payment status no longer applies to them.
   const filtered =
     status === "all"
       ? mapped
       : mapped.filter((sn) => {
+          if (isCancelled(sn.status)) return false;
           if (status === "paid") return sn.balanceDue <= 0;
           return sn.balanceDue > 0; // pending
         });
@@ -120,11 +125,19 @@ export async function getSalesReport(
   const ps = paymentStatusLabel(status);
   if (ps) parts.push(`Pagos: ${ps}`);
 
+  // Helpful hint when "all": clarify cancelled shown but excluded from totals
+  if (status === "all") {
+    parts.push("Canceladas: visibles (no suman)");
+  }
+
   const rangeLabel = parts.join(" · ");
 
-  const grandTotal = filtered.reduce((acc, s) => acc + s.total, 0);
-  const grandPaidTotal = filtered.reduce((acc, s) => acc + s.paidTotal, 0);
-  const grandBalanceDue = filtered.reduce((acc, s) => acc + s.balanceDue, 0);
+  // Totals: exclude CANCELLED notes from aggregation
+  const totalsBase = filtered.filter((sn) => !isCancelled(sn.status));
+
+  const grandTotal = totalsBase.reduce((acc, s) => acc + s.total, 0);
+  const grandPaidTotal = totalsBase.reduce((acc, s) => acc + s.paidTotal, 0);
+  const grandBalanceDue = totalsBase.reduce((acc, s) => acc + s.balanceDue, 0);
 
   return {
     type: "sales",

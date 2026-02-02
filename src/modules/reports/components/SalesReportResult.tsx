@@ -56,7 +56,8 @@ export function SalesReportResult({
             <h3 className="text-lg font-semibold">Resultados</h3>
             <p className="text-sm opacity-70">{report.rangeLabel}</p>
             <p className="mt-1 text-xs opacity-60">
-              Nota: las notas canceladas no se incluyen en este reporte.
+              Nota: las notas canceladas se muestran, pero no se suman a los
+              totales.
             </p>
           </div>
 
@@ -95,12 +96,15 @@ export function SalesReportResult({
       </div>
 
       {report.salesNotes.map((sn) => {
-        // Backward compatible: show badge only if status exists in DTO
-        const status = (sn as any).status as string | undefined;
+        const isCancelled = sn.status === "CANCELLED";
 
         return (
           <React.Fragment key={sn.id}>
-            <div className="rounded-box border border-base-300 bg-base-100">
+            <div
+              className={`rounded-box border border-base-300 bg-base-100 ${
+                isCancelled ? "opacity-80" : ""
+              }`}
+            >
               <div className="border-b border-base-300 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -110,11 +114,9 @@ export function SalesReportResult({
                         <div className="font-semibold">{sn.folio}</div>
                       </div>
 
-                      {status ? (
-                        <span className={getStatusBadgeClass(status)}>
-                          {getStatusLabel(status)}
-                        </span>
-                      ) : null}
+                      <span className={getStatusBadgeClass(sn.status)}>
+                        {getStatusLabel(sn.status)}
+                      </span>
                     </div>
 
                     <div className="mt-2 text-sm opacity-70">Cliente</div>
@@ -122,6 +124,17 @@ export function SalesReportResult({
 
                     <div className="mt-2 text-sm opacity-70">Fecha</div>
                     <div>{dateMX(sn.createdAt)}</div>
+
+                    {isCancelled ? (
+                      <div className="mt-3">
+                        <div className="alert alert-error">
+                          <span>
+                            Esta nota está cancelada. Se muestra solo para
+                            referencia y no se suma a los totales.
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="text-right">
