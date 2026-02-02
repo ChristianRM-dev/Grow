@@ -114,9 +114,11 @@ export function SalesReportResult({
                         <div className="font-semibold">{sn.folio}</div>
                       </div>
 
-                      <span className={getStatusBadgeClass(sn.status)}>
-                        {getStatusLabel(sn.status)}
-                      </span>
+                      {sn.status == "CANCELLED" ? (
+                        <span className={getStatusBadgeClass(sn.status)}>
+                          {getStatusLabel(sn.status)}
+                        </span>
+                      ) : null}
                     </div>
 
                     <div className="mt-2 text-sm opacity-70">Cliente</div>

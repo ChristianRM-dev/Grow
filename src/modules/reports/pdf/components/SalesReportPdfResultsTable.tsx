@@ -42,13 +42,13 @@ const styles = StyleSheet.create({
   },
 
   // Column widths (sum should fit within A4 content width)
-  colCustomer: { width: 150 },
-  colStatus: { width: 55 },
-  colFolio: { width: 65 },
-  colDate: { width: 65 },
-  colTotal: { width: 60 },
-  colPaid: { width: 60 },
-  colBalance: { width: 60 },
+  // Rebalanced after removing "Estado"
+  colCustomer: { width: 200 },
+  colFolio: { width: 75 },
+  colDate: { width: 75 },
+  colTotal: { width: 65 },
+  colPaid: { width: 65 },
+  colBalance: { width: 65 },
 
   right: { textAlign: "right" },
 
@@ -61,13 +61,6 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
 });
-
-function getStatusLabel(status: SalesReportSalesNoteDto["status"]): string {
-  if (status === "DRAFT") return "Borrador";
-  if (status === "CONFIRMED") return "Activa";
-  if (status === "CANCELLED") return "Desact.";
-  return status;
-}
 
 type Props = {
   rows: SalesReportSalesNoteDto[];
@@ -88,11 +81,6 @@ export function SalesReportPdfResultsTable({
         <Text style={[styles.cell, styles.headCell, styles.colCustomer]}>
           Cliente
         </Text>
-
-        <Text style={[styles.cell, styles.headCell, styles.colStatus]}>
-          Estado
-        </Text>
-
         <Text style={[styles.cell, styles.headCell, styles.colFolio]}>
           Folio
         </Text>
@@ -130,11 +118,6 @@ export function SalesReportPdfResultsTable({
             style={isCancelled ? styles.cancelledRow : styles.row}
           >
             <Text style={[styles.cell, styles.colCustomer]}>{r.partyName}</Text>
-
-            <Text style={[styles.cell, styles.colStatus]}>
-              {getStatusLabel(r.status)}
-            </Text>
-
             <Text style={[styles.cell, styles.colFolio]}>{r.folio}</Text>
             <Text style={[styles.cell, styles.colDate]}>
               {dateMX(r.createdAt)}
@@ -156,7 +139,6 @@ export function SalesReportPdfResultsTable({
         <Text style={[styles.cell, styles.colCustomer, styles.totalsLabel]}>
           Totales
         </Text>
-        <Text style={[styles.cell, styles.colStatus]} />
         <Text style={[styles.cell, styles.colFolio]} />
         <Text style={[styles.cell, styles.colDate]} />
         <Text
