@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { SalesNoteDetailsDto } from "@/modules/sales-notes/queries/getSalesNoteDetails.query";
 import type { SalesNoteAuditLogRowDto } from "@/modules/sales-notes/queries/getSalesNoteAuditLog.query";
@@ -14,6 +15,8 @@ import {
   auditFormatMoney,
   auditFormatText,
 } from "@/modules/shared/audit/auditUi";
+
+import { softDeleteSalesNotePaymentAction } from "@/modules/sales-notes/actions/softDeleteSalesNotePayment.action";
 
 function renderAuditChange(change: SalesNoteAuditLogRowDto["changes"][number]) {
   const hasDecimal =
@@ -159,6 +162,9 @@ export function SalesNoteDetailsClient({
   dto: SalesNoteDetailsDto;
   auditLog: SalesNoteAuditLogRowDto[];
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   const isCancelled = dto.status === "CANCELLED";
 
   // Only allow adding payment if not fully paid AND not cancelled
@@ -179,6 +185,30 @@ export function SalesNoteDetailsClient({
     );
     return registeredTotal + externalTotal;
   }, [dto.registeredLines, dto.externalLines]);
+
+  function canModifyPayment(payment: SalesNoteDetailsDto["payments"][number]) {
+    if (isCancelled) return false;
+    if (payment.isDeleted) return false;
+    return true;
+  }
+
+  async function handleDeletePayment(paymentId: string) {
+    if (isCancelled) return;
+
+    const ok = window.confirm(
+      "¿Eliminar este pago? Se marcará como eliminado y no contará para el saldo.",
+    );
+    if (!ok) return;
+
+    startTransition(async () => {
+      await softDeleteSalesNotePaymentAction({
+        salesNoteId: dto.id,
+        paymentId,
+      });
+
+      router.refresh();
+    });
+  }
 
   return (
     <>
@@ -364,6 +394,12 @@ export function SalesNoteDetailsClient({
             </div>
           ) : null}
 
+          {isPending ? (
+            <div className="alert">
+              <span>Procesando…</span>
+            </div>
+          ) : null}
+
           <div className="overflow-x-auto">
             <table className="table table-zebra w-full">
               <thead>
@@ -373,40 +409,98 @@ export function SalesNoteDetailsClient({
                   <th className="text-right">Monto</th>
                   <th>Referencia</th>
                   <th>Notas</th>
+                  <th>Estado</th>
                   <th className="text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {dto.payments.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center opacity-70">
+                    <td colSpan={7} className="py-6 text-center opacity-70">
                       No hay pagos registrados
                     </td>
                   </tr>
                 ) : (
-                  dto.payments.map((p) => (
-                    <tr key={p.id}>
-                      <td>{dateMX(p.occurredAt)}</td>
-                      <td>{p.paymentType}</td>
-                      <td className="text-right">${moneyMX(p.amount)}</td>
-                      <td>{p.reference ?? "—"}</td>
-                      <td className="max-w-[320px] truncate">
-                        {p.notes ?? "—"}
-                      </td>
-                      <td className="text-right">
-                        {isCancelled ? (
-                          <span className="text-sm opacity-60">—</span>
-                        ) : (
-                          <Link
-                            className="btn btn-ghost btn-sm"
-                            href={routes.salesNotes.payments.edit(dto.id, p.id)}
-                          >
-                            Editar
-                          </Link>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                  dto.payments.map((p) => {
+                    const editable = canModifyPayment(p);
+                    const rowClass = p.isDeleted ? "opacity-60" : "";
+
+                    return (
+                      <tr key={p.id} className={rowClass}>
+                        <td>{dateMX(p.occurredAt)}</td>
+                        <td>{p.paymentType}</td>
+                        <td className="text-right">${moneyMX(p.amount)}</td>
+                        <td>{p.reference ?? "—"}</td>
+                        <td className="max-w-[320px] truncate">
+                          {p.notes ?? "—"}
+                        </td>
+                        <td>
+                          {p.isDeleted ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="badge badge-error">
+                                Eliminado
+                              </span>
+                              {p.deletedAt ? (
+                                <span className="text-xs opacity-70">
+                                  {dateMX(p.deletedAt)}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="badge badge-success">Activo</span>
+                          )}
+                        </td>
+                        <td className="text-right">
+                          {isCancelled ? (
+                            <span className="text-sm opacity-60">—</span>
+                          ) : (
+                            <div className="flex justify-end gap-2">
+                              <Link
+                                className={`btn btn-ghost btn-sm ${
+                                  editable ? "" : "btn-disabled"
+                                }`}
+                                aria-disabled={!editable}
+                                href={
+                                  editable
+                                    ? routes.salesNotes.payments.edit(
+                                        dto.id,
+                                        p.id,
+                                      )
+                                    : "#"
+                                }
+                                onClick={(e) => {
+                                  if (!editable) e.preventDefault();
+                                }}
+                                title={
+                                  p.isDeleted
+                                    ? "No se puede editar un pago eliminado."
+                                    : undefined
+                                }
+                              >
+                                Editar
+                              </Link>
+
+                              <button
+                                type="button"
+                                className={`btn btn-ghost btn-sm text-error ${
+                                  editable ? "" : "btn-disabled"
+                                }`}
+                                disabled={!editable || isPending}
+                                onClick={() => handleDeletePayment(p.id)}
+                                title={
+                                  p.isDeleted
+                                    ? "Este pago ya está eliminado."
+                                    : "Eliminar pago"
+                                }
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

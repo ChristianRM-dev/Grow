@@ -19,6 +19,10 @@ export type SalesNotePaymentDetailsDto = {
   notes: string | null;
   occurredAt: string; // ISO
   createdAt: string; // ISO
+
+  // New: soft-delete visibility
+  isDeleted: boolean;
+  deletedAt: string | null; // ISO
 };
 
 export type SalesNoteDetailsDto = {
@@ -80,11 +84,11 @@ export async function getSalesNoteDetailsById(
 
   if (!note) return null;
 
+  // Payments list: include soft-deleted for history visibility
   const payments = await prisma.payment.findMany({
     where: {
       salesNoteId: note.id,
       direction: PaymentDirection.IN,
-      ...excludeSoftDeletedPayments, // payments can be soft-deleted by cancel flow
     },
     select: {
       id: true,
@@ -94,10 +98,13 @@ export async function getSalesNoteDetailsById(
       notes: true,
       occurredAt: true,
       createdAt: true,
+      isDeleted: true,
+      deletedAt: true,
     },
     orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
   });
 
+  // Aggregation: only active payments count toward "paid"
   const paidAgg = await prisma.payment.aggregate({
     where: {
       salesNoteId: note.id,
@@ -149,6 +156,8 @@ export async function getSalesNoteDetailsById(
       notes: p.notes,
       occurredAt: p.occurredAt.toISOString(),
       createdAt: p.createdAt.toISOString(),
+      isDeleted: p.isDeleted,
+      deletedAt: p.deletedAt ? p.deletedAt.toISOString() : null,
     })),
   };
 }
