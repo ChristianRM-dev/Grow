@@ -19,38 +19,17 @@ import {
   PencilSquareIcon,
   DocumentIcon,
   TrashIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  NoSymbolIcon,
 } from "@heroicons/react/16/solid";
+
 import { routes } from "@/lib/routes";
 import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 import { useBlockingDialogs } from "@/components/ui/Dialogs";
 import { toggleSalesNoteActiveAction } from "@/modules/sales-notes/actions/toggleSalesNoteActive.action";
 
-function getStatusLabel(status: SalesNoteRowDto["status"]) {
-  switch (status) {
-    case "DRAFT":
-      return "Borrador";
-    case "CONFIRMED":
-      return "Confirmada";
-    case "CANCELLED":
-      return "Cancelada";
-    default:
-      return "—";
-  }
-}
-
-function getStatusBadgeClass(status: SalesNoteRowDto["status"]) {
-  switch (status) {
-    case "DRAFT":
-      return "badge badge-warning";
-    case "CONFIRMED":
-      return "badge badge-success";
-    case "CANCELLED":
-      return "badge badge-error";
-    default:
-      return "badge";
-  }
-}
 
 export function SalesNotesTableClient({
   data,
@@ -144,15 +123,41 @@ export function SalesNotesTableClient({
 
   const columns: Array<ColumnDef<SalesNoteRowDto>> = [
     { header: "Folio", field: "folio", sortable: true },
+
     {
-      header: "Estado",
-      field: "status",
+      header: "Pagado",
+      field: "isFullyPaid",
       sortable: true,
-      cell: (v) => (
-        <span className={getStatusBadgeClass(v)}>{getStatusLabel(v)}</span>
-      ),
-      sortField: "status",
+      sortField: "isFullyPaid",
+      cell: (_v, row) => {
+        // Cancelled wins visually
+        if (row.status === "CANCELLED") {
+          return (
+            <div className="flex items-center gap-2">
+              <NoSymbolIcon className="h-5 w-5 text-error" />
+              <span className="text-sm opacity-80">Cancelada</span>
+            </div>
+          );
+        }
+
+        if (row.isFullyPaid) {
+          return (
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="h-5 w-5 text-success" />
+              <span className="text-sm opacity-80">Pagada</span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-2">
+            <ClockIcon className="h-5 w-5 text-warning" />
+            <span className="text-sm opacity-80">Pendiente</span>
+          </div>
+        );
+      },
     },
+
     {
       header: "Cliente",
       field: "partyName",
@@ -160,13 +165,14 @@ export function SalesNotesTableClient({
       sortField: "partyName",
       cell: (v, row) => (
         <div className="space-y-1">
-          <div>{v}</div>
+          <div className="truncate">{v}</div>
           {row.status === "CANCELLED" ? (
             <div className="text-xs opacity-70">Esta nota está desactivada</div>
           ) : null}
         </div>
       ),
     },
+
     {
       header: "Total",
       field: "total",
@@ -174,12 +180,14 @@ export function SalesNotesTableClient({
       cell: (v) => moneyMX(v),
       sortField: "total",
     },
+
     {
       header: "Total pagado",
       field: "paidTotal",
       sortable: false,
       cell: (v) => moneyMX(v),
     },
+
     {
       header: "Creado",
       field: "createdAt",

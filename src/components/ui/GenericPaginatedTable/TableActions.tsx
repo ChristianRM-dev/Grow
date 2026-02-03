@@ -34,7 +34,9 @@ export function TableActions<T extends TableRow>({
       : undefined;
 
   const shouldCollapse =
-    typeof inlineCount === "number" && inlineCount > 0 && actions.length > inlineCount;
+    typeof inlineCount === "number" &&
+    inlineCount > 0 &&
+    actions.length > inlineCount;
 
   const menuLabel = actionsMenu?.menuLabel ?? "Más acciones";
 
@@ -84,13 +86,14 @@ export function TableActions<T extends TableRow>({
 
     const isOpen = current.hasAttribute("open");
 
-    // If opening, close any other open dropdown first.
     if (isOpen) {
+      // Opening: close any other open dropdown first.
       if (openDetailsEl && openDetailsEl !== current) {
         openDetailsEl.removeAttribute("open");
       }
       openDetailsEl = current;
     } else {
+      // Closing
       if (openDetailsEl === current) openDetailsEl = null;
     }
   };
@@ -141,12 +144,14 @@ export function TableActions<T extends TableRow>({
           className="btn btn-ghost btn-sm list-none"
           aria-label={menuLabel}
           title={menuLabel}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <EllipsisVerticalIcon className="h-5 w-5" />
           <span className="hidden lg:inline">Más</span>
         </summary>
 
-        <ul className="menu dropdown-content z-[1] w-60 rounded-box bg-base-100 p-2 shadow">
+        <ul className="menu dropdown-content z-[10] w-60 rounded-box bg-base-100 p-2 shadow border border-base-300/50">
           {menuActions.map((action) => (
             <MenuActionItem
               key={String(action.type)}
@@ -177,25 +182,27 @@ function InlineActionButton<T extends TableRow>({
   const tooltip = action.tooltip ? resolveValue(action.tooltip, row) : label;
   const icon = action.icon ? resolveValue(action.icon, row) : null;
 
-  const content = icon ? (
-    <span className="inline-flex items-center gap-2">
-      {icon}
-      <span className="hidden lg:inline">{label}</span>
-    </span>
-  ) : (
-    label
-  );
-
   return (
     <div className="tooltip" data-tip={tooltip}>
       <button
         type="button"
         className="btn btn-ghost btn-sm"
         disabled={isDisabled}
-        onClick={() => onAction?.({ type: action.type, row })}
         aria-label={label}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onAction?.({ type: action.type, row });
+        }}
       >
-        {content}
+        {icon ? (
+          <span className="inline-flex items-center gap-2">
+            {icon}
+            <span className="hidden lg:inline">{label}</span>
+          </span>
+        ) : (
+          label
+        )}
       </button>
     </div>
   );
@@ -218,30 +225,31 @@ function MenuActionItem<T extends TableRow>({
   const tooltip = action.tooltip ? resolveValue(action.tooltip, row) : label;
   const icon = action.icon ? resolveValue(action.icon, row) : null;
 
-  const handleClick = () => {
-    // Close first to avoid any weird focus/blur interactions.
-    closeMenu();
-    onAction?.({ type: action.type, row });
-  };
-
   return (
     <li>
-      <div className="tooltip tooltip-left w-full" data-tip={tooltip}>
-        <button
-          type="button"
-          className="flex w-full items-center gap-2"
-          disabled={isDisabled}
-          onClick={handleClick}
-          aria-label={label}
-        >
-          {icon ? (
-            <span className="inline-flex h-5 w-5 items-center justify-center">
-              {icon}
-            </span>
-          ) : null}
-          <span className="truncate">{label}</span>
-        </button>
-      </div>
+      {/* DaisyUI-friendly: li > button */}
+      <button
+        type="button"
+        className="tooltip tooltip-left w-full flex items-center gap-2 justify-start"
+        data-tip={tooltip}
+        disabled={isDisabled}
+        aria-label={label}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          closeMenu();
+          onAction?.({ type: action.type, row });
+        }}
+      >
+        {icon ? (
+          <span className="inline-flex h-5 w-5 items-center justify-center">
+            {icon}
+          </span>
+        ) : (
+          <span className="inline-flex h-5 w-5" />
+        )}
+        <span className="truncate">{label}</span>
+      </button>
     </li>
   );
 }
