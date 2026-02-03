@@ -31,7 +31,11 @@
     "db:migrate:plants": "tsx scripts/migratePlants.ts",
     "studio": "prisma studio",
     "studio:dev": "prisma studio --port 5555",
-    "studio:browser": "open http://localhost:5555"
+    "studio:browser": "open http://localhost:5555",
+    "clean:cache": "rm -rf .next .turbo node_modules/.cache",
+    "clean:all": "rm -rf node_modules .next .turbo pnpm-lock.yaml",
+    "clean:install": "pnpm clean:all && pnpm install",
+    "dev:fresh": "pnpm clean:cache && pnpm dev"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

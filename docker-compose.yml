@@ -11,6 +11,10 @@ services:
       - "5432:5432"
     volumes:
       - grow_db_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   devcontainer:
     build:
@@ -21,17 +25,20 @@ services:
     depends_on:
       - db
     volumes:
-      - ./:/workspace:delegated
+      # Código fuente con 'cached' para mejor rendimiento en Mac
+      - ./:/workspace:cached
+      # ⚡ Volúmenes anónimos para directorios que cambian mucho
+      - /workspace/node_modules
+      - /workspace/.next
+      - /workspace/.turbo
     environment:
       DATABASE_URL: postgresql://grow:grow@db:5432/grow?schema=public
       AUTH_URL: http://localhost:3000
       NODE_ENV: development
       NODE_OPTIONS: --max-old-space-size=4096
-      WATCHPACK_POLLING: true
-      CHOKIDAR_USEPOLLING: true
-      CHOKIDAR_INTERVAL: 1000
+      WATCHPACK_POLLING: false
+      CHOKIDAR_USEPOLLING: false
       NEXT_TELEMETRY_DISABLED: 1
-      # ✅ Suprime el warning de Serwist
       SERWIST_SUPPRESS_TURBOPACK_WARNING: 1
     ports:
       - "3000:3000"

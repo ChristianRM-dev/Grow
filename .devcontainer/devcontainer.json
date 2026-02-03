@@ -1,15 +1,10 @@
 {
   "name": "Grow (Next.js)",
-  "dockerComposeFile": [
-    "../docker-compose.yml"
-  ],
+  "dockerComposeFile": ["../docker-compose.yml"],
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
-  "forwardPorts": [
-    3000,
-    5432,
-    5555
-  ],
+  "forwardPorts": [3000, 5432, 5555],
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -33,10 +28,23 @@
         },
         "[json]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "files.watcherExclude": {
+          "**/.git/objects/**": true,
+          "**/.git/subtree-cache/**": true,
+          "**/node_modules/**": true,
+          "**/.next/**": true,
+          "**/.turbo/**": true
         }
       }
     }
   },
+
   "remoteUser": "root",
-  "postCreateCommand": "ls",
+
+  // 🔧 Setup inicial (solo primera vez)
+  "postCreateCommand": "pnpm install && pnpm db:generate",
+
+  // 🧹 Limpieza al iniciar (cada vez que abres VSCode)
+  "postStartCommand": "bash -c 'pkill -f \"next dev\" 2>/dev/null || true; [ $(du -sm .next 2>/dev/null | cut -f1 || echo 0) -gt 500 ] && rm -rf .next || true; [ $(du -sm .turbo 2>/dev/null | cut -f1 || echo 0) -gt 300 ] && rm -rf .turbo || true; echo \"✅ Container listo\"'"
 }
