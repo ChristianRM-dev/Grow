@@ -47,7 +47,7 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
 
   try {
     console.log(
-      `[createSalesNoteAction] validated traceId=${traceId} customer.mode=${parsed.data.customer.mode}`,
+      `[createSalesNoteAction] validated traceId=${traceId} customer.mode=${parsed.data.values.customer.mode}`,
     );
     const session = await auth();
     const userId = session?.user?.id;
