@@ -1,7 +1,7 @@
 // src/components/ui/GenericPaginatedTable/TableActions.tsx
 "use client";
 
-import React, { useEffect, useId, useRef } from "react";
+import React, { useEffect, useId, useMemo, useRef } from "react";
 import type {
   TableActionDef,
   TableActionEvent,
@@ -28,24 +28,36 @@ export function TableActions<T extends TableRow>({
   onAction,
   actionsMenu,
 }: TableActionsProps<T>) {
-  const inlineCount =
-    typeof actionsMenu?.inlineCount === "number"
-      ? actionsMenu.inlineCount
-      : undefined;
-
-  const shouldCollapse =
-    typeof inlineCount === "number" &&
-    inlineCount > 0 &&
-    actions.length > inlineCount;
-
   const menuLabel = actionsMenu?.menuLabel ?? "Más acciones";
+  const hideMenuIfEmpty = actionsMenu?.hideMenuIfEmpty ?? true;
 
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const dropdownId = useId();
 
+  const { inlineActions, menuActions } = useMemo(() => {
+    const sorted = [...actions].sort((a, b) => {
+      const ao = a.order ?? 0;
+      const bo = b.order ?? 0;
+      return ao - bo;
+    });
+
+    const inline: Array<TableActionDef<T>> = [];
+    const menu: Array<TableActionDef<T>> = [];
+
+    for (const a of sorted) {
+      if (a.placement === "menu") menu.push(a);
+      else inline.push(a);
+    }
+
+    return { inlineActions: inline, menuActions: menu };
+  }, [actions]);
+
+  const hasMenu = menuActions.length > 0;
+  const shouldShowMenuTrigger = hasMenu || !hideMenuIfEmpty;
+
   // Close on outside click + Escape, and ensure only one dropdown is open at a time.
   useEffect(() => {
-    if (!shouldCollapse) return;
+    if (!shouldShowMenuTrigger) return;
 
     const details = detailsRef.current;
     if (!details) return;
@@ -54,7 +66,6 @@ export function TableActions<T extends TableRow>({
       const current = detailsRef.current;
       if (!current) return;
 
-      // If click is outside this dropdown, close it.
       if (!current.contains(e.target as Node)) {
         current.removeAttribute("open");
         if (openDetailsEl === current) openDetailsEl = null;
@@ -70,7 +81,6 @@ export function TableActions<T extends TableRow>({
       if (openDetailsEl === current) openDetailsEl = null;
     };
 
-    // Use capture so we close before other handlers (more consistent).
     document.addEventListener("pointerdown", handlePointerDown, true);
     document.addEventListener("keydown", handleKeyDown, true);
 
@@ -78,7 +88,7 @@ export function TableActions<T extends TableRow>({
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [shouldCollapse]);
+  }, [shouldShowMenuTrigger]);
 
   const handleToggle = () => {
     const current = detailsRef.current;
@@ -105,10 +115,11 @@ export function TableActions<T extends TableRow>({
     if (openDetailsEl === current) openDetailsEl = null;
   };
 
-  if (!shouldCollapse) {
+  // If there is no dropdown trigger, render only inline actions.
+  if (!shouldShowMenuTrigger) {
     return (
       <div className="flex items-center gap-2">
-        {actions.map((action) => (
+        {inlineActions.map((action) => (
           <InlineActionButton
             key={String(action.type)}
             action={action}
@@ -119,9 +130,6 @@ export function TableActions<T extends TableRow>({
       </div>
     );
   }
-
-  const inlineActions = actions.slice(0, inlineCount);
-  const menuActions = actions.slice(inlineCount);
 
   return (
     <div className="flex items-center gap-2" data-dropdown-id={dropdownId}>
@@ -152,15 +160,19 @@ export function TableActions<T extends TableRow>({
         </summary>
 
         <ul className="menu dropdown-content z-[10] w-60 rounded-box bg-base-100 p-2 shadow border border-base-300/50">
-          {menuActions.map((action) => (
-            <MenuActionItem
-              key={String(action.type)}
-              action={action}
-              row={row}
-              onAction={onAction}
-              closeMenu={closeMenu}
-            />
-          ))}
+          {hasMenu ? (
+            menuActions.map((action) => (
+              <MenuActionItem
+                key={String(action.type)}
+                action={action}
+                row={row}
+                onAction={onAction}
+                closeMenu={closeMenu}
+              />
+            ))
+          ) : (
+            <li className="px-3 py-2 text-sm opacity-70">Sin acciones</li>
+          )}
         </ul>
       </details>
     </div>
@@ -227,7 +239,6 @@ function MenuActionItem<T extends TableRow>({
 
   return (
     <li>
-      {/* DaisyUI-friendly: li > button */}
       <button
         type="button"
         className="tooltip tooltip-left w-full flex items-center gap-2 justify-start"
