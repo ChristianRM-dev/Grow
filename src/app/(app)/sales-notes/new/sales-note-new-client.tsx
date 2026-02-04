@@ -1,6 +1,7 @@
+// src/app/(app)/sales-notes/new/sales-note-new-client.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { SalesNoteWizard } from "@/modules/sales-notes/components/SalesNoteWizard/SalesNoteWizard";
@@ -8,6 +9,21 @@ import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteF
 import { createSalesNoteAction } from "@/modules/sales-notes/actions/createSalesNote.action";
 import { toast } from "@/components/ui/Toast/toast";
 import { routes } from "@/lib/routes";
+
+const REQUEST_ID_KEY = "sales-note:new:clientRequestId";
+
+function getOrCreateClientRequestId(): string {
+  const existing = window.localStorage.getItem(REQUEST_ID_KEY);
+  if (existing) return existing;
+
+  const id = crypto.randomUUID();
+  window.localStorage.setItem(REQUEST_ID_KEY, id);
+  return id;
+}
+
+function clearClientRequestId() {
+  window.localStorage.removeItem(REQUEST_ID_KEY);
+}
 
 export function SalesNoteNewClient({
   initialValues,
@@ -19,22 +35,45 @@ export function SalesNoteNewClient({
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
+  // Prevent double-submit before React state updates
+  const submitLockRef = useRef(false);
+  const clientRequestIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    clientRequestIdRef.current = getOrCreateClientRequestId();
+  }, []);
+
   const handleSubmit = async (values: SalesNoteFormValues) => {
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+
     setSubmitting(true);
     try {
-      const res = await createSalesNoteAction(values);
+      const clientRequestId = clientRequestIdRef.current;
+      if (!clientRequestId) {
+        toast.error("No se pudo iniciar la creación. Intenta de nuevo.");
+        return;
+      }
+
+      const res = await createSalesNoteAction({
+        clientRequestId,
+        values,
+      });
 
       if (!res.ok) {
-        // Nota: aquí probablemente era toast.error, no success 🙂
         toast.error("Revisa los campos. Hay errores de validación.");
         return;
       }
 
       toast.success("Guardado exitosamente");
 
-      router.replace(routes.salesNotes.details(res.salesNoteId)); // si la agregas
+      // ✅ Aquí se borra la requestId: solo en éxito
+      clearClientRequestId();
+
+      router.replace(routes.salesNotes.details(res.salesNoteId));
     } finally {
       setSubmitting(false);
+      submitLockRef.current = false;
     }
   };
 

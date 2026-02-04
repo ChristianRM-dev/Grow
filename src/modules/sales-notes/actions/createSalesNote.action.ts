@@ -7,7 +7,10 @@ import { createSalesNoteUseCase } from "@/modules/sales-notes/application/create
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/auth";
 
-const CreateSalesNoteActionSchema = SalesNoteFormSchema;
+const CreateSalesNoteActionSchema = z.object({
+  clientRequestId: z.string().uuid(),
+  values: SalesNoteFormSchema,
+});
 
 export type CreateSalesNoteActionInput = z.infer<
   typeof CreateSalesNoteActionSchema
@@ -50,9 +53,10 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
     const userId = session?.user?.id;
 
     const result = await createSalesNoteUseCase(
-      parsed.data,
+      parsed.data.values,
       { traceId },
       userId,
+      parsed.data.clientRequestId,
     );
 
     console.log(

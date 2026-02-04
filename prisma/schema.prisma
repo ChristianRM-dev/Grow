@@ -285,6 +285,7 @@ model SalesNote {
 
   lines    SalesNoteLine[]
   payments Payment[]
+  clientRequestId String? @unique
 
   @@index([partyId])
   @@index([createdAt])
