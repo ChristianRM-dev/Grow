@@ -30,7 +30,6 @@ import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 import { useBlockingDialogs } from "@/components/ui/Dialogs";
 import { toggleSalesNoteActiveAction } from "@/modules/sales-notes/actions/toggleSalesNoteActive.action";
 
-
 export function SalesNotesTableClient({
   data,
   pagination,
@@ -125,6 +124,29 @@ export function SalesNotesTableClient({
     { header: "Folio", field: "folio", sortable: true },
 
     {
+      header: "Cliente",
+      field: "partyName",
+      sortable: true,
+      sortField: "partyName",
+      cell: (v, row) => (
+        <div className="space-y-1">
+          <div className="truncate">{v}</div>
+          {row.status === "CANCELLED" ? (
+            <div className="text-xs opacity-70">Esta nota está desactivada</div>
+          ) : null}
+        </div>
+      ),
+    },
+
+    {
+      header: "Total",
+      field: "total",
+      sortable: true,
+      cell: (v) => moneyMX(v),
+      sortField: "total",
+    },
+
+    {
       header: "Pagado",
       field: "isFullyPaid",
       sortable: true,
@@ -157,48 +179,8 @@ export function SalesNotesTableClient({
         );
       },
     },
-
-    {
-      header: "Cliente",
-      field: "partyName",
-      sortable: true,
-      sortField: "partyName",
-      cell: (v, row) => (
-        <div className="space-y-1">
-          <div className="truncate">{v}</div>
-          {row.status === "CANCELLED" ? (
-            <div className="text-xs opacity-70">Esta nota está desactivada</div>
-          ) : null}
-        </div>
-      ),
-    },
-
-    {
-      header: "Total",
-      field: "total",
-      sortable: true,
-      cell: (v) => moneyMX(v),
-      sortField: "total",
-    },
-
-    {
-      header: "Total pagado",
-      field: "paidTotal",
-      sortable: false,
-      cell: (v) => moneyMX(v),
-    },
-
-    {
-      header: "Creado",
-      field: "createdAt",
-      sortable: true,
-      cell: (v) => dateMX(v),
-      sortField: "createdAt",
-    },
   ];
 
-  // IMPORTANT: keep the first 3 actions inline (details, edit, pdf).
-  // The rest will go into the "Más" menu via actionsMenu.inlineCount.
   const actions: Array<TableActionDef<SalesNoteRowDto>> = [
     {
       type: "details",
@@ -219,12 +201,14 @@ export function SalesNotesTableClient({
       tooltip: "Ver PDF",
       icon: <DocumentIcon className="h-5 w-5" />,
     },
+
     {
       type: "payment",
       label: "Agregar pago",
       tooltip: "Registrar pago",
       icon: <CurrencyDollarIcon className="h-5 w-5" />,
       disabled: (row) => row.isFullyPaid || row.status === "CANCELLED",
+      placement: "menu",
     },
     {
       type: "toggleActive",
@@ -232,6 +216,7 @@ export function SalesNotesTableClient({
       tooltip: "Activar o desactivar la nota de venta",
       icon: <TrashIcon className="h-5 w-5" />,
       disabled: () => isPending,
+      placement: "menu",
     },
   ];
 
@@ -240,7 +225,7 @@ export function SalesNotesTableClient({
       data={data}
       columns={columns}
       actions={actions}
-      actionsMenu={{ inlineCount: 3, menuLabel: "Más acciones" }}
+      actionsMenu={{ menuLabel: "Más acciones", hideMenuIfEmpty: true }}
       pagination={pagination}
       loading={false}
       onQueryChange={pushTableQuery}

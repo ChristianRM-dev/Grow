@@ -33,16 +33,10 @@ type ColumnDefBase = {
   headerClassName?: string;
 };
 
-/**
- * Keys whose values are directly renderable without a cell formatter.
- */
 type RenderableKeys<T> = {
   [K in keyof T]-?: T[K] extends React.ReactNode ? K : never;
 }[keyof T];
 
-/**
- * Column where the value is renderable -> cell is NOT needed.
- */
 type ColumnValue<T> = {
   [K in RenderableKeys<T>]-?: ColumnDefBase & {
     field: K;
@@ -50,9 +44,6 @@ type ColumnValue<T> = {
   };
 }[RenderableKeys<T>];
 
-/**
- * Column with a custom cell renderer -> cell is required.
- */
 type ColumnWithCell<T> = {
   [K in keyof T]-?: ColumnDefBase & {
     field: K;
@@ -62,25 +53,38 @@ type ColumnWithCell<T> = {
 
 export type ColumnDef<T> = ColumnValue<T> | ColumnWithCell<T>;
 
-// ✅ Nueva versión con soporte para funciones dinámicas
+export type TableActionPlacement = "inline" | "menu";
+
 export type TableActionDef<T> = {
   type: string;
-  label: string | ((row: T) => string); // 👈 Puede ser función
-  icon?: React.ReactNode | ((row: T) => React.ReactNode); // 👈 Puede ser función
-  tooltip?: string | ((row: T) => string); // 👈 Puede ser función
+
+  label: string | ((row: T) => string);
+  icon?: React.ReactNode | ((row: T) => React.ReactNode);
+  tooltip?: string | ((row: T) => string);
+
   disabled?: (row: T) => boolean;
+
+  /**
+   * Controls where this action is rendered.
+   * - "inline": shown as a button in the row
+   * - "menu": shown inside the dropdown menu
+   * Default: "inline"
+   */
+  placement?: TableActionPlacement;
+
+  /**
+   * Optional ordering hint.
+   * Lower numbers render earlier within the same placement bucket.
+   */
+  order?: number;
 };
 
-
 export type TableActionsMenuConfig = {
-  /**
-   * How many actions should be rendered inline before moving the rest into a dropdown menu.
-   * If undefined, all actions are inline (current behavior).
-   */
-  inlineCount?: number;
+  menuLabel?: string;
 
   /**
-   * Label used for the dropdown trigger (visually hidden if using icon-only trigger).
+   * If true, the menu trigger is not shown when there are no "menu" actions.
+   * Default: true
    */
-  menuLabel?: string;
+  hideMenuIfEmpty?: boolean;
 };
