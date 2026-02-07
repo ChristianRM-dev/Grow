@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -27,6 +27,11 @@ import { SalesNoteSummaryStep } from "./steps/SalesNoteSummaryStep";
 import { useFormDraft } from "@/hooks";
 import { useDraftRecoveryDialog } from "@/components/ui/DraftRecovery";
 
+const LOG_PREFIX = "[SalesNoteWizard]"
+
+// ✅ IMPORTANT: keep Step factory stable across renders
+const Step = defineFormStep<SalesNoteFormInput>()
+
 type SalesNoteWizardProps = {
   initialValues: Partial<SalesNoteFormInput>;
   onSubmit: (values: SalesNoteFormValues) => Promise<void> | void;
@@ -39,6 +44,17 @@ export function SalesNoteWizard({
   submitting,
 }: SalesNoteWizardProps) {
   const [draftCheckComplete, setDraftCheckComplete] = useState(false);
+  const renderCountRef = useRef(0)
+  renderCountRef.current += 1
+
+  // Avoid logging huge objects, only summarize
+  if (renderCountRef.current <= 3) {
+    console.log(`${LOG_PREFIX} render #${renderCountRef.current}`, {
+      submitting,
+      initialLines: initialValues?.lines?.length ?? 0,
+      initialUnregisteredLines: initialValues?.unregisteredLines?.length ?? 0,
+    })
+  }
 
   const form = useForm<SalesNoteFormInput>({
     resolver: zodResolver(SalesNoteFormSchema),
@@ -51,7 +67,6 @@ export function SalesNoteWizard({
     mode: "onSubmit",
   });
 
-  // Draft management
   const draft = useFormDraft({
     draftKey: "sales-note:new",
     form,
@@ -60,72 +75,79 @@ export function SalesNoteWizard({
     schema: SalesNoteFormSchema,
     expirationDays: 7,
     onAutoSave: () => {
-      console.log("[SalesNoteWizard] Draft auto-saved");
+      console.log(`${LOG_PREFIX} Draft auto-saved`)
     },
     onSaveError: (error) => {
-      console.error("[SalesNoteWizard] Draft save error:", error);
+      console.error(`${LOG_PREFIX} Draft save error`, error)
     },
   });
 
   const { showRecoveryDialog } = useDraftRecoveryDialog();
 
-  // Check for draft on mount and ask user if needed
   useEffect(() => {
-    if (!draft.hasInitialized) return;
-    if (draftCheckComplete) return;
+    if (!draft.hasInitialized) return
+    if (draftCheckComplete) return
+
+    console.log(`${LOG_PREFIX} draft check start`, {
+      hasDraft: draft.hasDraft,
+      hasTimestamp: !!draft.draftTimestamp,
+    })
 
     async function checkForDraft() {
-      // Only show dialog if draft actually exists
       if (draft.hasDraft && draft.draftTimestamp) {
-        console.log("[SalesNoteWizard] Draft found, asking user...");
-
         const shouldRestore = await showRecoveryDialog({
           timestamp: draft.draftTimestamp,
           context: "nota de venta",
-        });
+        })
 
         if (shouldRestore) {
-          // Load and restore draft
-          const draftData = draft.loadDraft();
+          const draftData = draft.loadDraft()
           if (draftData) {
-            console.log("[SalesNoteWizard] Restoring draft");
-            form.reset(draftData);
+            console.log(`${LOG_PREFIX} Restoring draft`)
+            form.reset(draftData)
           } else {
-            console.warn("[SalesNoteWizard] Draft load failed");
+            console.warn(`${LOG_PREFIX} Draft load failed`)
           }
         } else {
-          // User chose to discard draft
-          console.log("[SalesNoteWizard] User discarded draft");
-          draft.clearDraft();
+          console.log(`${LOG_PREFIX} Draft discarded by user`)
+          draft.clearDraft()
         }
-      } else {
-        // No draft, just proceed normally
-        console.log("[SalesNoteWizard] No draft found, starting fresh");
       }
 
-      setDraftCheckComplete(true);
+      setDraftCheckComplete(true)
+      console.log(`${LOG_PREFIX} draft check complete`)
     }
 
-    checkForDraft();
-  }, [draft.hasInitialized, draft.hasDraft, draft.draftTimestamp]);
+    checkForDraft()
+  }, [
+    draft.hasInitialized,
+    draft.hasDraft,
+    draft.draftTimestamp,
+    draftCheckComplete,
+    showRecoveryDialog,
+    form,
+    draft,
+  ])
 
-  // Handle submit: Clear draft on success
   const handleSubmit = async (input: SalesNoteFormInput) => {
+    const t0 = performance.now()
     try {
       const parsed = SalesNoteFormSchema.parse(input);
+      console.log(`${LOG_PREFIX} Submit parse ok`, {
+        ms: Math.round(performance.now() - t0),
+        lines: parsed.lines?.length ?? 0,
+        unregisteredLines: parsed.unregisteredLines?.length ?? 0,
+      })
+
       await onSubmit(parsed);
 
-      // Clear draft on successful submit
       draft.clearDraft();
-      console.log("[SalesNoteWizard] Submit successful, draft cleared");
+      console.log(`${LOG_PREFIX} Submit successful, draft cleared`)
     } catch (error) {
-      console.error("[SalesNoteWizard] Submit error:", error);
-      // Don't clear draft on error - user can retry
+      console.error(`${LOG_PREFIX} Submit error`, error)
       throw error;
     }
   };
-
-  const Step = defineFormStep<SalesNoteFormInput>();
 
   const steps = useMemo(() => {
     return [
@@ -178,16 +200,14 @@ export function SalesNoteWizard({
         Component: SalesNoteSummaryStep,
         labels: {
           submit: "Guardar",
-          submitting: submitting ? "Guardando…" : "Guardando…",
+          submitting: "Guardando…",
           next: "Siguiente",
           back: "Atrás",
         },
       },
-    ] as const;
-  }, [Step, submitting]);
+    ] as const
+  }, [submitting])
 
-  // Show minimal loading only while checking for draft
-  // This should be very fast (just a localStorage check)
   if (!draftCheckComplete) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -198,22 +218,8 @@ export function SalesNoteWizard({
 
   return (
     <div className="space-y-4">
-      {/* Auto-save indicator - only show if there's been a save */}
       {draft.lastSaved && (
         <div className="alert alert-success shadow-sm">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 shrink-0 stroke-current"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
           <span className="text-sm">
             Borrador guardado automáticamente a las{" "}
             {draft.lastSaved.toLocaleTimeString("es-MX", {
@@ -224,7 +230,6 @@ export function SalesNoteWizard({
         </div>
       )}
 
-      {/* Auto-saving indicator - show while saving */}
       {draft.isAutoSaving && (
         <div className="alert shadow-sm">
           <span className="loading loading-spinner loading-sm"></span>
@@ -246,9 +251,14 @@ export function SalesNoteWizard({
         form={form}
         onSubmit={handleSubmit}
         onEvent={(e) => {
-          console.log("SalesNoteWizard::event", e);
+          // Log lightweight only (avoid freezing due to huge event objects)
+          const safe = {
+            type: (e as any)?.type ?? "unknown",
+            stepId: (e as any)?.stepId ?? (e as any)?.step?.id ?? null,
+          }
+          console.log(`${LOG_PREFIX} event`, safe)
         }}
       />
     </div>
-  );
+  )
 }

@@ -1,9 +1,9 @@
-import { FormPageLayout } from "@/components/ui/FormPageLayout/FormPageLayout";
-import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs";
-import { routes } from "@/lib/routes";
-import { getQuotationForSalesNoteDraft } from "@/modules/quotations/queries/getQuotationForSalesNoteDraft.query";
-import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
-import { SalesNoteNewClient } from "./sales-note-new-client";
+import { FormPageLayout } from "@/components/ui/FormPageLayout/FormPageLayout"
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs"
+import { routes } from "@/lib/routes"
+import { getQuotationForSalesNoteDraft } from "@/modules/quotations/queries/getQuotationForSalesNoteDraft.query"
+import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas"
+import { SalesNoteNewClient } from "./sales-note-new-client"
 
 const baseValues: SalesNoteFormValues = {
   customer: {
@@ -15,36 +15,43 @@ const baseValues: SalesNoteFormValues = {
   },
   lines: [],
   unregisteredLines: [],
-};
+}
 
 function cloneDefaultValues(): SalesNoteFormValues {
-  return JSON.parse(JSON.stringify(baseValues)) as SalesNoteFormValues;
+  return JSON.parse(JSON.stringify(baseValues)) as SalesNoteFormValues
 }
 
 export default async function SalesNoteNewPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const params = await searchParams;
+  const params = await searchParams
   const fromQuotationId =
-    typeof params?.fromQuotationId === "string" ? params.fromQuotationId : null;
+    typeof params?.fromQuotationId === "string" ? params.fromQuotationId : null
 
-  let initialValues = cloneDefaultValues();
+  let initialValues = cloneDefaultValues()
   let sourceQuotation:
     | {
-        id: string;
-        folio: string;
+        id: string
+        folio: string
       }
-    | undefined;
+    | undefined
 
   if (fromQuotationId) {
-    const draft = await getQuotationForSalesNoteDraft(fromQuotationId);
+    const draft = await getQuotationForSalesNoteDraft(fromQuotationId)
+
     if (draft) {
-      console.log("salenotes:draft", draft);
-      initialValues = draft.values;
-       console.log("salenotes:initialValues", initialValues);
-      sourceQuotation = { id: draft.quotationId, folio: draft.folio };
+      console.log("salenotes:draft", {
+        quotationId: draft.quotationId,
+        folio: draft.folio,
+      })
+      console.log("salenotes:initialValues", {
+        lines: draft.values.lines?.length ?? 0,
+        unregisteredLines: draft.values.unregisteredLines?.length ?? 0,
+      })
+      initialValues = draft.values
+      sourceQuotation = { id: draft.quotationId, folio: draft.folio }
     }
   }
 
@@ -67,5 +74,5 @@ export default async function SalesNoteNewPage({
         sourceQuotation={sourceQuotation}
       />
     </FormPageLayout>
-  );
+  )
 }

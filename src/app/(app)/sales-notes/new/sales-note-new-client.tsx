@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { SalesNoteWizard } from "@/modules/sales-notes/components/SalesNoteWizard/SalesNoteWizard"
@@ -12,24 +12,71 @@ import { routes } from "@/lib/routes"
 const REQUEST_ID_KEY = "sales-note:new:clientRequestId"
 const LOG_PREFIX = "[SalesNoteNew]"
 
-function getOrCreateClientRequestId(): string {
+type LogEntry = {
+  i: number
+  atMs: number
+  msg: string
+  data?: unknown
+}
+
+function createLogBuffer() {
+  const t0 = performance.now()
+  let i = 0
+  const buffer: LogEntry[] = []
+
+  function log(msg: string, data?: unknown) {
+    const entry: LogEntry = {
+      i: ++i,
+      atMs: Math.round(performance.now() - t0),
+      msg,
+      data,
+    }
+    buffer.push(entry)
+
+    // Keep last 200 entries to avoid memory issues
+    if (buffer.length > 200) buffer.shift()
+
+    // Avoid logging huge objects by default
+    if (data === undefined)
+      console.log(`${LOG_PREFIX} #${entry.i} +${entry.atMs}ms ${msg}`)
+    else console.log(`${LOG_PREFIX} #${entry.i} +${entry.atMs}ms ${msg}`, data)
+  }
+
+  function warn(msg: string, data?: unknown) {
+    log(`WARN: ${msg}`, data)
+  }
+
+  function error(msg: string, data?: unknown) {
+    log(`ERROR: ${msg}`, data)
+  }
+
+  function getHistory() {
+    return buffer.slice()
+  }
+
+  return { log, warn, error, getHistory }
+}
+
+function getOrCreateClientRequestId(
+  logger: ReturnType<typeof createLogBuffer>
+): string {
   const existing = window.localStorage.getItem(REQUEST_ID_KEY)
   if (existing) {
-    console.log(`${LOG_PREFIX} Using existing clientRequestId:`, existing)
+    logger.log("Using existing clientRequestId", existing)
     return existing
   }
 
   const id = crypto.randomUUID()
   window.localStorage.setItem(REQUEST_ID_KEY, id)
-  console.log(`${LOG_PREFIX} Created new clientRequestId:`, id)
+  logger.log("Created new clientRequestId", id)
   return id
 }
 
-function clearClientRequestId() {
+function clearClientRequestId(logger: ReturnType<typeof createLogBuffer>) {
   const existing = window.localStorage.getItem(REQUEST_ID_KEY)
-  console.log(`${LOG_PREFIX} Clearing clientRequestId:`, existing)
+  logger.log("Clearing clientRequestId", existing)
   window.localStorage.removeItem(REQUEST_ID_KEY)
-  console.log(`${LOG_PREFIX} clientRequestId cleared successfully`)
+  logger.log("clientRequestId cleared")
 }
 
 export function SalesNoteNewClient({
@@ -42,102 +89,112 @@ export function SalesNoteNewClient({
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
 
+  // Logger buffer lives for the lifetime of this component instance
+  const loggerRef = useRef<ReturnType<typeof createLogBuffer> | null>(null)
+  if (!loggerRef.current) loggerRef.current = createLogBuffer()
+  const logger = loggerRef.current
+
   // Prevent double-submit before React state updates
   const submitLockRef = useRef(false)
   const clientRequestIdRef = useRef<string | null>(null)
 
-  console.log(`${LOG_PREFIX} Component mounted`, {
-    hasSourceQuotation: !!sourceQuotation,
-    sourceQuotationFolio: sourceQuotation?.folio,
-  })
+  // One-time mount log (NOT in render loop)
+  useEffect(() => {
+    logger.log("Mounted", {
+      hasSourceQuotation: !!sourceQuotation,
+      sourceQuotationFolio: sourceQuotation?.folio ?? null,
+      initialLines: initialValues?.lines?.length ?? 0,
+      initialUnregisteredLines: initialValues?.unregisteredLines?.length ?? 0,
+    })
+  }, []) // intentionally once
 
   useEffect(() => {
-    console.log(`${LOG_PREFIX} useEffect: Initializing clientRequestId`)
-    clientRequestIdRef.current = getOrCreateClientRequestId()
-    console.log(
-      `${LOG_PREFIX} clientRequestIdRef.current set to:`,
-      clientRequestIdRef.current
-    )
+    logger.log("Init clientRequestId")
+    clientRequestIdRef.current = getOrCreateClientRequestId(logger)
+    logger.log("clientRequestIdRef set", clientRequestIdRef.current)
   }, [])
 
   const handleSubmit = async (values: SalesNoteFormValues) => {
-    console.log(`${LOG_PREFIX} handleSubmit called`)
-    console.log(`${LOG_PREFIX} submitLockRef.current:`, submitLockRef.current)
+    logger.log("handleSubmit called", {
+      submitting,
+      locked: submitLockRef.current,
+      lines: values.lines?.length ?? 0,
+      unregisteredLines: values.unregisteredLines?.length ?? 0,
+    })
 
     if (submitLockRef.current) {
-      console.warn(`${LOG_PREFIX} Submit blocked by lock`)
+      logger.warn("Submit blocked by lock")
       return
     }
 
     submitLockRef.current = true
-    console.log(`${LOG_PREFIX} Submit lock acquired`)
-
     setSubmitting(true)
-    console.log(`${LOG_PREFIX} submitting state set to true`)
 
     try {
       const clientRequestId = clientRequestIdRef.current
-      console.log(`${LOG_PREFIX} Using clientRequestId:`, clientRequestId)
+      logger.log("Using clientRequestId", clientRequestId)
 
       if (!clientRequestId) {
-        console.error(`${LOG_PREFIX} ERROR: clientRequestId is null/undefined`)
+        logger.error("clientRequestId is missing")
         toast.error("No se pudo iniciar la creación. Intenta de nuevo.")
         return
       }
 
-      console.log(`${LOG_PREFIX} Calling createSalesNoteAction...`)
-      const res = await createSalesNoteAction({
-        clientRequestId,
-        values,
-      })
-
-      console.log(`${LOG_PREFIX} Action response:`, {
+      logger.log("Calling createSalesNoteAction")
+      const t0 = performance.now()
+      const res = await createSalesNoteAction({ clientRequestId, values })
+      logger.log("createSalesNoteAction resolved", {
+        ms: Math.round(performance.now() - t0),
         ok: res.ok,
-        salesNoteId: res.ok ? res.salesNoteId : undefined,
-        errors: res.ok ? undefined : res.errors,
+        traceId: (res as any).traceId,
+        salesNoteId: res.ok ? res.salesNoteId : null,
+        hasErrors: res.ok ? false : !!(res as any).errors,
       })
 
       if (!res.ok) {
-        console.error(`${LOG_PREFIX} Action failed with errors:`, res.errors)
         toast.error("Revisa los campos. Hay errores de validación.")
         return
       }
 
-      console.log(
-        `${LOG_PREFIX} Action succeeded. SalesNoteId:`,
-        res.salesNoteId
-      )
       toast.success("Guardado exitosamente")
 
-      // ✅ Aquí se borra la requestId: solo en éxito
-      console.log(`${LOG_PREFIX} About to clear clientRequestId...`)
-      clearClientRequestId()
+      // Clear idempotency key only on success
+      clearClientRequestId(logger)
 
       const targetUrl = routes.salesNotes.details(res.salesNoteId)
-      console.log(`${LOG_PREFIX} Navigating to:`, targetUrl)
+      logger.log("Navigating to targetUrl", targetUrl)
 
       router.replace(targetUrl)
-      console.log(`${LOG_PREFIX} router.replace called`)
+      logger.log("router.replace invoked")
 
-      // Log adicional para verificar si el replace realmente ejecuta
+      // Sometimes helpful in App Router after mutations (optional)
+      router.refresh()
+      logger.log("router.refresh invoked")
+
       setTimeout(() => {
-        console.log(
-          `${LOG_PREFIX} 500ms after router.replace - current location:`,
-          window.location.href
-        )
+        logger.log("500ms after navigation attempt", {
+          href: window.location.href,
+        })
       }, 500)
+
+      setTimeout(() => {
+        logger.log("2000ms after navigation attempt", {
+          href: window.location.href,
+          historyTail: logger.getHistory().slice(-10),
+        })
+      }, 2000)
     } catch (error) {
-      console.error(`${LOG_PREFIX} EXCEPTION in handleSubmit:`, error)
+      logger.error("Exception in handleSubmit", error)
       toast.error("Error inesperado. Intenta de nuevo.")
     } finally {
-      console.log(`${LOG_PREFIX} finally block - resetting states`)
       setSubmitting(false)
       submitLockRef.current = false
-      console.log(`${LOG_PREFIX} submitting=false, lock released`)
+      logger.log("Submit finished - state reset", {
+        submitting: false,
+        locked: false,
+      })
     }
   }
-
-  console.log(`${LOG_PREFIX} Render - submitting:`, submitting)
 
   return (
     <>

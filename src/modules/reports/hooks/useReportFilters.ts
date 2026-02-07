@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { ZodSchema } from "zod"
 
-import { ReportTypeEnum } from "@/modules/reports/domain/reportTypes"
+import { type ReportType } from "@/modules/reports/domain/reportTypes" // ✅ Importar el TIPO
 import {
   parseReportsPageState,
   serializeReportsPageState,
@@ -17,7 +17,7 @@ type PaymentStatus = "all" | "paid" | "pending"
 type PartyFilterMode = "include" | "exclude" | null
 
 interface UseReportFiltersConfig {
-  reportType: ReportTypeEnum
+  reportType: ReportType // ✅ Usa el tipo, no el enum
   schema: ZodSchema
   yearsEndpoint: string
   monthsEndpoint: string
