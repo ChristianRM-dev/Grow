@@ -1,10 +1,6 @@
-"use client";
+"use client"
 
-import React, { useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-import { MultiStepForm } from "@/components/ui/MultiStepForm/MultiStepForm";
+import React, { useMemo } from "react"
 import {
   defineFormStep,
   prefixIssuePathMapper,
@@ -18,42 +14,43 @@ import {
 import type {
   QuotationFormInput,
   QuotationFormValues,
-} from "@/modules/quotations/forms/quotationForm.schemas";
+} from "@/modules/quotations/forms/quotationForm.schemas"
 
 import { QuotationCustomerStep } from "./steps/QuotationCustomerStep";
 import { QuotationLinesStep } from "./steps/QuotationLinesStep";
 import { QuotationUnregisteredLinesStep } from "./steps/QuotationUnregisteredLinesStep";
 import { QuotationSummaryStep } from "./steps/QuotationSummaryStep";
+import { WizardShell } from "@/modules/shared/forms/wizard/WizardShell"
+import { buildWizardLabels } from "@/modules/shared/forms/wizard/labels"
+import { WizardStepIds } from "@/modules/shared/forms/wizard/stepIds"
+import { mapArrayIssuePath } from "@/modules/shared/forms/wizard/validation"
+
+const Step = defineFormStep<QuotationFormInput>()
+const summaryLabels = buildWizardLabels("Guardar cotización")
+
+const buildDefaultValues = (
+  values: Partial<QuotationFormInput>
+): QuotationFormInput => ({
+  ...values,
+  lines: values?.lines ?? [],
+  unregisteredLines: values?.unregisteredLines ?? [],
+})
 
 type QuotationWizardProps = {
   initialValues: Partial<QuotationFormInput>;
   onSubmit: (values: QuotationFormValues) => Promise<void> | void;
-  submitting: boolean;
+  draftKey?: string;
 };
 
 export function QuotationWizard({
   initialValues,
   onSubmit,
-  submitting,
+  draftKey,
 }: QuotationWizardProps) {
-  const form = useForm<QuotationFormInput>({
-    resolver: zodResolver(QuotationFormSchema),
-    shouldUnregister: false,
-    defaultValues: {
-      ...initialValues,
-      lines: initialValues?.lines ?? [],
-      unregisteredLines: initialValues?.unregisteredLines ?? [],
-    },
-    mode: "onSubmit",
-  });
-
-  // ✅ IMPORTANT: build steps using the SAME type as the form (Input)
-  const Step = defineFormStep<QuotationFormInput>();
-
   const steps = useMemo(() => {
     return [
       Step.withValidator({
-        id: "customer",
+        id: WizardStepIds.customer,
         title: "Contacto",
         fieldPaths: [
           "customer.mode",
@@ -74,7 +71,7 @@ export function QuotationWizard({
       }),
 
       Step.withValidator({
-        id: "lines",
+        id: WizardStepIds.lines,
         title: "Productos",
         fieldPaths: ["lines"],
         validator: {
@@ -86,52 +83,46 @@ export function QuotationWizard({
       }),
 
       Step.withValidator({
-        id: "unregisteredLines",
+        id: WizardStepIds.unregisteredLines,
         title: "Productos no registrados",
         fieldPaths: ["unregisteredLines"],
         validator: {
           schema: QuotationUnregisteredLinesStepSchema,
           getStepValues: (v) => v.unregisteredLines ?? [],
-          mapIssuePathToFieldPath: (issuePath: readonly PropertyKey[]) =>
-            `unregisteredLines.${issuePath.map(String).join(".")}` as any,
+          mapIssuePathToFieldPath:
+            mapArrayIssuePath<QuotationFormInput>("unregisteredLines"),
         },
         Component: QuotationUnregisteredLinesStep,
       }),
 
       {
-        id: "summary",
+        id: WizardStepIds.summary,
         kind: "summary",
         title: "Resumen",
         fieldPaths: [],
         Component: QuotationSummaryStep,
-        labels: {
-          submit: "Guardar cotización",
-          submitting: submitting ? "Guardando…" : "Guardando…",
-          next: "Siguiente",
-          back: "Atrás",
-        },
+        labels: summaryLabels,
       },
-    ] as const;
-  }, [Step, submitting]);
+    ];
+  }, [])
 
   return (
-    <MultiStepForm<QuotationFormInput>
-      config={{
-        showProgress: true,
-        labels: {
-          back: "Atrás",
-          next: "Siguiente",
-          submit: "Guardar cotización",
-          submitting: "Guardando…",
-        },
-      }}
+    <WizardShell<QuotationFormInput, QuotationFormValues>
+      initialValues={initialValues}
+      buildDefaultValues={buildDefaultValues}
+      schema={QuotationFormSchema}
       steps={steps}
-      form={form}
-      // ✅ Parse Input -> Output here, so DB layer receives normalized values
-      onSubmit={(input) => onSubmit(QuotationFormSchema.parse(input))}
-      onEvent={(e) => {
-        console.log("QuotationWizard::event", e);
-      }}
+      labels={summaryLabels}
+      onSubmit={onSubmit}
+      draft={
+        draftKey
+          ? {
+              key: draftKey,
+              contextLabel: "cotización",
+              schema: QuotationFormSchema,
+            }
+          : undefined
+      }
     />
-  );
+  )
 }

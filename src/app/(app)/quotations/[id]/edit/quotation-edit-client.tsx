@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 
 import { QuotationWizard } from "@/modules/quotations/components/QuotationWizard/QuotationWizard";
@@ -17,10 +17,8 @@ export function QuotationEditClient({
   initialValues: QuotationFormValues;
 }) {
   const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: QuotationFormValues) => {
-    setSubmitting(true);
     try {
       const res = await updateQuotationAction({ id: quotationId, values });
 
@@ -31,8 +29,9 @@ export function QuotationEditClient({
 
       toast.success("Cotización actualizada exitosamente");
       router.replace(routes.quotations.details(res.quotationId));
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudo actualizar la cotización.");
     }
   };
 
@@ -40,7 +39,6 @@ export function QuotationEditClient({
     <QuotationWizard
       initialValues={initialValues}
       onSubmit={handleSubmit}
-      submitting={submitting}
     />
   );
 }

@@ -5,7 +5,7 @@
 - Operators revert to Excel if the system feels fragile
 
 ## Strategy (MVP)
-- Client autosaves Sales Note drafts locally (IndexedDB/localStorage)
+- Client autosaves Sales Note and Quotation drafts locally (IndexedDB/localStorage)
 - Server receives draft snapshots when online (optional)
 - Recovery UI: “Restore draft?” on next load
 

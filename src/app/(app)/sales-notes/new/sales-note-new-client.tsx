@@ -212,7 +212,7 @@ export function SalesNoteNewClient({
       <SalesNoteWizard
         initialValues={initialValues}
         onSubmit={handleSubmit}
-        submitting={submitting}
+        draftKey="sales-note:new"
       />
     </>
   )

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 
 import { SalesNoteWizard } from "@/modules/sales-notes/components/SalesNoteWizard/SalesNoteWizard";
@@ -16,10 +16,8 @@ export function SalesNoteEditClient({
   salesNote: SalesNoteForEditDto;
 }) {
   const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: SalesNoteFormValues) => {
-    setSubmitting(true);
     try {
       await updateSalesNoteAction({ id: salesNote.id, values });
       toast.success("Actualizado exitosamente");
@@ -28,8 +26,6 @@ export function SalesNoteEditClient({
     } catch (err) {
       console.error(err);
       toast.error("No se pudo actualizar la nota de venta");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -38,7 +34,6 @@ export function SalesNoteEditClient({
       <SalesNoteWizard
         initialValues={salesNote.values}
         onSubmit={handleSubmit}
-        submitting={submitting}
       />
     </div>
   );
