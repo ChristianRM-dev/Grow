@@ -1,321 +1,59 @@
 // src/modules/reports/components/SalesReportPanelClient.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react"
 
-import { ReportTypeEnum } from "@/modules/reports/domain/reportTypes";
-import {
-  parseReportsPageState,
-  serializeReportsPageState,
-} from "@/modules/reports/domain/reportSearchParams";
+import { ReportTypeEnum } from "@/modules/reports/domain/reportTypes"
 import { SalesReportFiltersSchema } from "@/modules/reports/domain/salesReportFilters.schema";
-import { monthLabelMX } from "@/modules/shared/utils/formatters";
-import {
-  firstDayOfMonthDateOnly,
-  todayDateOnly,
-} from "@/modules/shared/utils/dateOnly";
+import { useReportFilters } from "@/modules/reports/hooks/useReportFilters"
+import { ReportDateFilters } from "@/modules/reports/components/ReportDateFilters"
+import { PartyMultiSelector } from "@/modules/reports/components/PartyMultiSelector"
+import { PartyMultiSelectorButton } from "@/modules/reports/components/PartyMultiSelectorButton"
 
-import {
-  searchPartiesAction,
-  type PartyLookupDto,
-} from "@/modules/parties/actions/searchParties.action";
-
-type Mode = "yearMonth" | "range";
 type PaymentStatus = "all" | "paid" | "pending";
 
 export function SalesReportPanelClient() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // ----- URL state (source of truth for "generated" report filters) -----
-  const urlState = useMemo(() => {
-    const sp = new URLSearchParams(searchParams.toString());
-    return parseReportsPageState(sp);
-  }, [searchParams]);
-
-  // ----- Draft state (user edits here; URL only updates on "Generate") -----
-  const [mode, setMode] = useState<Mode>("yearMonth");
-
-  const [years, setYears] = useState<number[]>([]);
-  const [months, setMonths] = useState<number[]>([]);
-
-  const [draftYear, setDraftYear] = useState<number | null>(null);
-  const [draftMonth, setDraftMonth] = useState<number | null>(null);
-
-  const [draftFrom, setDraftFrom] = useState<string>(firstDayOfMonthDateOnly());
-  const [draftTo, setDraftTo] = useState<string>(todayDateOnly());
-
-  // Extra filters (compatible with both date modes)
-  const [draftStatus, setDraftStatus] = useState<PaymentStatus>("all");
-  const [draftPartyId, setDraftPartyId] = useState("");
-  const [draftPartyName, setDraftPartyName] = useState("");
-
-  // Autocomplete local state
-  const [term, setTerm] = useState("");
-  const [results, setResults] = useState<PartyLookupDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-  const debounceRef = useRef<number | null>(null);
-
-  const [loadingYears, setLoadingYears] = useState(false);
-  const [loadingMonths, setLoadingMonths] = useState(false);
-
-  const [error, setError] = useState<string | null>(null);
-
-  // ----- Load years lazily -----
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadYears() {
-      setLoadingYears(true);
-      setError(null);
-
-      try {
-        const res = await fetch("/reports/sales/available-years", {
-          method: "GET",
-          cache: "no-store",
-        });
-
-        if (!res.ok) throw new Error(`HTTP_${res.status}`);
-
-        const data = (await res.json()) as { years: number[] };
-        if (!isMounted) return;
-
-        const list = data.years ?? [];
-        setYears(list);
-
-        // Default to most recent available year if not already selected
-        if (draftYear === null && list.length > 0) {
-          setDraftYear(list[0]);
-        }
-      } catch {
-        if (!isMounted) return;
-        setError("No se pudieron cargar los años disponibles.");
-      } finally {
-        if (!isMounted) return;
-        setLoadingYears(false);
-      }
-    }
-
-    loadYears();
-
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ----- Sync draft from URL when URL has valid sales filters -----
-  // ----- Sync draft from URL when URL has valid sales filters -----
-  useEffect(() => {
-    if (!urlState) return;
-    if (urlState.type !== ReportTypeEnum.SALES) return;
-
-    // If URL is "selected but not generated yet" (mode missing), do nothing.
-    if (!("mode" in urlState) || !urlState.mode) return;
-
-    // date mode
-    if (urlState.mode === "yearMonth") {
-      setMode("yearMonth");
-      setDraftYear(urlState.year);
-      setDraftMonth(typeof urlState.month === "number" ? urlState.month : null);
-    } else if (urlState.mode === "range") {
-      setMode("range");
-      setDraftFrom(urlState.from);
-      setDraftTo(urlState.to);
-    }
-
-    // extras (sales)
-    setDraftStatus(urlState.status ?? "all");
-    setDraftPartyId(urlState.partyId ?? "");
-    setDraftPartyName(urlState.partyName ?? "");
-
-    // hydrate input label if we have a selected party and user isn't typing
-    const name = String(urlState.partyName ?? "").trim();
-    const id = String(urlState.partyId ?? "").trim();
-    if (id && name && term.trim().length === 0 && !open) {
-      setTerm(name);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlState]);
-
-  // ----- Load months when draftYear changes -----
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadMonths(selectedYear: number) {
-      setLoadingMonths(true);
-      setError(null);
-
-      try {
-        const res = await fetch(
-          `/reports/sales/available-months?year=${encodeURIComponent(
-            String(selectedYear)
-          )}`,
-          { method: "GET", cache: "no-store" }
-        );
-
-        if (!res.ok) throw new Error(`HTTP_${res.status}`);
-
-        const data = (await res.json()) as { months: number[] };
-        if (!isMounted) return;
-
-        const list = data.months ?? [];
-        setMonths(list);
-
-        // If current draft month is not available for this year, clear it.
-        if (draftMonth !== null && !list.includes(draftMonth)) {
-          setDraftMonth(null);
-        }
-      } catch {
-        if (!isMounted) return;
-        setError("No se pudieron cargar los meses disponibles.");
-        setMonths([]);
-      } finally {
-        if (!isMounted) return;
-        setLoadingMonths(false);
-      }
-    }
-
-    if (draftYear === null) {
-      setMonths([]);
-      setDraftMonth(null);
-      return;
-    }
-
-    // Changing year resets month selection
-    setDraftMonth(null);
-    loadMonths(draftYear);
-
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftYear]);
-
-  // ----- Autocomplete search (debounced) -----
-  useEffect(() => {
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-
-    debounceRef.current = window.setTimeout(async () => {
-      const q = term.trim();
-      if (q.length < 2) {
-        setResults([]);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const rows = await searchPartiesAction({ term: q, take: 10 });
-        setResults(rows);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [term]);
-
-  // ----- Mode switch: keep mutual exclusion clear -----
-  function handleModeChange(nextMode: Mode) {
-    setMode(nextMode);
-    setError(null);
-
-    if (nextMode === "yearMonth") {
-      // Clear range draft (optional, but keeps intent clear)
-      setDraftFrom(firstDayOfMonthDateOnly());
-      setDraftTo(todayDateOnly());
-      return;
-    }
-
-    // range
-    setDraftMonth(null);
-  }
-
-  // ----- Draft candidate -----
-  const draftCandidate = useMemo(() => {
-    const extra = {
-      status: draftStatus,
-      partyId: draftPartyId || undefined,
-      partyName: draftPartyName || undefined,
-    };
-
-    if (mode === "yearMonth") {
-      return {
-        type: ReportTypeEnum.SALES,
-        mode: "yearMonth" as const,
-        year: draftYear ?? undefined,
-        month: draftMonth ?? undefined,
-        ...extra,
-      };
-    }
-
-    return {
-      type: ReportTypeEnum.SALES,
-      mode: "range" as const,
-      from: draftFrom,
-      to: draftTo,
-      ...extra,
-    };
-  }, [
+  const {
     mode,
+    handleModeChange,
+    years,
+    months,
     draftYear,
+    setDraftYear,
     draftMonth,
+    setDraftMonth,
     draftFrom,
+    setDraftFrom,
     draftTo,
+    setDraftTo,
     draftStatus,
-    draftPartyId,
-    draftPartyName,
-  ]);
+    setDraftStatus,
+    draftPartyIds,
+    setDraftPartyIds,
+    draftPartyFilterMode,
+    setDraftPartyFilterMode,
+    loadingYears,
+    loadingMonths,
+    error,
+    validation,
+    canGenerate,
+    generateReport,
+    clearFilters,
+  } = useReportFilters({
+    reportType: ReportTypeEnum.SALES,
+    schema: SalesReportFiltersSchema,
+    yearsEndpoint: "/reports/sales/available-years",
+    monthsEndpoint: "/reports/sales/available-months",
+  })
 
-  const validation = useMemo(() => {
-    return SalesReportFiltersSchema.safeParse(draftCandidate);
-  }, [draftCandidate]);
-
-  const canGenerate = validation.success;
-
-  function generateReport() {
-    const parsed = SalesReportFiltersSchema.safeParse(draftCandidate);
-    if (!parsed.success) {
-      setError("Revisa los filtros: hay valores inválidos.");
-      return;
-    }
-
-    const sp = serializeReportsPageState(parsed.data);
-    const qs = sp.toString();
-    router.replace(qs ? `/reports?${qs}` : "/reports");
-  }
-
-  function clearFilters() {
-    setError(null);
-    setMode("yearMonth");
-    setDraftMonth(null);
-
-    setDraftStatus("all");
-    setDraftPartyId("");
-    setDraftPartyName("");
-    setTerm("");
-    setResults([]);
-    setOpen(false);
-
-    if (years.length > 0) setDraftYear(years[0]);
-    else setDraftYear(null);
-
-    setDraftFrom(firstDayOfMonthDateOnly());
-    setDraftTo(todayDateOnly());
-
-    router.replace("/reports?type=sales");
-  }
+  const [isPartyModalOpen, setIsPartyModalOpen] = useState(false)
 
   return (
     <div className="rounded-box border border-base-300 bg-base-100 p-4 space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Reporte de Ventas</h2>
         <p className="mt-1 text-sm opacity-70">
-          Define el período y (opcional) filtra por estado de pago y/o cliente.
+          Define el período y (opcional) filtra por estado de pago y/o clientes.
         </p>
       </div>
 
@@ -325,119 +63,22 @@ export function SalesReportPanelClient() {
         </div>
       ) : null}
 
-      {/* Date mode tabs */}
-      <div role="tablist" className="tabs tabs-border">
-        <button
-          role="tab"
-          className={`tab ${mode === "yearMonth" ? "tab-active" : ""}`}
-          onClick={() => handleModeChange("yearMonth")}
-          type="button"
-        >
-          Año / Mes
-        </button>
-
-        <button
-          role="tab"
-          className={`tab ${mode === "range" ? "tab-active" : ""}`}
-          onClick={() => handleModeChange("range")}
-          type="button"
-        >
-          Rango
-        </button>
-      </div>
-
-      {mode === "yearMonth" ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* Year */}
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text font-medium">Año</span>
-            </label>
-
-            <select
-              className="select select-bordered w-full"
-              value={draftYear ?? ""}
-              onChange={(e) =>
-                setDraftYear(e.target.value ? Number(e.target.value) : null)
-              }
-              disabled={loadingYears}
-            >
-              <option value="">
-                {loadingYears ? "Cargando…" : "Selecciona…"}
-              </option>
-
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Month */}
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text font-medium">Mes (opcional)</span>
-            </label>
-
-            <select
-              className="select select-bordered w-full"
-              value={draftMonth ?? ""}
-              onChange={(e) =>
-                setDraftMonth(e.target.value ? Number(e.target.value) : null)
-              }
-              disabled={draftYear === null || loadingMonths}
-            >
-              <option value="">
-                {draftYear === null
-                  ? "Selecciona un año…"
-                  : loadingMonths
-                  ? "Cargando…"
-                  : "Todo el año"}
-              </option>
-
-              {months.map((m) => (
-                <option key={m} value={String(m)}>
-                  {monthLabelMX(m)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text font-medium">Desde</span>
-            </label>
-
-            <input
-              type="date"
-              className="input input-bordered w-full"
-              value={draftFrom}
-              onChange={(e) => setDraftFrom(e.target.value)}
-            />
-          </div>
-
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text font-medium">Hasta</span>
-            </label>
-
-            <input
-              type="date"
-              className="input input-bordered w-full"
-              value={draftTo}
-              onChange={(e) => setDraftTo(e.target.value)}
-            />
-          </div>
-
-          <div className="md:col-span-2 text-sm opacity-70">
-            Usa un rango específico. El reporte incluirá ventas creadas dentro
-            del período.
-          </div>
-        </div>
-      )}
+      <ReportDateFilters
+        mode={mode}
+        onModeChange={handleModeChange}
+        years={years}
+        months={months}
+        draftYear={draftYear}
+        setDraftYear={setDraftYear}
+        draftMonth={draftMonth}
+        setDraftMonth={setDraftMonth}
+        loadingYears={loadingYears}
+        loadingMonths={loadingMonths}
+        draftFrom={draftFrom}
+        setDraftFrom={setDraftFrom}
+        draftTo={draftTo}
+        setDraftTo={setDraftTo}
+      />
 
       {/* EXTRA FILTERS */}
       <div className="rounded-box border border-base-300 bg-base-200 p-4 space-y-4">
@@ -463,92 +104,13 @@ export function SalesReportPanelClient() {
           </select>
         </div>
 
-        {/* Party autocomplete */}
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text font-medium">Cliente</span>
-          </label>
-
-          <div className="relative">
-            <input
-              className="input input-bordered w-full"
-              placeholder="Escribe al menos 2 letras…"
-              value={term}
-              onChange={(e) => {
-                const next = e.target.value;
-                setTerm(next);
-
-                // Editing invalidates any previous selection.
-                if (draftPartyId) {
-                  setDraftPartyId("");
-                  setDraftPartyName("");
-                }
-              }}
-              onFocus={() => setOpen(true)}
-              onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-              aria-label="Buscar cliente"
-            />
-
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
-              {loading ? (
-                <span className="loading loading-spinner loading-sm" />
-              ) : (
-                <span>⌄</span>
-              )}
-            </div>
-
-            {open && results.length > 0 ? (
-              <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
-                <ul className="menu menu-sm w-full">
-                  {results.map((p) => (
-                    <li key={p.id} className="w-full">
-                      <button
-                        type="button"
-                        className="w-full justify-start text-left"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setDraftPartyId(p.id);
-                          setDraftPartyName(p.name);
-                          setTerm(p.name);
-                          setOpen(false);
-                        }}
-                      >
-                        <div className="flex flex-col items-start min-w-0">
-                          <span className="font-medium truncate">{p.name}</span>
-                          {p.phone ? (
-                            <span className="text-xs opacity-70 truncate">
-                              {p.phone}
-                            </span>
-                          ) : null}
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-
-          {draftPartyId ? (
-            <div className="mt-3 flex items-center gap-2">
-              <span className="badge badge-success">Cliente seleccionado</span>
-              <span className="text-sm opacity-70">{draftPartyName}</span>
-
-              <button
-                type="button"
-                className="btn btn-ghost btn-xs"
-                onClick={() => {
-                  setDraftPartyId("");
-                  setDraftPartyName("");
-                  setTerm("");
-                  setResults([]);
-                }}
-              >
-                Quitar
-              </button>
-            </div>
-          ) : null}
-        </div>
+        {/* Multi-party selector */}
+        <PartyMultiSelectorButton
+          label="Clientes"
+          selectedCount={draftPartyIds.length}
+          mode={draftPartyFilterMode}
+          onClick={() => setIsPartyModalOpen(true)}
+        />
       </div>
 
       {/* Inline validation feedback */}
@@ -572,6 +134,19 @@ export function SalesReportPanelClient() {
           Generar reporte
         </button>
       </div>
+
+      {/* Party selection modal */}
+      <PartyMultiSelector
+        isOpen={isPartyModalOpen}
+        onClose={() => setIsPartyModalOpen(false)}
+        selectedIds={draftPartyIds}
+        mode={draftPartyFilterMode ?? "include"}
+        onConfirm={(ids, mode) => {
+          setDraftPartyIds(ids)
+          setDraftPartyFilterMode(ids.length > 0 ? mode : null)
+        }}
+        title="Seleccionar clientes para el reporte"
+      />
     </div>
-  );
+  )
 }

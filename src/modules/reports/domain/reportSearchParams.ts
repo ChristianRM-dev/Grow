@@ -54,9 +54,15 @@ export function parseReportsPageState(
   const to = cleanParam(searchParams.get("to"));
 
   // Extras (optional)
-  const status = cleanParam(searchParams.get("status")); // sales only
-  const partyId = cleanParam(searchParams.get("partyId")); // sales + purchases
-  const partyName = cleanParam(searchParams.get("partyName")); // label hydration
+  const status = cleanParam(searchParams.get("status"))
+
+  // Multi-party filter (NEW)
+  const partyIdsRaw = searchParams.getAll("partyIds")
+  const partyIds = partyIdsRaw.filter((id) => !!cleanParam(id))
+  const partyFilterMode = cleanParam(searchParams.get("partyFilterMode")) as
+    | "include"
+    | "exclude"
+    | undefined
 
   // If URL looks "incomplete", don't mark it invalid; treat as "filters not generated yet".
   if (mode === "yearMonth" && !year) return { type };
@@ -65,24 +71,30 @@ export function parseReportsPageState(
   const raw: Record<string, unknown> = {
     type,
     mode,
-    year,
-    month,
+    year: year ? Number(year) : undefined,
+    month: month ? Number(month) : undefined,
     from,
     to,
     status,
-    partyId,
-    partyName,
-  };
+    partyIds: partyIds.length > 0 ? partyIds : undefined,
+    partyFilterMode,
+  }
 
   if (type === ReportTypeEnum.SALES) {
     const parsed = SalesReportFiltersSchema.safeParse(raw);
-    if (!parsed.success) return null;
+    if (!parsed.success) {
+      console.error("Sales filter validation failed:", parsed.error)
+      return null
+    }
     return parsed.data;
   }
 
   if (type === ReportTypeEnum.PURCHASES) {
     const parsed = PurchasesReportFiltersSchema.safeParse(raw);
-    if (!parsed.success) return null;
+    if (!parsed.success) {
+      console.error("Purchases filter validation failed:", parsed.error)
+      return null
+    }
     return parsed.data;
   }
 
@@ -95,43 +107,50 @@ export function parseReportsPageState(
 export function serializeReportsPageState(
   state: ReportsPageState
 ): URLSearchParams {
-  const sp = new URLSearchParams();
+  const sp = new URLSearchParams()
 
-  if (!state.type) return sp;
-  sp.set("type", state.type);
+  if (!state.type) return sp
+  sp.set("type", state.type)
 
-  if (!hasMode(state)) return sp;
-  sp.set("mode", state.mode);
+  if (!hasMode(state)) return sp
+  sp.set("mode", state.mode)
 
   if (state.mode === "yearMonth") {
-    sp.set("year", String(state.year));
-    if (typeof state.month === "number") sp.set("month", String(state.month));
+    sp.set("year", String(state.year))
+    if (typeof state.month === "number") sp.set("month", String(state.month))
   } else {
-    sp.set("from", state.from);
-    sp.set("to", state.to);
+    sp.set("from", state.from)
+    sp.set("to", state.to)
   }
 
-  // Shared extra: party filter (sales + purchases)
-  const partyId = (state as any).partyId as string | undefined;
-  const partyName = (state as any).partyName as string | undefined;
+  // Multi-party filter (NEW)
+  const partyIds = (state as any).partyIds as string[] | undefined
+  const partyFilterMode = (state as any).partyFilterMode as
+    | "include"
+    | "exclude"
+    | undefined
 
-  if (partyId) sp.set("partyId", partyId);
-  if (partyName) sp.set("partyName", partyName);
+  if (partyIds && partyIds.length > 0) {
+    // Append each ID as a separate param for proper array serialization
+    partyIds.forEach((id) => sp.append("partyIds", id))
+
+    if (partyFilterMode) {
+      sp.set("partyFilterMode", partyFilterMode)
+    }
+  }
 
   // Sales-only extra: status
   if (state.type === ReportTypeEnum.SALES) {
-    const s = state as SalesReportFilters;
-    if (s.status && s.status !== "all") sp.set("status", s.status);
+    const s = state as SalesReportFilters
+    if (s.status && s.status !== "all") sp.set("status", s.status)
   }
 
   if (state.type === ReportTypeEnum.PURCHASES) {
-    const p = state as any;
-    if (p.status && p.status !== "all") sp.set("status", p.status);
-    if (p.partyId) sp.set("partyId", p.partyId);
-    if (p.partyName) sp.set("partyName", p.partyName);
+    const p = state as PurchasesReportFilters
+    if (p.status && p.status !== "all") sp.set("status", p.status)
   }
 
-  return sp;
+  return sp
 }
 
 export function isCompleteSalesReportFilters(
@@ -155,8 +174,8 @@ export function isCompletePurchasesReportFilters(
 }
 
 function cleanParam(v: string | null): string | undefined {
-  if (!v) return undefined;
-  const t = v.trim();
-  if (!t || t === "undefined" || t === "null") return undefined;
-  return t;
+  if (!v) return undefined
+  const t = v.trim()
+  if (!t || t === "undefined" || t === "null") return undefined
+  return t
 }
