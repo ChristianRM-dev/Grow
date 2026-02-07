@@ -23,12 +23,19 @@ function isCancelled(status: string) {
 export async function getSalesReport(
   filters: SalesReportFilters
 ): Promise<SalesReportDto> {
-  const { from, toExclusive, rangeLabel: baseRangeLabel } =
-    getReportDateRange(filters);
+  const {
+    from,
+    toExclusive,
+    rangeLabel: baseRangeLabel,
+  } = getReportDateRange(filters)
 
   // Optional filters
-  const status = filters.status ?? "all";
-  const partyId = filters.partyId?.trim() ? filters.partyId.trim() : null;
+  const status = filters.status ?? "all"
+
+  // ✅ Usar partyIds (array) en lugar de partyId (string)
+  const partyIds =
+    filters.partyIds && filters.partyIds.length > 0 ? filters.partyIds : null
+  const partyFilterMode = filters.partyFilterMode
 
   // IMPORTANT:
   // SalesNotes are no longer hidden by soft-delete.
@@ -36,10 +43,16 @@ export async function getSalesReport(
   // but they MUST NOT contribute to totals.
   const where: any = {
     createdAt: { gte: from, lt: toExclusive },
-  };
+  }
 
-  if (partyId) {
-    where.partyId = partyId;
+  // ✅ Manejar filtro de múltiples parties con include/exclude
+  if (partyIds && partyFilterMode) {
+    if (partyFilterMode === "include") {
+      where.partyId = { in: partyIds }
+    } else {
+      // exclude
+      where.partyId = { notIn: partyIds }
+    }
   }
 
   const salesNotes = await prisma.salesNote.findMany({
@@ -50,7 +63,7 @@ export async function getSalesReport(
       createdAt: true,
       status: true,
       total: true,
-      party: { select: { name: true } },
+      party: { select: { id: true, name: true } },
       lines: {
         select: {
           descriptionSnapshot: true,
@@ -70,7 +83,7 @@ export async function getSalesReport(
       },
     },
     orderBy: { createdAt: "asc" },
-  });
+  })
 
   const mapped = salesNotes.map((sn) => {
     const lines = sn.lines.map((l) => ({
@@ -78,15 +91,15 @@ export async function getSalesReport(
       quantity: toNumber(l.quantity),
       unitPrice: toNumber(l.unitPrice),
       lineTotal: toNumber(l.lineTotal),
-    }));
+    }))
 
-    const total = toNumber(sn.total);
+    const total = toNumber(sn.total)
 
     const paidTotal = sn.payments.reduce((acc, p) => {
-      return acc + (p.amount == null ? 0 : toNumber(p.amount));
-    }, 0);
+      return acc + (p.amount == null ? 0 : toNumber(p.amount))
+    }, 0)
 
-    const balanceDue = Math.max(0, total - paidTotal);
+    const balanceDue = Math.max(0, total - paidTotal)
 
     return {
       id: sn.id,
@@ -98,8 +111,8 @@ export async function getSalesReport(
       total,
       paidTotal,
       balanceDue,
-    };
-  });
+    }
+  })
 
   // Optional payment status filter:
   // - When status is "all": show everything (including CANCELLED)
@@ -108,36 +121,46 @@ export async function getSalesReport(
     status === "all"
       ? mapped
       : mapped.filter((sn) => {
-          if (isCancelled(sn.status)) return false;
-          if (status === "paid") return sn.balanceDue <= 0;
-          return sn.balanceDue > 0; // pending
-        });
+          if (isCancelled(sn.status)) return false
+          if (status === "paid") return sn.balanceDue <= 0
+          return sn.balanceDue > 0 // pending
+        })
 
   // Range label: base + optional descriptors
-  const parts: string[] = [baseRangeLabel];
+  const parts: string[] = [baseRangeLabel]
 
-  if (partyId) {
-    const partyName =
-      salesNotes[0]?.party?.name ?? filters.partyName ?? "Cliente";
-    parts.push(`Cliente: ${partyName}`);
+  // ✅ Construir rangeLabel con múltiples parties
+  if (partyIds && partyFilterMode) {
+    const partyCount = partyIds.length
+
+    if (partyFilterMode === "include") {
+      if (partyCount === 1) {
+        const name = salesNotes[0]?.party?.name ?? "Cliente"
+        parts.push(`Cliente: ${name}`)
+      } else {
+        parts.push(`${partyCount} clientes seleccionados`)
+      }
+    } else {
+      parts.push(`Excluidos: ${partyCount} clientes`)
+    }
   }
 
-  const ps = paymentStatusLabel(status);
-  if (ps) parts.push(`Pagos: ${ps}`);
+  const ps = paymentStatusLabel(status)
+  if (ps) parts.push(`Pagos: ${ps}`)
 
   // Helpful hint when "all": clarify cancelled shown but excluded from totals
   if (status === "all") {
-    parts.push("Canceladas: visibles (no suman)");
+    parts.push("Canceladas: visibles (no suman)")
   }
 
-  const rangeLabel = parts.join(" · ");
+  const rangeLabel = parts.join(" · ")
 
   // Totals: exclude CANCELLED notes from aggregation
-  const totalsBase = filtered.filter((sn) => !isCancelled(sn.status));
+  const totalsBase = filtered.filter((sn) => !isCancelled(sn.status))
 
-  const grandTotal = totalsBase.reduce((acc, s) => acc + s.total, 0);
-  const grandPaidTotal = totalsBase.reduce((acc, s) => acc + s.paidTotal, 0);
-  const grandBalanceDue = totalsBase.reduce((acc, s) => acc + s.balanceDue, 0);
+  const grandTotal = totalsBase.reduce((acc, s) => acc + s.total, 0)
+  const grandPaidTotal = totalsBase.reduce((acc, s) => acc + s.paidTotal, 0)
+  const grandBalanceDue = totalsBase.reduce((acc, s) => acc + s.balanceDue, 0)
 
   return {
     type: "sales",
@@ -147,5 +170,5 @@ export async function getSalesReport(
     grandTotal,
     grandPaidTotal,
     grandBalanceDue,
-  };
+  }
 }

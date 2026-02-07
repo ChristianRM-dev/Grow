@@ -3,15 +3,16 @@ import { useRouter, useSearchParams } from "next/navigation"
 import type { ZodSchema } from "zod"
 
 import { type ReportType } from "@/modules/reports/domain/reportTypes" // ✅ Importar el TIPO
-import {
-  parseReportsPageState,
-  serializeReportsPageState,
-} from "@/modules/reports/domain/reportSearchParams"
+
 import {
   firstDayOfMonthDateOnly,
   todayDateOnly,
 } from "@/modules/shared/utils/dateOnly"
-
+  import {
+    parseReportsPageState,
+    serializeReportsPageState,
+    type ReportsPageState, // ✅ Agregar este import
+  } from "@/modules/reports/domain/reportSearchParams"
 type Mode = "yearMonth" | "range"
 type PaymentStatus = "all" | "paid" | "pending"
 type PartyFilterMode = "include" | "exclude" | null
@@ -251,7 +252,8 @@ export function useReportFilters({
       return
     }
 
-    const sp = serializeReportsPageState(parsed.data)
+    // ✅ Type assertion seguro porque ya verificamos parsed.success
+    const sp = serializeReportsPageState(parsed.data as ReportsPageState)
     const qs = sp.toString()
     router.replace(qs ? `/reports?${qs}` : "/reports")
   }

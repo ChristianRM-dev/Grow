@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { PaymentDirection } from "@/generated/prisma/client";
-
+import { PaymentDirection } from "@/generated/prisma/client"
 import type { PurchasesReportFilters } from "@/modules/reports/domain/purchasesReportFilters.schema";
 import { getReportDateRange } from "@/modules/reports/domain/reportDateRange";
 import { toNumber } from "@/modules/shared/utils/toNumber";
 import {
   excludeSoftDeleted,
   excludeSoftDeletedPayments,
-} from "@/modules/shared/queries/softDeleteHelpers";
-
+} from "@/modules/shared/queries/softDeleteHelpers"
 import type { PurchasesReportDto } from "./getPurchasesReport.dto";
 
 function paymentStatusLabel(status: string | undefined): string | null {
@@ -25,17 +23,29 @@ export async function getPurchasesReport(
     from,
     toExclusive,
     rangeLabel: baseRangeLabel,
-  } = getReportDateRange(filters);
+  } = getReportDateRange(filters)
 
-  const status = filters.status ?? "all";
-  const partyId = filters.partyId?.trim() ? filters.partyId.trim() : null;
+  const status = filters.status ?? "all"
+
+  // ✅ Usar partyIds (array) en lugar de partyId (string)
+  const partyIds =
+    filters.partyIds && filters.partyIds.length > 0 ? filters.partyIds : null
+  const partyFilterMode = filters.partyFilterMode
 
   const where: any = {
     occurredAt: { gte: from, lt: toExclusive },
-    ...excludeSoftDeleted, // ← Filtrar compras eliminadas
-  };
+    ...excludeSoftDeleted,
+  }
 
-  if (partyId) where.partyId = partyId;
+  // ✅ Manejar filtro de múltiples parties con include/exclude
+  if (partyIds && partyFilterMode) {
+    if (partyFilterMode === "include") {
+      where.partyId = { in: partyIds }
+    } else {
+      // exclude
+      where.partyId = { notIn: partyIds }
+    }
+  }
 
   const purchases = await prisma.supplierPurchase.findMany({
     where,
@@ -45,27 +55,25 @@ export async function getPurchasesReport(
       occurredAt: true,
       total: true,
       notes: true,
-      party: { select: { name: true } },
+      party: { select: { id: true, name: true } },
       payments: {
         where: {
           direction: PaymentDirection.OUT,
           amount: { not: null },
-          ...excludeSoftDeletedPayments, // ← Filtrar pagos eliminados
+          ...excludeSoftDeletedPayments,
         },
         select: { amount: true },
       },
     },
     orderBy: { occurredAt: "asc" },
-  });
+  })
 
   const mapped = purchases.map((p) => {
-    const total = toNumber(p.total);
-
+    const total = toNumber(p.total)
     const paidTotal = p.payments.reduce((acc, pay) => {
-      return acc + (pay.amount == null ? 0 : toNumber(pay.amount));
-    }, 0);
-
-    const balanceDue = Math.max(0, total - paidTotal);
+      return acc + (pay.amount == null ? 0 : toNumber(pay.amount))
+    }, 0)
+    const balanceDue = Math.max(0, total - paidTotal)
 
     const lines = [
       {
@@ -74,7 +82,7 @@ export async function getPurchasesReport(
         unitPrice: total,
         lineTotal: total,
       },
-    ];
+    ]
 
     return {
       id: p.id,
@@ -86,32 +94,44 @@ export async function getPurchasesReport(
       total,
       paidTotal,
       balanceDue,
-    };
-  });
+    }
+  })
 
   const filtered =
     status === "all"
       ? mapped
       : mapped.filter((x) => {
-          if (status === "paid") return x.balanceDue <= 0;
-          return x.balanceDue > 0; // pending
-        });
+          if (status === "paid") return x.balanceDue <= 0
+          return x.balanceDue > 0 // pending
+        })
 
-  const parts: string[] = [baseRangeLabel];
+  // ✅ Construir rangeLabel con múltiples parties
+  const parts: string[] = [baseRangeLabel]
 
-  if (partyId) {
-    const name = purchases[0]?.party?.name ?? filters.partyName ?? "Proveedor";
-    parts.push(`Proveedor: ${name}`);
+  if (partyIds && partyFilterMode) {
+    const uniqueParties = new Set(purchases.map((p) => p.party.name))
+    const partyCount = partyIds.length
+
+    if (partyFilterMode === "include") {
+      if (partyCount === 1) {
+        const name = purchases[0]?.party?.name ?? "Proveedor"
+        parts.push(`Proveedor: ${name}`)
+      } else {
+        parts.push(`${partyCount} proveedores seleccionados`)
+      }
+    } else {
+      parts.push(`Excluidos: ${partyCount} proveedores`)
+    }
   }
 
-  const ps = paymentStatusLabel(status);
-  if (ps) parts.push(`Estado: ${ps}`);
+  const ps = paymentStatusLabel(status)
+  if (ps) parts.push(`Estado: ${ps}`)
 
-  const rangeLabel = parts.join(" · ");
+  const rangeLabel = parts.join(" · ")
 
-  const grandTotal = filtered.reduce((acc, p) => acc + p.total, 0);
-  const grandPaidTotal = filtered.reduce((acc, p) => acc + p.paidTotal, 0);
-  const grandBalanceDue = filtered.reduce((acc, p) => acc + p.balanceDue, 0);
+  const grandTotal = filtered.reduce((acc, p) => acc + p.total, 0)
+  const grandPaidTotal = filtered.reduce((acc, p) => acc + p.paidTotal, 0)
+  const grandBalanceDue = filtered.reduce((acc, p) => acc + p.balanceDue, 0)
 
   return {
     type: "purchases",
@@ -121,5 +141,5 @@ export async function getPurchasesReport(
     grandTotal,
     grandPaidTotal,
     grandBalanceDue,
-  };
+  }
 }
