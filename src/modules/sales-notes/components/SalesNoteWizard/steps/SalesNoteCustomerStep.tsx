@@ -1,14 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useState } from "react"
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
-import type { SalesNoteFormInput, SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
-import {
-  searchPartiesAction,
-  type PartyLookupDto,
-} from "@/modules/parties/actions/searchParties.action";
+import type { SalesNoteFormInput } from "@/modules/sales-notes/forms/salesNoteForm.schemas"
+import { PartyAutocomplete } from "@/modules/reports/components/PartyAutocomplete"
 
-//type Props = StepComponentProps<SalesNoteFormValues>;
 type Props = StepComponentProps<SalesNoteFormInput>;
 
 export function SalesNoteCustomerStep({ form }: Props) {
@@ -17,116 +13,77 @@ export function SalesNoteCustomerStep({ form }: Props) {
     setValue,
     watch,
     formState: { errors },
-  } = form;
+  } = form
 
-  const mode = watch("customer.mode");
-  const partyMode = watch("customer.partyMode");
-  const existingPartyId = watch("customer.existingPartyId");
-  const existingPartyName = watch("customer.existingPartyName");
+  const mode = watch("customer.mode")
+  const partyMode = watch("customer.partyMode")
+  const existingPartyId = watch("customer.existingPartyId")
+  const existingPartyName = watch("customer.existingPartyName")
 
-  // Autocomplete local state
-  const [term, setTerm] = useState("");
-  const [results, setResults] = useState<PartyLookupDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  // Local state for autocomplete input sync
+  const [term, setTerm] = useState("")
+  const [open, setOpen] = useState(false)
 
-  const customerErrors = errors.customer;
-
-  const selectedLabel = useMemo(() => {
-    // IMPORTANT: do not depend on `results` for selection display
-    const label = String(existingPartyName ?? "").trim();
-    return label || "";
-  }, [existingPartyName]);
-
-  const debounceRef = useRef<number | null>(null);
+  const customerErrors = errors.customer
 
   // Clean state when switching modes
   useEffect(() => {
     if (mode === "PUBLIC") {
-      setValue("customer.partyMode", undefined);
-      setValue("customer.existingPartyId", "");
-      setValue("customer.existingPartyName", "");
-      setValue("customer.newParty.name", "");
-      setValue("customer.newParty.phone", "");
-      setValue("customer.newParty.notes", "");
-      setTerm("");
-      setResults([]);
-      setOpen(false);
-      return;
+      setValue("customer.partyMode", undefined)
+      setValue("customer.existingPartyId", "")
+      setValue("customer.existingPartyName", "")
+      setValue("customer.newParty.name", "")
+      setValue("customer.newParty.phone", "")
+      setValue("customer.newParty.notes", "")
+      setTerm("")
+      setOpen(false)
+      return
     }
 
     // mode === "PARTY"
     if (!partyMode) {
-      setValue("customer.partyMode", "EXISTING");
+      setValue("customer.partyMode", "EXISTING")
     }
-  }, [mode, partyMode, setValue]);
+  }, [mode, partyMode, setValue])
 
   // Clean state when switching partyMode
   useEffect(() => {
-    if (mode !== "PARTY") return;
-    if (!partyMode) return;
+    if (mode !== "PARTY") return
+    if (!partyMode) return
 
     if (partyMode === "EXISTING") {
-      setValue("customer.newParty.name", "");
-      setValue("customer.newParty.phone", "");
-      setValue("customer.newParty.notes", "");
+      setValue("customer.newParty.name", "")
+      setValue("customer.newParty.phone", "")
+      setValue("customer.newParty.notes", "")
 
       // If we already have a selected party (edit scenario), show it in the input
-      const label = String(existingPartyName ?? "").trim();
+      const label = String(existingPartyName ?? "").trim()
       if (existingPartyId && label && term.trim().length === 0) {
-        setTerm(label);
+        setTerm(label)
       }
-      return;
+      return
     }
 
     // partyMode === "NEW"
-    setValue("customer.existingPartyId", "");
-    setValue("customer.existingPartyName", "");
-    setTerm("");
-    setResults([]);
-    setOpen(false);
-  }, [mode, partyMode, setValue, existingPartyId, existingPartyName, term]);
+    setValue("customer.existingPartyId", "")
+    setValue("customer.existingPartyName", "")
+    setTerm("")
+    setOpen(false)
+  }, [mode, partyMode, setValue, existingPartyId, existingPartyName, term])
 
   // Hydrate term from existingPartyName when selection exists (edit + no typing)
   useEffect(() => {
-    if (mode !== "PARTY" || partyMode !== "EXISTING") return;
+    if (mode !== "PARTY" || partyMode !== "EXISTING") return
 
-    const label = String(existingPartyName ?? "").trim();
-    if (!existingPartyId || !label) return;
+    const label = String(existingPartyName ?? "").trim()
+    if (!existingPartyId || !label) return
 
     // If user hasn't typed anything (or term is out-of-sync), sync it.
     // We avoid overriding while dropdown is open (user typing).
     if (!open && term.trim() !== label) {
-      setTerm(label);
+      setTerm(label)
     }
-  }, [existingPartyId, existingPartyName, mode, partyMode, open, term]);
-
-  // Autocomplete search (debounced)
-  useEffect(() => {
-    if (mode !== "PARTY" || partyMode !== "EXISTING") return;
-
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-
-    debounceRef.current = window.setTimeout(async () => {
-      const q = term.trim();
-      if (q.length < 2) {
-        setResults([]);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const rows = await searchPartiesAction({ term: q, take: 10 });
-        setResults(rows);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [mode, partyMode, term]);
+  }, [existingPartyId, existingPartyName, mode, partyMode, open, term])
 
   return (
     <div className="grid grid-cols-1 gap-5">
@@ -193,102 +150,37 @@ export function SalesNoteCustomerStep({ form }: Props) {
               </p>
             ) : null}
 
-            {/* EXISTING */}
+            {/* EXISTING - Using PartyAutocomplete Component */}
             {partyMode === "EXISTING" ? (
               <div className="mt-4">
-                <label className="label">
-                  <span className="label-text">Buscar cliente</span>
-                </label>
-
-                <div className="relative">
-                  <input
-                    className={`input input-bordered w-full ${
-                      customerErrors?.existingPartyId ? "input-error" : ""
-                    }`}
-                    placeholder="Escribe al menos 2 letras…"
-                    value={term}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setTerm(next);
-
-                      // Editing invalidates any previous selection.
-                      if (existingPartyId) {
-                        setValue("customer.existingPartyId", "", {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        });
-                        setValue("customer.existingPartyName", "", {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        });
-                      }
-                    }}
-                    onFocus={() => setOpen(true)}
-                    onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-                    aria-label="Buscar cliente"
-                  />
-
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
-                    {loading ? (
-                      <span className="loading loading-spinner loading-sm" />
-                    ) : (
-                      <span>⌄</span>
-                    )}
-                  </div>
-
-                  {open && results.length > 0 ? (
-                    <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
-                      <ul className="menu menu-sm w-full">
-                        {results.map((p) => (
-                          <li key={p.id} className="w-full">
-                            <button
-                              type="button"
-                              className="w-full justify-start text-left"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                setValue("customer.existingPartyId", p.id, {
-                                  shouldDirty: true,
-                                  shouldValidate: true,
-                                });
-                                setValue("customer.existingPartyName", p.name, {
-                                  shouldDirty: true,
-                                  shouldValidate: true,
-                                });
-
-                                setTerm(p.name);
-                                setOpen(false);
-                              }}
-                            >
-                              <div className="flex flex-col items-start min-w-0">
-                                <span className="font-medium truncate">
-                                  {p.name}
-                                </span>
-                                {p.phone ? (
-                                  <span className="text-xs opacity-70 truncate">
-                                    {p.phone}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-
-                {existingPartyId ? (
-                  <div className="mt-3">
-                    <span className="badge badge-success">
-                      Cliente seleccionado
-                    </span>
-                    {selectedLabel ? (
-                      <span className="ml-2 text-sm opacity-70">
-                        {selectedLabel}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
+                <PartyAutocomplete
+                  label="Buscar cliente"
+                  placeholder="Escribe al menos 2 letras…"
+                  selectedId={existingPartyId || ""}
+                  selectedName={existingPartyName || ""}
+                  onSelect={(id, name) => {
+                    setValue("customer.existingPartyId", id, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                    setValue("customer.existingPartyName", name, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                  onClear={() => {
+                    setValue("customer.existingPartyId", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                    setValue("customer.existingPartyName", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                  value={term}
+                  onChange={setTerm}
+                />
 
                 {customerErrors?.existingPartyId?.message ? (
                   <p className="mt-2 text-sm text-error">
@@ -296,6 +188,7 @@ export function SalesNoteCustomerStep({ form }: Props) {
                   </p>
                 ) : null}
 
+                {/* Hidden inputs for react-hook-form */}
                 <input
                   type="hidden"
                   {...register("customer.existingPartyId")}
@@ -380,5 +273,5 @@ export function SalesNoteCustomerStep({ form }: Props) {
         </div>
       ) : null}
     </div>
-  );
+  )
 }

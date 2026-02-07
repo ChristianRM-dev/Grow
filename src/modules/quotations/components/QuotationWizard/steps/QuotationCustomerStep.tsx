@@ -1,14 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useState } from "react"
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
-import type { QuotationFormInput, QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
-import {
-  searchPartiesAction,
-  type PartyLookupDto,
-} from "@/modules/parties/actions/searchParties.action";
+import type { QuotationFormInput } from "@/modules/quotations/forms/quotationForm.schemas"
+import { PartyAutocomplete } from "@/modules/reports/components/PartyAutocomplete"
 
-// type Props = StepComponentProps<QuotationFormValues>;
 type Props = StepComponentProps<QuotationFormInput>;
 
 export function QuotationCustomerStep({ form }: Props) {
@@ -17,59 +13,26 @@ export function QuotationCustomerStep({ form }: Props) {
     setValue,
     watch,
     formState: { errors },
-  } = form;
+  } = form
 
-  const mode = watch("customer.mode");
-  const partyMode = watch("customer.partyMode");
-  const existingPartyId = watch("customer.existingPartyId");
-  const existingPartyName = watch("customer.existingPartyName");
+  const mode = watch("customer.mode")
+  const partyMode = watch("customer.partyMode")
+  const existingPartyId = watch("customer.existingPartyId")
+  const existingPartyName = watch("customer.existingPartyName")
 
-  const [term, setTerm] = useState("");
-  const [results, setResults] = useState<PartyLookupDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  // Local state for autocomplete input sync
+  const [term, setTerm] = useState("")
+  const [open, setOpen] = useState(false)
 
-  const debounceRef = useRef<number | null>(null);
+  const customerErrors = errors.customer
 
-  const selectedLabel = useMemo(() => {
-    const label = String(existingPartyName ?? "").trim();
-    return label || "";
-  }, [existingPartyName]);
-
+  // Hydrate term from existingPartyName when selection exists (edit scenario)
   useEffect(() => {
-    const label = String(existingPartyName ?? "").trim();
+    const label = String(existingPartyName ?? "").trim()
     if (existingPartyId && label && term.trim().length === 0) {
-      setTerm(label);
+      setTerm(label)
     }
-  }, [existingPartyId, existingPartyName, term]);
-
-  useEffect(() => {
-    if (mode !== "PARTY" || partyMode !== "EXISTING") return;
-
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-
-    debounceRef.current = window.setTimeout(async () => {
-      const q = term.trim();
-      if (q.length < 2) {
-        setResults([]);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const rows = await searchPartiesAction({ term: q, take: 10 });
-        setResults(rows);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [mode, partyMode, term]);
-
-  const customerErrors = errors.customer;
+  }, [existingPartyId, existingPartyName, term])
 
   return (
     <div className="card bg-base-200">
@@ -132,100 +95,37 @@ export function QuotationCustomerStep({ form }: Props) {
               </p>
             ) : null}
 
+            {/* EXISTING - Using PartyAutocomplete Component */}
             {partyMode === "EXISTING" ? (
               <div className="mt-4">
-                <label className="label">
-                  <span className="label-text">Buscar contacto</span>
-                </label>
-
-                <div className="relative">
-                  <input
-                    className={`input input-bordered w-full ${
-                      customerErrors?.existingPartyId ? "input-error" : ""
-                    }`}
-                    placeholder="Escribe al menos 2 letras…"
-                    value={term}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setTerm(next);
-
-                      if (existingPartyId) {
-                        setValue("customer.existingPartyId", "", {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        });
-                        setValue("customer.existingPartyName", "", {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        });
-                      }
-                    }}
-                    onFocus={() => setOpen(true)}
-                    onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-                    aria-label="Buscar contacto"
-                  />
-
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70">
-                    {loading ? (
-                      <span className="loading loading-spinner loading-sm" />
-                    ) : (
-                      <span>⌄</span>
-                    )}
-                  </div>
-
-                  {open && results.length > 0 ? (
-                    <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
-                      <ul className="menu menu-sm w-full">
-                        {results.map((p) => (
-                          <li key={p.id} className="w-full">
-                            <button
-                              type="button"
-                              className="w-full justify-start text-left"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                setValue("customer.existingPartyId", p.id, {
-                                  shouldDirty: true,
-                                  shouldValidate: true,
-                                });
-                                setValue("customer.existingPartyName", p.name, {
-                                  shouldDirty: true,
-                                  shouldValidate: true,
-                                });
-
-                                setTerm(p.name);
-                                setOpen(false);
-                              }}
-                            >
-                              <div className="flex flex-col items-start min-w-0">
-                                <span className="font-medium truncate">
-                                  {p.name}
-                                </span>
-                                {p.phone ? (
-                                  <span className="text-xs opacity-70 truncate">
-                                    {p.phone}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-
-                {existingPartyId ? (
-                  <div className="mt-3">
-                    <span className="badge badge-success">
-                      Contacto seleccionado
-                    </span>
-                    {selectedLabel ? (
-                      <span className="ml-2 text-sm opacity-70">
-                        {selectedLabel}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
+                <PartyAutocomplete
+                  label="Buscar contacto"
+                  placeholder="Escribe al menos 2 letras…"
+                  selectedId={existingPartyId || ""}
+                  selectedName={existingPartyName || ""}
+                  onSelect={(id, name) => {
+                    setValue("customer.existingPartyId", id, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                    setValue("customer.existingPartyName", name, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                  onClear={() => {
+                    setValue("customer.existingPartyId", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                    setValue("customer.existingPartyName", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                  value={term}
+                  onChange={setTerm}
+                />
 
                 {customerErrors?.existingPartyId?.message ? (
                   <p className="mt-2 text-sm text-error">
@@ -233,6 +133,7 @@ export function QuotationCustomerStep({ form }: Props) {
                   </p>
                 ) : null}
 
+                {/* Hidden inputs for react-hook-form */}
                 <input
                   type="hidden"
                   {...register("customer.existingPartyId")}
@@ -244,6 +145,7 @@ export function QuotationCustomerStep({ form }: Props) {
               </div>
             ) : null}
 
+            {/* NEW */}
             {partyMode === "NEW" ? (
               <div className="mt-4 space-y-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -316,5 +218,5 @@ export function QuotationCustomerStep({ form }: Props) {
         ) : null}
       </div>
     </div>
-  );
+  )
 }

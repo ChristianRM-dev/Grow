@@ -63,6 +63,8 @@ export function PartyMultiSelector({
 
       setHasMore(result.hasMore)
       setTotal(result.total)
+    } catch (error) {
+      console.error("Error loading parties:", error)
     } finally {
       setLoading(false)
     }
@@ -158,11 +160,12 @@ export function PartyMultiSelector({
       onClick={handleBackdropClick}
     >
       <div
-        className="modal-box w-11/12 max-w-5xl h-5/6 max-h-[80vh] flex flex-col p-0"
+        className="modal-box w-11/12 max-w-5xl flex flex-col p-0"
+        style={{ maxHeight: "90vh" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="border-b border-base-300 p-4 flex-shrink-0">
+        {/* Header - Fixed */}
+        <div className="flex-shrink-0 border-b border-base-300 p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold">{title}</h3>
 
@@ -247,8 +250,8 @@ export function PartyMultiSelector({
           </div>
         </div>
 
-        {/* Party list - scrollable */}
-        <div className="flex-1 overflow-y-auto p-4">
+        {/* Party list - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
           {loading && parties.length === 0 ? (
             <div className="flex items-center justify-center py-12">
               <span className="loading loading-spinner loading-lg" />
@@ -318,8 +321,8 @@ export function PartyMultiSelector({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-base-300 p-4 flex-shrink-0">
+        {/* Footer - Fixed */}
+        <div className="flex-shrink-0 border-t border-base-300 p-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="text-sm opacity-70">
               {selectedIds.size > 0 ? (
