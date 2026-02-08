@@ -1,10 +1,16 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+/**
+ * QuotationWizard - Multi-step form for creating/editing quotations.
+ *
+ * Uses the shared DocumentWizard wrapper with quotation-specific
+ * step definitions (no draft persistence).
+ */
 
-import { MultiStepForm } from "@/components/ui/MultiStepForm/MultiStepForm";
+import React, { useMemo } from "react";
+
+import { DocumentWizard } from "@/components/forms/document-wizard/DocumentWizard";
+import type { DocumentWizardConfig } from "@/components/forms/document-wizard/DocumentWizard.types";
 import {
   defineFormStep,
   prefixIssuePathMapper,
@@ -25,6 +31,20 @@ import { QuotationLinesStep } from "./steps/QuotationLinesStep";
 import { QuotationUnregisteredLinesStep } from "./steps/QuotationUnregisteredLinesStep";
 import { QuotationSummaryStep } from "./steps/QuotationSummaryStep";
 
+// Keep Step factory stable across renders
+const Step = defineFormStep<QuotationFormInput>();
+
+const wizardConfig: DocumentWizardConfig<QuotationFormInput, QuotationFormValues> = {
+  formSchema: QuotationFormSchema,
+  labels: {
+    back: "Atrás",
+    next: "Siguiente",
+    submit: "Guardar cotización",
+    submitting: "Guardando…",
+  },
+  logPrefix: "[QuotationWizard]",
+};
+
 type QuotationWizardProps = {
   initialValues: Partial<QuotationFormInput>;
   onSubmit: (values: QuotationFormValues) => Promise<void> | void;
@@ -36,20 +56,6 @@ export function QuotationWizard({
   onSubmit,
   submitting,
 }: QuotationWizardProps) {
-  const form = useForm<QuotationFormInput>({
-    resolver: zodResolver(QuotationFormSchema),
-    shouldUnregister: false,
-    defaultValues: {
-      ...initialValues,
-      lines: initialValues?.lines ?? [],
-      unregisteredLines: initialValues?.unregisteredLines ?? [],
-    },
-    mode: "onSubmit",
-  });
-
-  // ✅ IMPORTANT: build steps using the SAME type as the form (Input)
-  const Step = defineFormStep<QuotationFormInput>();
-
   const steps = useMemo(() => {
     return [
       Step.withValidator({
@@ -79,7 +85,6 @@ export function QuotationWizard({
         fieldPaths: ["lines"],
         validator: {
           schema: QuotationLinesStepSchema,
-          // ✅ Input allows undefined; validator expects an array
           getStepValues: (v) => v.lines ?? [],
         },
         Component: QuotationLinesStep,
@@ -106,32 +111,21 @@ export function QuotationWizard({
         Component: QuotationSummaryStep,
         labels: {
           submit: "Guardar cotización",
-          submitting: submitting ? "Guardando…" : "Guardando…",
+          submitting: "Guardando…",
           next: "Siguiente",
           back: "Atrás",
         },
       },
     ] as const;
-  }, [Step, submitting]);
+  }, [submitting]);
 
   return (
-    <MultiStepForm<QuotationFormInput>
-      config={{
-        showProgress: true,
-        labels: {
-          back: "Atrás",
-          next: "Siguiente",
-          submit: "Guardar cotización",
-          submitting: "Guardando…",
-        },
-      }}
+    <DocumentWizard<QuotationFormInput, QuotationFormValues>
+      config={wizardConfig}
       steps={steps}
-      form={form}
-      // ✅ Parse Input -> Output here, so DB layer receives normalized values
-      onSubmit={(input) => onSubmit(QuotationFormSchema.parse(input))}
-      onEvent={(e) => {
-        console.log("QuotationWizard::event", e);
-      }}
+      initialValues={initialValues}
+      onSubmit={onSubmit}
+      submitting={submitting}
     />
   );
 }
