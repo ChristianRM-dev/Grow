@@ -14,7 +14,6 @@
 const PREFIX = "[SALES_NOTE_FLOW]";
 
 function isEnabled(): boolean {
-  // enable in environment where NEXT_PUBLIC_DEBUG_SALES_FLOW is set to "true"
   return process.env.NEXT_PUBLIC_DEBUG_SALES_FLOW === "true"
 }
 
