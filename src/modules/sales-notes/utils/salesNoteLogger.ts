@@ -14,7 +14,7 @@
 const PREFIX = "[SALES_NOTE_FLOW]";
 
 function isEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DEBUG_SALES_FLOW === "true";
+  return process.env.NEXT_PUBLIC_DEBUG_SALES_FLOW === "true"
 }
 
 function timestamp(): string {
