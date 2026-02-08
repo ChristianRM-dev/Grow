@@ -60,17 +60,18 @@ export function DocumentWizard<
   const draft = useFormDraft({
     draftKey: draftConfig?.draftKey ?? "__noop__",
     form,
-    enabled: !!draftConfig?.enabled,
+    enabled: false,
+
     debounceMs: draftConfig?.debounceMs ?? 1000,
     schema: formSchema as any,
     expirationDays: draftConfig?.expirationDays ?? 7,
     onAutoSave: () => {
-      console.log(`${logPrefix} Draft auto-saved`);
+      console.log(`${logPrefix} Draft auto-saved`)
     },
     onSaveError: (error) => {
-      console.error(`${logPrefix} Draft save error`, error);
+      console.error(`${logPrefix} Draft save error`, error)
     },
-  });
+  })
 
   const { showRecoveryDialog } = useDraftRecoveryDialog();
 
