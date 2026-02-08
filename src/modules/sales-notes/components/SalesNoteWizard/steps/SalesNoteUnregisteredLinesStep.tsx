@@ -9,7 +9,7 @@
  * - "Para registrar" badge and totals info
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useWatch } from "react-hook-form";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { SalesNoteFormInput } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
@@ -18,6 +18,7 @@ import {
   SALES_NOTE_UNREGISTERED_CONFIG,
   isUnregisteredRowComplete,
 } from "@/components/forms/steps/UnregisteredLinesStep";
+import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
 import { RegisterProductModal } from "./RegisterProductModal";
 
 type Props = StepComponentProps<SalesNoteFormInput>;
@@ -28,7 +29,26 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
 
   const rows = useWatch({ control, name: "unregisteredLines" }) ?? [];
 
+  // Log step mount/unmount
+  useEffect(() => {
+    salesNoteLogger.info("UnregisteredLinesStep", "Step mounted", {
+      currentRowsCount: rows?.length ?? 0,
+    });
+    return () => {
+      const rowsOnUnmount = form.getValues("unregisteredLines");
+      salesNoteLogger.info("UnregisteredLinesStep", "Step unmounting", {
+        rowsCount: rowsOnUnmount?.length ?? 0,
+        toRegisterCount: (rowsOnUnmount ?? []).filter((r: any) => r?.shouldRegister).length,
+      });
+    };
+  }, []);
+
   const handleModalSubmit = (data: any) => {
+    salesNoteLogger.info("UnregisteredLinesStep", "Modal product submitted", {
+      productName: data.name,
+      quantity: data.quantity,
+      shouldRegister: true,
+    });
     // Append via the shared component's field array is not accessible here,
     // so we use the form directly to append to the array
     const current = form.getValues("unregisteredLines") ?? [];
@@ -45,6 +65,9 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
         color: data.color || undefined,
       },
     ] as any, { shouldDirty: true });
+    salesNoteLogger.info("UnregisteredLinesStep", "Product appended to unregistered lines", {
+      newTotalCount: current.length + 1,
+    });
   };
 
   return (
@@ -111,7 +134,10 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              salesNoteLogger.info("UnregisteredLinesStep", "Opening RegisterProductModal");
+              setIsModalOpen(true);
+            }}
           >
             + Agregar producto para registrar
           </button>
@@ -120,7 +146,10 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
 
       <RegisterProductModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          salesNoteLogger.info("UnregisteredLinesStep", "Closing RegisterProductModal");
+          setIsModalOpen(false);
+        }}
         onSubmit={handleModalSubmit}
       />
     </>

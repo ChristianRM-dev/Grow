@@ -1,10 +1,11 @@
 // src/modules/sales-notes/components/SalesNoteWizard/steps/RegisterProductModal.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
 
 const RegisterProductSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido"),
@@ -51,13 +52,29 @@ export function RegisterProductModal({
     },
   });
 
+  // Log modal visibility changes
+  useEffect(() => {
+    if (isOpen) {
+      salesNoteLogger.info("RegisterProductModal", "Modal opened");
+    }
+  }, [isOpen]);
+
   const handleFormSubmit = (data: RegisterProductFormValues) => {
+    salesNoteLogger.info("RegisterProductModal", "Form submitted", {
+      productName: data.name,
+      quantity: data.quantity,
+      hasVariant: !!data.variantName,
+      hasBagSize: !!data.bagSize,
+      hasColor: !!data.color,
+      hasDescription: !!data.description,
+    });
     onSubmit(data);
     reset();
     onClose();
   };
 
   const handleCancel = () => {
+    salesNoteLogger.info("RegisterProductModal", "Form cancelled by user");
     reset();
     onClose();
   };
