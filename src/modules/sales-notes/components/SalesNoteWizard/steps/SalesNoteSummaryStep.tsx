@@ -8,7 +8,7 @@
  * - Plant count badges on section headers
  */
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useWatch } from "react-hook-form";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { SalesNoteFormInput } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
@@ -16,11 +16,24 @@ import {
   SummaryStep,
   SALES_NOTE_SUMMARY_CONFIG,
 } from "@/components/forms/steps/SummaryStep";
+import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
 
 type Props = StepComponentProps<SalesNoteFormInput>;
 
 export function SalesNoteSummaryStep({ form }: Props) {
   const values = useWatch({ control: form.control }) as any;
+
+  // Log step mount/unmount with full summary of form state
+  useEffect(() => {
+    salesNoteLogger.info("SummaryStep", "Step mounted — final review", {
+      customerMode: values?.customer?.mode,
+      registeredLinesCount: values?.lines?.length ?? 0,
+      unregisteredLinesCount: values?.unregisteredLines?.length ?? 0,
+    });
+    return () => {
+      salesNoteLogger.info("SummaryStep", "Step unmounting");
+    };
+  }, []);
 
   const registeredPlantsCount = useMemo(() => {
     return (values.lines ?? []).reduce((sum: number, line: any) => {

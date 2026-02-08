@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { SalesNoteWizard } from "@/modules/sales-notes/components/SalesNoteWizard/SalesNoteWizard"
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas"
 import { createSalesNoteAction } from "@/modules/sales-notes/actions/createSalesNote.action"
+import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger"
 import { toast } from "@/components/ui/Toast/toast"
 import { routes } from "@/lib/routes"
 
@@ -106,12 +107,24 @@ export function SalesNoteNewClient({
       initialLines: initialValues?.lines?.length ?? 0,
       initialUnregisteredLines: initialValues?.unregisteredLines?.length ?? 0,
     })
+    salesNoteLogger.info("SalesNoteNewClient", "Component mounted", {
+      hasSourceQuotation: !!sourceQuotation,
+      sourceQuotationFolio: sourceQuotation?.folio ?? null,
+      initialLines: initialValues?.lines?.length ?? 0,
+      initialUnregisteredLines: initialValues?.unregisteredLines?.length ?? 0,
+    })
+    return () => {
+      salesNoteLogger.info("SalesNoteNewClient", "Component unmounting")
+    }
   }, []) // intentionally once
 
   useEffect(() => {
     logger.log("Init clientRequestId")
     clientRequestIdRef.current = getOrCreateClientRequestId(logger)
     logger.log("clientRequestIdRef set", clientRequestIdRef.current)
+    salesNoteLogger.info("SalesNoteNewClient", "clientRequestId initialized", {
+      clientRequestId: clientRequestIdRef.current,
+    })
   }, [])
 
   const handleSubmit = async (values: SalesNoteFormValues) => {
@@ -121,9 +134,17 @@ export function SalesNoteNewClient({
       lines: values.lines?.length ?? 0,
       unregisteredLines: values.unregisteredLines?.length ?? 0,
     })
+    salesNoteLogger.info("SalesNoteNewClient", "handleSubmit called", {
+      submitting,
+      locked: submitLockRef.current,
+      linesCount: values.lines?.length ?? 0,
+      unregisteredLinesCount: values.unregisteredLines?.length ?? 0,
+      customerMode: values.customer?.mode,
+    })
 
     if (submitLockRef.current) {
       logger.warn("Submit blocked by lock")
+      salesNoteLogger.warn("SalesNoteNewClient", "Submit blocked by lock")
       return
     }
 
@@ -136,22 +157,36 @@ export function SalesNoteNewClient({
 
       if (!clientRequestId) {
         logger.error("clientRequestId is missing")
+        salesNoteLogger.error("SalesNoteNewClient", "clientRequestId is missing at submit time")
         toast.error("No se pudo iniciar la creación. Intenta de nuevo.")
         return
       }
 
       logger.log("Calling createSalesNoteAction")
+      salesNoteLogger.info("SalesNoteNewClient", "Calling createSalesNoteAction", {
+        clientRequestId,
+      })
       const t0 = performance.now()
       const res = await createSalesNoteAction({ clientRequestId, values })
+      const elapsedMs = Math.round(performance.now() - t0)
       logger.log("createSalesNoteAction resolved", {
-        ms: Math.round(performance.now() - t0),
+        ms: elapsedMs,
         ok: res.ok,
         traceId: (res as any).traceId,
         salesNoteId: res.ok ? res.salesNoteId : null,
         hasErrors: res.ok ? false : !!(res as any).errors,
       })
+      salesNoteLogger.info("SalesNoteNewClient", "createSalesNoteAction resolved", {
+        elapsedMs,
+        ok: res.ok,
+        traceId: (res as any).traceId,
+        salesNoteId: res.ok ? res.salesNoteId : null,
+      })
 
       if (!res.ok) {
+        salesNoteLogger.warn("SalesNoteNewClient", "Server returned validation error", {
+          traceId: (res as any).traceId,
+        })
         toast.error("Revisa los campos. Hay errores de validación.")
         return
       }
@@ -160,9 +195,14 @@ export function SalesNoteNewClient({
 
       // Clear idempotency key only on success
       clearClientRequestId(logger)
+      salesNoteLogger.info("SalesNoteNewClient", "Idempotency key cleared after success")
 
       const targetUrl = routes.salesNotes.details(res.salesNoteId)
       logger.log("Navigating to targetUrl", targetUrl)
+      salesNoteLogger.info("SalesNoteNewClient", "Navigating after successful create", {
+        targetUrl,
+        salesNoteId: res.salesNoteId,
+      })
 
       router.replace(targetUrl)
       logger.log("router.replace invoked")
@@ -170,9 +210,13 @@ export function SalesNoteNewClient({
       // Sometimes helpful in App Router after mutations (optional)
       router.refresh()
       logger.log("router.refresh invoked")
+      salesNoteLogger.info("SalesNoteNewClient", "router.replace + router.refresh invoked")
 
       setTimeout(() => {
         logger.log("500ms after navigation attempt", {
+          href: window.location.href,
+        })
+        salesNoteLogger.debug("SalesNoteNewClient", "500ms after navigation", {
           href: window.location.href,
         })
       }, 500)
@@ -182,9 +226,13 @@ export function SalesNoteNewClient({
           href: window.location.href,
           historyTail: logger.getHistory().slice(-10),
         })
+        salesNoteLogger.debug("SalesNoteNewClient", "2000ms after navigation", {
+          href: window.location.href,
+        })
       }, 2000)
     } catch (error) {
       logger.error("Exception in handleSubmit", error)
+      salesNoteLogger.error("SalesNoteNewClient", "Exception in handleSubmit", error)
       toast.error("Error inesperado. Intenta de nuevo.")
     } finally {
       setSubmitting(false)
@@ -193,6 +241,7 @@ export function SalesNoteNewClient({
         submitting: false,
         locked: false,
       })
+      salesNoteLogger.info("SalesNoteNewClient", "Submit finished, state reset")
     }
   }
 

@@ -7,7 +7,7 @@
  * step definitions and draft persistence.
  */
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 
 import { DocumentWizard } from "@/components/forms/document-wizard/DocumentWizard";
 import type { DocumentWizardConfig } from "@/components/forms/document-wizard/DocumentWizard.types";
@@ -15,6 +15,7 @@ import {
   defineFormStep,
   prefixIssuePathMapper,
 } from "@/components/ui/MultiStepForm/stepBuilders";
+import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
 
 import {
   SalesNoteFormSchema,
@@ -62,6 +63,23 @@ export function SalesNoteWizard({
   onSubmit,
   submitting,
 }: SalesNoteWizardProps) {
+  // Lifecycle logging
+  useEffect(() => {
+    salesNoteLogger.info("SalesNoteWizard", "Wizard mounted", {
+      initialLinesCount: (initialValues as any)?.lines?.length ?? 0,
+      initialUnregisteredLinesCount: (initialValues as any)?.unregisteredLines?.length ?? 0,
+      customerMode: (initialValues as any)?.customer?.mode,
+    });
+    return () => {
+      salesNoteLogger.info("SalesNoteWizard", "Wizard unmounting");
+    };
+  }, []);
+
+  // Log submitting state changes
+  useEffect(() => {
+    salesNoteLogger.info("SalesNoteWizard", "Submitting state changed", { submitting });
+  }, [submitting]);
+
   const steps = useMemo(() => {
     return [
       Step.withValidator({
@@ -121,12 +139,22 @@ export function SalesNoteWizard({
     ] as const;
   }, [submitting]);
 
+  // Wrap onSubmit to log the event at wizard level
+  const handleWizardSubmit = async (values: SalesNoteFormValues) => {
+    salesNoteLogger.info("SalesNoteWizard", "Wizard form submitted to parent", {
+      linesCount: values.lines?.length ?? 0,
+      unregisteredLinesCount: values.unregisteredLines?.length ?? 0,
+      customerMode: values.customer?.mode,
+    });
+    return onSubmit(values);
+  };
+
   return (
     <DocumentWizard<SalesNoteFormInput, SalesNoteFormValues>
       config={wizardConfig}
       steps={steps}
       initialValues={initialValues}
-      onSubmit={onSubmit}
+      onSubmit={handleWizardSubmit}
       submitting={submitting}
     />
   );

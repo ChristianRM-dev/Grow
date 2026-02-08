@@ -3,6 +3,7 @@ import { Breadcrumbs } from "@/components/ui/Breadcrumbs/Breadcrumbs"
 import { routes } from "@/lib/routes"
 import { getQuotationForSalesNoteDraft } from "@/modules/quotations/queries/getQuotationForSalesNoteDraft.query"
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas"
+import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger"
 import { SalesNoteNewClient } from "./sales-note-new-client"
 
 const baseValues: SalesNoteFormValues = {
@@ -30,6 +31,10 @@ export default async function SalesNoteNewPage({
   const fromQuotationId =
     typeof params?.fromQuotationId === "string" ? params.fromQuotationId : null
 
+  salesNoteLogger.info("NewPage", "Rendering server component", {
+    fromQuotationId,
+  })
+
   let initialValues = cloneDefaultValues()
   let sourceQuotation:
     | {
@@ -39,19 +44,24 @@ export default async function SalesNoteNewPage({
     | undefined
 
   if (fromQuotationId) {
+    salesNoteLogger.info("NewPage", "Fetching quotation draft for prefill", {
+      fromQuotationId,
+    })
     const draft = await getQuotationForSalesNoteDraft(fromQuotationId)
 
     if (draft) {
-      console.log("salenotes:draft", {
+      salesNoteLogger.info("NewPage", "Quotation draft loaded", {
         quotationId: draft.quotationId,
         folio: draft.folio,
-      })
-      console.log("salenotes:initialValues", {
         lines: draft.values.lines?.length ?? 0,
         unregisteredLines: draft.values.unregisteredLines?.length ?? 0,
       })
       initialValues = draft.values
       sourceQuotation = { id: draft.quotationId, folio: draft.folio }
+    } else {
+      salesNoteLogger.warn("NewPage", "Quotation draft not found", {
+        fromQuotationId,
+      })
     }
   }
 
