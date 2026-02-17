@@ -1,18 +1,24 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, PaymentDirection } from "@/generated/prisma/client"
 import {
   parseTableSearchParams,
   type ParsedTableQuery,
 } from "@/modules/shared/tables/parseTableSearchParams";
+import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers"
 
 export type SupplierPurchaseRowDto = {
-  id: string;
-  supplierName: string;
-  supplierFolio: string;
-  total: string; // Decimal -> string
-  createdAt: string; // ISO
-  occurredAt: Date;
-};
+  id: string
+  supplierName: string
+  supplierFolio: string
+
+  total: string // Decimal -> string
+  paidTotal: string // Decimal -> string
+  remainingTotal: string // Decimal -> string
+  isFullyPaid: boolean
+
+  createdAt: string // ISO
+  occurredAt: Date
+}
 
 function toPrismaOrderBy(
   q: ParsedTableQuery
@@ -20,7 +26,6 @@ function toPrismaOrderBy(
   const sortField = (q.sortField ?? "createdAt").trim();
   const sortOrder = (q.sortOrder ?? "desc") as Prisma.SortOrder;
 
-  // ✅ FIX: Agregamos el segundo tipo genérico
   const allowed: Record<
     string,
     Prisma.SupplierPurchaseOrderByWithRelationInput
@@ -29,7 +34,8 @@ function toPrismaOrderBy(
     supplierFolio: { supplierFolio: sortOrder },
     total: { total: sortOrder },
     supplierName: { party: { name: sortOrder } },
-  };
+    occurredAt: { occurredAt: sortOrder },
+  }
 
   return [allowed[sortField] ?? { createdAt: sortOrder }];
 }
@@ -37,7 +43,6 @@ function toPrismaOrderBy(
 function toWhere(q: ParsedTableQuery): Prisma.SupplierPurchaseWhereInput {
   const term = (q.search ?? "").trim();
 
-  // Base filter: always exclude soft-deleted records
   const baseWhere: Prisma.SupplierPurchaseWhereInput = {
     isDeleted: false,
   };
@@ -81,14 +86,51 @@ export async function getSupplierPurchasesTableQuery(rawSearchParams: unknown) {
     }),
   ]);
 
-  const data: SupplierPurchaseRowDto[] = rows.map((r) => ({
-    id: r.id,
-    supplierName: r.party.name,
-    supplierFolio: r.supplierFolio,
-    total: (r.total as Prisma.Decimal).toString(),
-    createdAt: r.createdAt.toISOString(),
-    occurredAt: r.occurredAt,
-  }));
+  const ids = rows.map((r) => r.id)
+
+  // IMPORTANT:
+  // For supplier purchases, payments are usually money going OUT.
+  // If your domain stores them as IN, switch this to PaymentDirection.IN.
+  const paidGroups = ids.length
+    ? await prisma.payment.groupBy({
+        by: ["supplierPurchaseId"],
+        where: {
+          supplierPurchaseId: { in: ids },
+          direction: PaymentDirection.OUT,
+          ...excludeSoftDeletedPayments,
+        },
+        _sum: { amount: true },
+      })
+    : []
+
+  const paidByPurchaseId = new Map<string, Prisma.Decimal>()
+  for (const g of paidGroups) {
+    if (!g.supplierPurchaseId) continue
+    paidByPurchaseId.set(
+      g.supplierPurchaseId,
+      (g._sum.amount ?? new Prisma.Decimal(0)) as Prisma.Decimal
+    )
+  }
+
+  const data: SupplierPurchaseRowDto[] = rows.map((r) => {
+    const total = r.total as Prisma.Decimal
+    const paid = paidByPurchaseId.get(r.id) ?? new Prisma.Decimal(0)
+
+    const remainingRaw = total.sub(paid)
+    const remaining = remainingRaw.lt(0) ? new Prisma.Decimal(0) : remainingRaw
+
+    return {
+      id: r.id,
+      supplierName: r.party.name,
+      supplierFolio: r.supplierFolio,
+      total: total.toString(),
+      paidTotal: paid.toString(),
+      remainingTotal: remaining.toString(),
+      isFullyPaid: remaining.lte(0),
+      createdAt: r.createdAt.toISOString(),
+      occurredAt: r.occurredAt,
+    }
+  })
 
   const totalPages = Math.max(1, Math.ceil(totalItems / q.pageSize));
 

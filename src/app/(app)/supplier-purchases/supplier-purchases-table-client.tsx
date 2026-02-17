@@ -1,42 +1,44 @@
-"use client";
+"use client"
 
-import React, { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import React, { useTransition } from "react"
+import { useRouter } from "next/navigation"
 
-import { GenericPaginatedTable } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable";
+import { GenericPaginatedTable } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable"
 import type {
   ColumnDef,
   TableActionDef,
   TablePagination,
-} from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable.types";
+} from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable.types"
 
-import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
-import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
-import { routes } from "@/lib/routes";
-import type { SupplierPurchaseRowDto } from "@/modules/supplier-purchases/queries/getSupplierPurchasesTable.query";
+import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery"
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters"
+import { routes } from "@/lib/routes"
+import type { SupplierPurchaseRowDto } from "@/modules/supplier-purchases/queries/getSupplierPurchasesTable.query"
 
 import {
+  CheckCircleIcon,
+  ClockIcon,
   CurrencyDollarIcon,
   DocumentIcon,
   EyeIcon,
   PencilSquareIcon,
   TrashIcon,
-} from "@heroicons/react/16/solid";
+} from "@heroicons/react/16/solid"
 
-import { useBlockingDialogs } from "@/components/ui/Dialogs";
-import { softDeleteSupplierPurchaseAction } from "@/modules/supplier-purchases/actions/softDeleteSupplierPurchase.action";
+import { useBlockingDialogs } from "@/components/ui/Dialogs"
+import { softDeleteSupplierPurchaseAction } from "@/modules/supplier-purchases/actions/softDeleteSupplierPurchase.action"
 
 export function SupplierPurchasesTableClient({
   data,
   pagination,
 }: {
-  data: SupplierPurchaseRowDto[];
-  pagination: TablePagination;
+  data: SupplierPurchaseRowDto[]
+  pagination: TablePagination
 }) {
-  const router = useRouter();
-  const pushTableQuery = useTableUrlQuery();
-  const dialogs = useBlockingDialogs();
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter()
+  const pushTableQuery = useTableUrlQuery()
+  const dialogs = useBlockingDialogs()
+  const [isPending, startTransition] = useTransition()
 
   // Delete flow isolated and reusable
   const handleDeletePurchase = async (row: SupplierPurchaseRowDto) => {
@@ -58,26 +60,26 @@ export function SupplierPurchasesTableClient({
       ),
       confirmText: "Eliminar",
       cancelText: "Cancelar",
-    });
+    })
 
-    if (!ok) return;
+    if (!ok) return
 
     // 2) Only the server action + refresh goes into transition
     startTransition(async () => {
       try {
-        const result = await softDeleteSupplierPurchaseAction({ id: row.id });
-        router.refresh();
+        const result = await softDeleteSupplierPurchaseAction({ id: row.id })
+        router.refresh()
 
         const paymentsMsg =
           result.deletedPaymentsCount && result.deletedPaymentsCount > 0
             ? ` Se eliminaron ${result.deletedPaymentsCount} pago(s) relacionado(s).`
-            : "";
+            : ""
 
         await dialogs.success({
           title: "Eliminado",
           message: `La compra se eliminó correctamente.${paymentsMsg}`,
           labels: { confirmText: "Listo" },
-        });
+        })
       } catch (err) {
         await dialogs.error({
           title: "No se pudo eliminar",
@@ -85,10 +87,10 @@ export function SupplierPurchasesTableClient({
             "Ocurrió un error al eliminar la compra. Inténtalo de nuevo.",
           details: err instanceof Error ? err.message : String(err),
           labels: { confirmText: "Entendido" },
-        });
+        })
       }
-    });
-  };
+    })
+  }
 
   const columns: Array<ColumnDef<SupplierPurchaseRowDto>> = [
     {
@@ -111,13 +113,36 @@ export function SupplierPurchasesTableClient({
       cell: (v) => moneyMX(v),
     },
     {
+      header: "Pagado",
+      field: "isFullyPaid",
+      sortable: false, // computed; avoid fake sorting unless you persist it
+      cell: (_v, row) => {
+        if (row.isFullyPaid) {
+          return (
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="h-5 w-5 text-success" />
+              <span className="text-sm opacity-80">Pagada</span>
+            </div>
+          )
+        }
+
+        return (
+          <div className="flex items-center gap-2">
+            <ClockIcon className="h-5 w-5 text-warning" />
+            <span className="text-sm opacity-80">Pendiente</span>
+          </div>
+        )
+      },
+    },
+
+    {
       header: "Cuando",
       field: "occurredAt",
       sortable: true,
       sortField: "occurredAt",
       cell: (v) => dateMX(v),
     },
-  ];
+  ]
 
   const actions: Array<TableActionDef<SupplierPurchaseRowDto>> = [
     {
@@ -132,12 +157,15 @@ export function SupplierPurchasesTableClient({
       tooltip: "Editar compra",
       icon: <PencilSquareIcon className="h-5 w-5" />,
     },
+
     {
       type: "payment",
       label: "Registrar pago",
       tooltip: "Agregar pago",
       icon: <CurrencyDollarIcon className="h-5 w-5" />,
+      disabled: (row) => row.isFullyPaid,
     },
+
     {
       type: "pdf",
       label: "Ver PDF",
@@ -151,7 +179,7 @@ export function SupplierPurchasesTableClient({
       icon: <TrashIcon className="h-5 w-5" />,
       disabled: () => isPending,
     } as unknown as TableActionDef<SupplierPurchaseRowDto>,
-  ];
+  ]
 
   return (
     <GenericPaginatedTable<SupplierPurchaseRowDto>
@@ -164,23 +192,23 @@ export function SupplierPurchasesTableClient({
       onAction={(e) => {
         switch (e.type) {
           case "details":
-            router.push(routes.supplierPurchases.details(e.row.id));
-            break;
+            router.push(routes.supplierPurchases.details(e.row.id))
+            break
           case "edit":
-            router.push(routes.supplierPurchases.edit(e.row.id));
-            break;
+            router.push(routes.supplierPurchases.edit(e.row.id))
+            break
           case "payment":
-            router.push(routes.supplierPurchases.payments.new(e.row.id));
-            break;
+            router.push(routes.supplierPurchases.payments.new(e.row.id))
+            break
           case "pdf": {
-            const url = routes.supplierPurchases.pdf(e.row.id);
-            window.open(url, "_blank", "noopener,noreferrer");
-            break;
+            const url = routes.supplierPurchases.pdf(e.row.id)
+            window.open(url, "_blank", "noopener,noreferrer")
+            break
           }
           case "delete":
             // no transition wrapper here
-            void handleDeletePurchase(e.row);
-            break;
+            void handleDeletePurchase(e.row)
+            break
         }
       }}
       searchPlaceholder="Buscar por proveedor, folio o notas…"
@@ -188,5 +216,5 @@ export function SupplierPurchasesTableClient({
       showPageSizeSelector
       initialSort={{ sortField: "createdAt", sortOrder: "desc" }}
     />
-  );
+  )
 }
