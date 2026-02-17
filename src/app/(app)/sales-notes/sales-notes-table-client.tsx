@@ -149,7 +149,7 @@ export function SalesNotesTableClient({
     {
       header: "Pagado",
       field: "isFullyPaid",
-      sortable: true,
+      sortable: false,
       sortField: "isFullyPaid",
       cell: (_v, row) => {
         // Cancelled wins visually
@@ -159,7 +159,7 @@ export function SalesNotesTableClient({
               <NoSymbolIcon className="h-5 w-5 text-error" />
               <span className="text-sm opacity-80">Cancelada</span>
             </div>
-          );
+          )
         }
 
         if (row.isFullyPaid) {
@@ -168,7 +168,7 @@ export function SalesNotesTableClient({
               <CheckCircleIcon className="h-5 w-5 text-success" />
               <span className="text-sm opacity-80">Pagada</span>
             </div>
-          );
+          )
         }
 
         return (
@@ -176,10 +176,10 @@ export function SalesNotesTableClient({
             <ClockIcon className="h-5 w-5 text-warning" />
             <span className="text-sm opacity-80">Pendiente</span>
           </div>
-        );
+        )
       },
     },
-  ];
+  ]
 
   const actions: Array<TableActionDef<SalesNoteRowDto>> = [
     {
