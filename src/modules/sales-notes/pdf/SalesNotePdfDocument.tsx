@@ -95,7 +95,11 @@ export function SalesNotePdfDocument({
           </View>
 
           <SalesNotePdfLinesTable lines={salesNote.lines} />
-          <SalesNotePdfTotalsBox total={salesNote.total} />
+          <SalesNotePdfTotalsBox
+            subtotal={salesNote.subtotal}
+            discountTotal={salesNote.discountTotal}
+            total={salesNote.total}
+          />
           <SalesNotePdfPromissoryNote
             payeeName="JUAN JOSE MORALES RIOS"
             total={salesNote.total}

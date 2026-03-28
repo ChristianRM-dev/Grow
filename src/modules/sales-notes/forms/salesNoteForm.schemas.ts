@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const CustomerModeEnum = z.enum(["PUBLIC", "PARTY"]);
 export const PartyModeEnum = z.enum(["EXISTING", "NEW"]);
+const DiscountPercentSchema = z.union([z.literal(0), z.literal(10)]).default(0);
 
 export const NewPartySchema = z.object({
   name: z.string().trim().max(120, "Máximo 120 caracteres").optional(),
@@ -39,6 +40,7 @@ export const SalesNoteLineSchema = z.object({
   productName: z.string().trim().min(1, "Selecciona un producto"),
   quantity: z.number().int().min(1, "Cantidad mínima 1"),
   unitPrice: decimalString,
+  discountPercent: DiscountPercentSchema,
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
 });
 
@@ -46,6 +48,7 @@ export const SalesNoteUnregisteredLineSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido"),
   quantity: z.number().int().min(1, "Cantidad mínima 1"),
   unitPrice: decimalString,
+  discountPercent: DiscountPercentSchema,
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
   // 👇 Nuevos campos
   shouldRegister: z.boolean(),
@@ -74,5 +77,4 @@ export const SalesNoteFormSchema = z.object({
 // Elimina el tipo manual y usa el inferido de Zod
 export type SalesNoteFormValues = z.output<typeof SalesNoteFormSchema>;
 export type SalesNoteFormInput = z.input<typeof SalesNoteFormSchema>;
-
 

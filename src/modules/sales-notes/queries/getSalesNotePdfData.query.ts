@@ -5,6 +5,7 @@ export type SalesNotePdfLineDto = {
   description: string;
   quantity: string; // Decimal as string
   unitPrice: string; // Decimal as string
+  discountPercent: number;
   lineTotal: string; // Decimal as string
 };
 
@@ -42,6 +43,7 @@ export async function getSalesNotePdfDataById(
           descriptionSnapshot: true,
           quantity: true,
           unitPrice: true,
+          discountPercent: true,
           lineTotal: true,
         },
       },
@@ -65,6 +67,7 @@ export async function getSalesNotePdfDataById(
       description: l.descriptionSnapshot,
       quantity: l.quantity.toString(),
       unitPrice: l.unitPrice.toString(),
+      discountPercent: l.discountPercent,
       lineTotal: l.lineTotal.toString(),
     })),
   };

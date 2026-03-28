@@ -107,7 +107,7 @@ export function SalesNoteWizard({
         fieldPaths: ["lines"],
         validator: {
           schema: SalesNoteLinesStepSchema,
-          getStepValues: (v) => v.lines ?? [],
+          getStepValues: (v) => (v.lines ?? []) as any,
         },
         Component: SalesNoteLinesStep,
       }),
@@ -117,7 +117,7 @@ export function SalesNoteWizard({
         fieldPaths: ["unregisteredLines"],
         validator: {
           schema: SalesNoteUnregisteredLinesStepSchema,
-          getStepValues: (v) => v.unregisteredLines ?? [],
+          getStepValues: (v) => (v.unregisteredLines ?? []) as any,
           mapIssuePathToFieldPath: (issuePath: readonly PropertyKey[]) =>
             `unregisteredLines.${issuePath.map(String).join(".")}` as any,
         },

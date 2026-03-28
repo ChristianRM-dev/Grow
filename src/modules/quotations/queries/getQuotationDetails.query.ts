@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { computeDiscountedLineTotalsDecimal } from "@/modules/shared/utils/decimals";
 
 export type QuotationLineDetailsDto = {
   id: string;
@@ -7,6 +8,7 @@ export type QuotationLineDetailsDto = {
   descriptionSnapshot: string;
   quantity: string;
   quotedUnitPrice: string;
+  discountPercent: number;
   lineTotal: string;
 };
 
@@ -17,6 +19,8 @@ export type QuotationDetailsDto = {
   createdAt: string;
   updatedAt: string;
   party: { id: string; name: string };
+  subtotal: string;
+  discountTotal: string;
   total: string;
   registeredLines: QuotationLineDetailsDto[];
   externalLines: QuotationLineDetailsDto[];
@@ -46,6 +50,7 @@ export async function getQuotationDetailsById(
           descriptionSnapshot: true,
           quantity: true,
           quotedUnitPrice: true,
+          discountPercent: true,
         },
         orderBy: { id: "asc" },
       },
@@ -57,7 +62,11 @@ export async function getQuotationDetailsById(
   const linesDto: QuotationLineDetailsDto[] = quotation.lines.map((l) => {
     const quantity = l.quantity ?? new Prisma.Decimal(0);
     const unitPrice = l.quotedUnitPrice ?? new Prisma.Decimal(0);
-    const lineTotal = quantity.mul(unitPrice);
+    const { lineTotal } = computeDiscountedLineTotalsDecimal({
+      quantity,
+      unitPrice,
+      discountPercent: l.discountPercent,
+    });
 
     return {
       id: l.id,
@@ -65,9 +74,32 @@ export async function getQuotationDetailsById(
       descriptionSnapshot: l.descriptionSnapshot,
       quantity: decToString(quantity),
       quotedUnitPrice: decToString(unitPrice),
+      discountPercent: l.discountPercent,
       lineTotal: decToString(lineTotal),
     };
   });
+
+  const subtotal = quotation.lines.reduce((acc, l) => {
+    const quantity = l.quantity ?? new Prisma.Decimal(0);
+    const unitPrice = l.quotedUnitPrice ?? new Prisma.Decimal(0);
+    const { subtotal } = computeDiscountedLineTotalsDecimal({
+      quantity,
+      unitPrice,
+      discountPercent: l.discountPercent,
+    });
+    return acc.add(subtotal);
+  }, new Prisma.Decimal(0));
+
+  const discountTotal = quotation.lines.reduce((acc, l) => {
+    const quantity = l.quantity ?? new Prisma.Decimal(0);
+    const unitPrice = l.quotedUnitPrice ?? new Prisma.Decimal(0);
+    const { discountAmount } = computeDiscountedLineTotalsDecimal({
+      quantity,
+      unitPrice,
+      discountPercent: l.discountPercent,
+    });
+    return acc.add(discountAmount);
+  }, new Prisma.Decimal(0));
 
   const computedTotal = linesDto.reduce((acc, l) => {
     return acc.add(new Prisma.Decimal(l.lineTotal));
@@ -82,6 +114,8 @@ export async function getQuotationDetailsById(
     createdAt: quotation.createdAt.toISOString(),
     updatedAt: quotation.updatedAt.toISOString(),
     party: quotation.party,
+    subtotal: decToString(subtotal),
+    discountTotal: decToString(discountTotal),
     total: decToString(total),
     registeredLines: linesDto.filter((l) => l.productVariantId !== null),
     externalLines: linesDto.filter((l) => l.productVariantId === null),

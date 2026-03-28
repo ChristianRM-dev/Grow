@@ -39,6 +39,7 @@ export async function getSalesNoteForEditById(
           productVariantId: true,
           quantity: true,
           unitPrice: true,
+          discountPercent: true,
           descriptionSnapshot: true,
 
           productVariant: {

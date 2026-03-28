@@ -58,6 +58,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
         name: data.name,
         quantity: data.quantity,
         unitPrice: data.unitPrice,
+        discountPercent: 0,
         description: data.description || "",
         shouldRegister: true,
         variantName: data.variantName || undefined,

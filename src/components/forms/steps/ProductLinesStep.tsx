@@ -6,7 +6,7 @@
  * Used by both Sales Notes and Quotations flows. Handles:
  * - Product autocomplete search via searchProductVariantsAction
  * - Row management (add/remove) with useFieldArray
- * - Per-row price, quantity, and description editing
+ * - Per-row price, quantity, discount, and description editing
  * - Totals computation
  *
  * Configurable via `ProductLinesStepConfig` to handle different price field
@@ -21,6 +21,10 @@ import {
 } from "@/modules/products/actions/searchProductVariants.action";
 import { moneyMX } from "@/modules/shared/utils/formatters";
 import { parseMoney, isPriceLike } from "@/modules/shared/utils/money";
+import {
+  computeDiscountedLineTotalsNumber,
+  LINE_DISCOUNT_OPTIONS,
+} from "@/modules/shared/utils/discounts";
 
 /**
  * Configuration for customizing ProductLinesStep per document type.
@@ -40,12 +44,13 @@ export const SALES_NOTE_LINES_CONFIG: ProductLinesStepConfig = {
   priceFieldKey: "unitPrice",
   priceColumnLabel: "Precio",
   description:
-    "Agrega productos del catálogo y ajusta cantidades y precios. Este paso es opcional.",
+    "Agrega productos del catálogo y ajusta cantidades, precios y descuentos. Este paso es opcional.",
   emptyRow: {
     productVariantId: "",
     productName: "",
     quantity: 1,
     unitPrice: "",
+    discountPercent: 0,
     description: "",
   },
 };
@@ -54,12 +59,13 @@ export const QUOTATION_LINES_CONFIG: ProductLinesStepConfig = {
   priceFieldKey: "quotedUnitPrice",
   priceColumnLabel: "Precio cotizado",
   description:
-    "Agrega productos del catálogo y ajusta cantidades y precios cotizados. Este paso es opcional.",
+    "Agrega productos del catálogo y ajusta cantidades, precios cotizados y descuentos. Este paso es opcional.",
   emptyRow: {
     productVariantId: "",
     productName: "",
     quantity: 1,
     quotedUnitPrice: "",
+    discountPercent: 0,
     description: "",
   },
 };
@@ -121,15 +127,25 @@ export function ProductLinesStep<TForm extends FieldValues>({
 
   const computedTotals = (() => {
     let subtotal = 0;
+    let discountTotal = 0;
+    let total = 0;
+
     for (const r of lines) {
-      const qty = Number(r?.quantity ?? 0);
-      const price = parseMoney(String(r?.[config.priceFieldKey] ?? ""));
-      if (!Number.isFinite(qty) || qty <= 0) continue;
-      if (!Number.isFinite(price) || price <= 0) continue;
-      subtotal += qty * price;
+      const totals = computeDiscountedLineTotalsNumber({
+        quantity: Number(r?.quantity ?? 0),
+        unitPrice: parseMoney(String(r?.[config.priceFieldKey] ?? "")),
+        discountPercent: r?.discountPercent,
+      });
+      if (!Number.isFinite(totals.subtotal)) continue;
+      subtotal += totals.subtotal;
+      discountTotal += totals.discountAmount;
+      total += totals.lineTotal;
     }
+
     return {
       subtotal,
+      discountTotal,
+      total,
       itemsCount: lines.length,
     };
   })();
@@ -208,13 +224,14 @@ export function ProductLinesStep<TForm extends FieldValues>({
           <p className="text-sm opacity-70">{config.description}</p>
 
           <div className="mt-4 -mx-4 md:mx-0 overflow-x-auto md:overflow-x-visible">
-            <div className="min-w-[860px] md:min-w-0 px-4 md:px-0">
+            <div className="min-w-[980px] md:min-w-0 px-4 md:px-0">
               <table className="table table-zebra w-full">
                 <thead>
                   <tr>
                     <th>Producto</th>
                     <th className="w-28">Cantidad</th>
                     <th className="w-32">{config.priceColumnLabel}</th>
+                    <th className="w-28">Descuento</th>
                     <th>Descripción (opcional)</th>
                     <th className="w-28 text-right">Total</th>
                     <th className="w-24">Acciones</th>
@@ -223,7 +240,7 @@ export function ProductLinesStep<TForm extends FieldValues>({
                 <tbody>
                   {fields.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8">
+                      <td colSpan={7} className="text-center py-8">
                         <div className="flex flex-col items-center gap-2 opacity-70">
                           <span>No hay productos agregados</span>
                           <button
@@ -247,18 +264,13 @@ export function ProductLinesStep<TForm extends FieldValues>({
                       const excludeIdsForRow = selectedIds.filter(
                         (id) => id !== row?.productVariantId,
                       );
-
-                      const qty = Number(row?.quantity ?? 0);
-                      const price = parseMoney(
-                        String(row?.[config.priceFieldKey] ?? ""),
-                      );
-                      const rowTotal =
-                        Number.isFinite(qty) &&
-                        qty > 0 &&
-                        Number.isFinite(price) &&
-                        price > 0
-                          ? qty * price
-                          : NaN;
+                      const rowTotals = computeDiscountedLineTotalsNumber({
+                        quantity: Number(row?.quantity ?? 0),
+                        unitPrice: parseMoney(
+                          String(row?.[config.priceFieldKey] ?? ""),
+                        ),
+                        discountPercent: row?.discountPercent,
+                      });
 
                       return (
                         <tr key={rowKey}>
@@ -382,7 +394,7 @@ export function ProductLinesStep<TForm extends FieldValues>({
                             ) : null}
                           </td>
 
-                          {/* Unit price */}
+                          {/* Price */}
                           <td>
                             <input
                               className={`input input-bordered w-28 ${
@@ -396,15 +408,32 @@ export function ProductLinesStep<TForm extends FieldValues>({
                             />
                             {rowErr?.[config.priceFieldKey]?.message ? (
                               <p className="mt-1 text-sm text-error">
-                                {String(
-                                  rowErr[config.priceFieldKey].message,
-                                )}
+                                {String(rowErr[config.priceFieldKey].message)}
                               </p>
                             ) : null}
                           </td>
 
+                          {/* Discount */}
+                          <td>
+                            <select
+                              className="select select-bordered w-24"
+                              {...register(
+                                `lines.${index}.discountPercent` as any,
+                                {
+                                  setValueAs: (value) => Number(value),
+                                },
+                              )}
+                            >
+                              {LINE_DISCOUNT_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}%
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+
                           {/* Description */}
-                          <td className="w-[320px] max-w-[320px]">
+                          <td className="min-w-[240px]">
                             <input
                               className={`input input-bordered w-full ${
                                 rowErr?.description ? "input-error" : ""
@@ -423,7 +452,7 @@ export function ProductLinesStep<TForm extends FieldValues>({
 
                           {/* Total */}
                           <td className="text-right font-medium">
-                            {moneyMX(rowTotal)}
+                            {moneyMX(rowTotals.lineTotal)}
                           </td>
 
                           {/* Actions */}
@@ -445,52 +474,56 @@ export function ProductLinesStep<TForm extends FieldValues>({
                 </tbody>
               </table>
             </div>
-
-            {/* Array-level error */}
-            {typeof linesErrors?.message === "string" ? (
-              <p className="mt-3 text-sm text-error">{linesErrors.message}</p>
-            ) : null}
-
-            {/* Totals section */}
-            {fields.length > 0 ? (
-              <div className="mt-4 flex justify-end">
-                <div className="w-full max-w-sm rounded-box border border-base-300 bg-base-100 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm opacity-70">Productos</span>
-                    <span className="font-medium">
-                      {computedTotals.itemsCount}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-sm opacity-70">Subtotal</span>
-                    <span className="text-lg font-semibold">
-                      {moneyMX(computedTotals.subtotal)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
           </div>
 
-          {/* Add product button */}
-          <div className="mt-4 flex items-center justify-end gap-2">
+          <div className="mt-4 flex justify-end">
+            <div className="w-full max-w-sm rounded-box border border-base-300 bg-base-100 p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm opacity-70">Productos</span>
+                <span className="font-medium">
+                  {computedTotals.itemsCount}
+                </span>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-sm opacity-70">Subtotal</span>
+                <span className="font-medium">
+                  {moneyMX(computedTotals.subtotal)}
+                </span>
+              </div>
+
+              {computedTotals.discountTotal > 0 ? (
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-sm opacity-70">Descuento</span>
+                  <span className="font-medium text-success">
+                    -{moneyMX(computedTotals.discountTotal)}
+                  </span>
+                </div>
+              ) : null}
+
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-sm opacity-70">Total</span>
+                <span className="text-lg font-semibold">
+                  {moneyMX(computedTotals.total)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end">
             <button
               type="button"
               className="btn btn-outline"
               disabled={!canAddRow}
-              onClick={() => {
-                append(config.emptyRow as any);
-              }}
+              onClick={() => append(config.emptyRow as any)}
             >
-              {fields.length === 0
-                ? "Agregar producto"
-                : "Agregar otro producto"}
+              + Agregar producto
             </button>
           </div>
 
-          {!canAddRow && fields.length > 0 ? (
+          {!canAddRow ? (
             <p className="mt-2 text-sm opacity-70">
-              Completa todos los productos antes de agregar uno nuevo.
+              Completa los productos actuales antes de agregar uno nuevo.
             </p>
           ) : null}
         </div>

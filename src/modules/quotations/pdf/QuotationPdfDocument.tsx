@@ -61,7 +61,11 @@ export function QuotationPdfDocument({
 
           <SalesNotePdfLinesTable lines={quotation.lines} />
 
-          <SalesNotePdfTotalsBox total={quotation.total} />
+          <SalesNotePdfTotalsBox
+            subtotal={quotation.subtotal}
+            discountTotal={quotation.discountTotal}
+            total={quotation.total}
+          />
 
           <SalesNotePdfSignature label="Aceptación" />
         </View>

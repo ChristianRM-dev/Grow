@@ -6,6 +6,7 @@ import {
   type UseCaseContext,
 } from "@/modules/shared/observability/scopedLogger";
 import {
+  computeDiscountedLineTotalsDecimal,
   toDecimal,
   sumDecimals,
   zeroDecimal,
@@ -18,8 +19,12 @@ import { resolvePartyIdForCustomerSelection } from "@/modules/parties/applicatio
 export type QuotationLinePayload = {
   productVariantId: string | null;
   descriptionSnapshot: string;
+  discountPercent: number;
   quantity: Prisma.Decimal;
+  subtotal: Prisma.Decimal;
+  discountAmount: Prisma.Decimal;
   quotedUnitPrice: Prisma.Decimal;
+  lineTotal: Prisma.Decimal;
 };
 
 export async function createQuotationUseCase(
@@ -52,6 +57,12 @@ export async function createQuotationUseCase(
       (l) => {
         const quantity = toDecimal(l.quantity);
         const quotedUnitPrice = toDecimal(l.quotedUnitPrice);
+        const { subtotal, discountAmount, lineTotal, discountPercent } =
+          computeDiscountedLineTotalsDecimal({
+            quantity,
+            unitPrice: quotedUnitPrice,
+            discountPercent: l.discountPercent,
+          });
 
         return {
           productVariantId: safeTrim(l.productVariantId) || null,
@@ -59,8 +70,12 @@ export async function createQuotationUseCase(
             l.productName,
             l.description
           ),
+          discountPercent,
           quantity,
+          subtotal,
+          discountAmount,
           quotedUnitPrice,
+          lineTotal,
         };
       }
     );
@@ -70,12 +85,22 @@ export async function createQuotationUseCase(
     ).map((l) => {
       const quantity = toDecimal(l.quantity);
       const quotedUnitPrice = toDecimal(l.quotedUnitPrice);
+      const { subtotal, discountAmount, lineTotal, discountPercent } =
+        computeDiscountedLineTotalsDecimal({
+          quantity,
+          unitPrice: quotedUnitPrice,
+          discountPercent: l.discountPercent,
+        });
 
       return {
         productVariantId: null,
         descriptionSnapshot: buildDescriptionSnapshot(l.name, l.description),
+        discountPercent,
         quantity,
+        subtotal,
+        discountAmount,
         quotedUnitPrice,
+        lineTotal,
       };
     });
 
@@ -84,7 +109,7 @@ export async function createQuotationUseCase(
 
     const total =
       allLines.length > 0
-        ? sumDecimals(allLines, (l) => l.quantity.mul(l.quotedUnitPrice))
+        ? sumDecimals(allLines, (l) => l.lineTotal)
         : zeroDecimal();
 
     logger.log("totals", { total: total.toString() });
@@ -118,6 +143,7 @@ export async function createQuotationUseCase(
           descriptionSnapshot: l.descriptionSnapshot,
           quantity: l.quantity,
           quotedUnitPrice: l.quotedUnitPrice,
+          discountPercent: l.discountPercent,
         })),
       });
       logger.log("lines_createMany_done", res);

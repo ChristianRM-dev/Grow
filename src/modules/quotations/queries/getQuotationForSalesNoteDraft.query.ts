@@ -30,6 +30,7 @@ export async function getQuotationForSalesNoteDraft(
           productVariantId: true,
           quantity: true,
           quotedUnitPrice: true,
+          discountPercent: true,
           descriptionSnapshot: true,
           productVariant: {
             select: {
@@ -53,6 +54,7 @@ export async function getQuotationForSalesNoteDraft(
       productVariantId: l.productVariantId,
       quantity: l.quantity,
       unitPrice: l.quotedUnitPrice,
+      discountPercent: l.discountPercent,
       descriptionSnapshot: l.descriptionSnapshot,
       productVariant: l.productVariant,
     })),

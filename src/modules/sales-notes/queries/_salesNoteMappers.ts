@@ -1,4 +1,5 @@
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
+import { normalizeDiscountPercent } from "@/modules/shared/utils/discounts";
 
 export function buildProductName(input: {
   speciesName: string;
@@ -105,6 +106,7 @@ export function mapSalesNoteRowToFormValues(input: {
     productVariantId: string | null;
     quantity: unknown;
     unitPrice: unknown;
+    discountPercent?: unknown;
     descriptionSnapshot: string | null;
     productVariant: {
       speciesName: string;
@@ -149,6 +151,7 @@ export function mapSalesNoteRowToFormValues(input: {
         productName,
         quantity,
         unitPrice,
+        discountPercent: normalizeDiscountPercent(l.discountPercent as number | undefined),
         description: descriptionFromSnapshotForRegisteredLine(
           snapshot,
           productName
@@ -162,6 +165,7 @@ export function mapSalesNoteRowToFormValues(input: {
         name: name || snapshot || "—",
         quantity,
         unitPrice,
+        discountPercent: normalizeDiscountPercent(l.discountPercent as number | undefined),
         description,
         shouldRegister: false,
       });
