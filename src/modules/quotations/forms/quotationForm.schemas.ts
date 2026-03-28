@@ -18,6 +18,7 @@ export const QuotationStatusSchema = z.enum(QuotationStatusValues, {
 
 export const CustomerModeEnum = z.enum(["PUBLIC", "PARTY"]);
 export const PartyModeEnum = z.enum(["EXISTING", "NEW"]);
+const DiscountPercentSchema = z.union([z.literal(0), z.literal(10)]).default(0);
 
 /**
  * NOTE:
@@ -100,6 +101,7 @@ export const QuotationLineSchema = z.object({
   productName: z.string().trim().min(1, "Selecciona un producto"),
   quantity: z.number().int().min(1, "Cantidad mínima 1"),
   quotedUnitPrice: decimalString,
+  discountPercent: DiscountPercentSchema,
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
 });
 
@@ -107,6 +109,7 @@ export const QuotationUnregisteredLineSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido"),
   quantity: z.number().int().min(1, "Cantidad mínima 1"),
   quotedUnitPrice: decimalString,
+  discountPercent: DiscountPercentSchema,
   description: z.string().trim().max(200, "Máximo 200 caracteres").optional(),
 });
 

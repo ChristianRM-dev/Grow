@@ -5,20 +5,21 @@
  *
  * Used by both Sales Notes and Quotations flows. Handles:
  * - Row management (add/remove) for products not in the catalog
- * - Per-row name, quantity, price, description editing
+ * - Per-row name, quantity, price, discount, description editing
  * - Totals computation
  *
  * Configurable via `UnregisteredLinesStepConfig` for different price field
  * names and optional extra features (e.g., product registration in Sales Notes).
- *
- * Sales Notes extends this with a "shouldRegister" checkbox column and a
- * RegisterProductModal via the `extraColumns` and `extraActions` render props.
  */
 
 import React, { useMemo } from "react";
 import { useFieldArray, useWatch, type FieldValues, type UseFormReturn } from "react-hook-form";
 import { moneyMX } from "@/modules/shared/utils/formatters";
 import { parseMoney, isPriceLike, normalizeMoneyInput } from "@/modules/shared/utils/money";
+import {
+  computeDiscountedLineTotalsNumber,
+  LINE_DISCOUNT_OPTIONS,
+} from "@/modules/shared/utils/discounts";
 
 /**
  * Configuration for customizing UnregisteredLinesStep per document type.
@@ -46,6 +47,7 @@ export const SALES_NOTE_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig = {
     name: "",
     quantity: 1,
     unitPrice: "",
+    discountPercent: 0,
     description: "",
     shouldRegister: false,
   },
@@ -61,6 +63,7 @@ export const QUOTATION_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig = {
     name: "",
     quantity: 1,
     quotedUnitPrice: "",
+    discountPercent: 0,
     description: "",
   },
   normalizePrice: false,
@@ -70,27 +73,10 @@ export const QUOTATION_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig = {
 type UnregisteredLinesStepProps<TForm extends FieldValues> = {
   form: UseFormReturn<TForm>;
   config: UnregisteredLinesStepConfig;
-  /**
-   * Optional render prop for extra table header columns (e.g., registration checkbox column).
-   * Returns JSX for additional <th> elements to prepend before the Name column.
-   */
   renderExtraHeaders?: () => React.ReactNode;
-  /**
-   * Optional render prop for extra table body columns per row.
-   * Returns JSX for additional <td> elements to prepend before the Name column.
-   */
   renderExtraColumns?: (index: number, row: any) => React.ReactNode;
-  /**
-   * Optional render prop for extra action buttons (e.g., "Agregar producto para registrar").
-   */
   renderExtraActions?: () => React.ReactNode;
-  /**
-   * Optional render prop for extra totals info (e.g., "X para registrar" badge).
-   */
   renderExtraTotals?: (rows: any[]) => React.ReactNode;
-  /**
-   * Optional render prop for header badge (e.g., "X para registrar" badge).
-   */
   renderHeaderBadge?: (rows: any[]) => React.ReactNode;
 };
 
@@ -128,7 +114,8 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
     name: "unregisteredLines" as any,
   });
 
-  const rows = (useWatch({ control, name: "unregisteredLines" as any }) ?? []) as any[];
+  const rows = (useWatch({ control, name: "unregisteredLines" as any }) ??
+    []) as any[];
   const rowsErrors = (errors as any).unregisteredLines;
 
   const canAddRow =
@@ -138,24 +125,30 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
 
   const computedTotals = useMemo(() => {
     let subtotal = 0;
+    let discountTotal = 0;
+    let total = 0;
 
     for (const r of rows) {
-      const qty = Number(r?.quantity ?? 0);
-      const price = parseMoney(String(r?.[config.priceFieldKey] ?? ""));
-      if (!Number.isFinite(qty) || qty <= 0) continue;
-      if (!Number.isFinite(price) || price <= 0) continue;
-      subtotal += qty * price;
+      const totals = computeDiscountedLineTotalsNumber({
+        quantity: Number(r?.quantity ?? 0),
+        unitPrice: parseMoney(String(r?.[config.priceFieldKey] ?? "")),
+        discountPercent: r?.discountPercent,
+      });
+      if (!Number.isFinite(totals.subtotal)) continue;
+      subtotal += totals.subtotal;
+      discountTotal += totals.discountAmount;
+      total += totals.lineTotal;
     }
 
     const itemsCount = rows.filter(
       (r) => String(r?.name ?? "").trim().length > 0,
     ).length;
 
-    return { subtotal, itemsCount };
+    return { subtotal, discountTotal, total, itemsCount };
   }, [rows, config.priceFieldKey]);
 
   const hasExtraColumns = !!renderExtraHeaders;
-  const totalColSpan = hasExtraColumns ? 7 : 6;
+  const totalColSpan = hasExtraColumns ? 8 : 7;
 
   return (
     <div className="w-full">
@@ -179,6 +172,7 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                   <th>Nombre</th>
                   <th className="w-28">Cantidad</th>
                   <th className="w-32">{config.priceColumnLabel}</th>
+                  <th className="w-28">Descuento</th>
                   <th>Descripción (opcional)</th>
                   <th className="w-28 text-right">Total</th>
                   <th className="w-24">Acciones</th>
@@ -200,18 +194,13 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                 {fields.map((f, index) => {
                   const row = rows[index];
                   const rowErr = rowsErrors?.[index];
-
-                  const qty = Number(row?.quantity ?? 0);
-                  const price = parseMoney(
-                    String(row?.[config.priceFieldKey] ?? ""),
-                  );
-                  const rowTotal =
-                    Number.isFinite(qty) &&
-                    qty > 0 &&
-                    Number.isFinite(price) &&
-                    price > 0
-                      ? qty * price
-                      : NaN;
+                  const rowTotals = computeDiscountedLineTotalsNumber({
+                    quantity: Number(row?.quantity ?? 0),
+                    unitPrice: parseMoney(
+                      String(row?.[config.priceFieldKey] ?? ""),
+                    ),
+                    discountPercent: row?.discountPercent,
+                  });
 
                   return (
                     <tr key={f.id}>
@@ -303,6 +292,25 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                         ) : null}
                       </td>
 
+                      {/* Discount */}
+                      <td>
+                        <select
+                          className="select select-bordered w-24"
+                          {...register(
+                            `unregisteredLines.${index}.discountPercent` as any,
+                            {
+                              setValueAs: (value) => Number(value),
+                            },
+                          )}
+                        >
+                          {LINE_DISCOUNT_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}%
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
                       {/* Description */}
                       <td className="min-w-[240px]">
                         <input
@@ -323,7 +331,7 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
 
                       {/* Total */}
                       <td className="text-right font-medium">
-                        {moneyMX(rowTotal)}
+                        {moneyMX(rowTotals.lineTotal)}
                       </td>
 
                       {/* Actions */}
@@ -357,8 +365,24 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
 
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-sm opacity-70">Subtotal</span>
-                  <span className="text-lg font-semibold">
+                  <span className="font-medium">
                     {moneyMX(computedTotals.subtotal)}
+                  </span>
+                </div>
+
+                {computedTotals.discountTotal > 0 ? (
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-sm opacity-70">Descuento</span>
+                    <span className="font-medium text-success">
+                      -{moneyMX(computedTotals.discountTotal)}
+                    </span>
+                  </div>
+                ) : null}
+
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-sm opacity-70">Total</span>
+                  <span className="text-lg font-semibold">
+                    {moneyMX(computedTotals.total)}
                   </span>
                 </div>
               </div>

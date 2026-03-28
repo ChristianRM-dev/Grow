@@ -8,6 +8,7 @@ export type SalesNoteLineDetailsDto = {
   descriptionSnapshot: string;
   quantity: string; // decimal string
   unitPrice: string; // decimal string
+  discountPercent: number;
   lineTotal: string; // decimal string
 };
 
@@ -75,6 +76,7 @@ export async function getSalesNoteDetailsById(
           descriptionSnapshot: true,
           quantity: true,
           unitPrice: true,
+          discountPercent: true,
           lineTotal: true,
         },
         orderBy: { id: "asc" },
@@ -124,6 +126,7 @@ export async function getSalesNoteDetailsById(
     descriptionSnapshot: l.descriptionSnapshot,
     quantity: decToString(l.quantity),
     unitPrice: decToString(l.unitPrice),
+    discountPercent: l.discountPercent,
     lineTotal: decToString(l.lineTotal),
   }));
 

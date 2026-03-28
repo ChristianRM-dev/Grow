@@ -35,6 +35,7 @@ export async function getQuotationForEditById(
           productVariantId: true,
           quantity: true,
           quotedUnitPrice: true,
+          discountPercent: true,
           descriptionSnapshot: true,
           productVariant: {
             select: {

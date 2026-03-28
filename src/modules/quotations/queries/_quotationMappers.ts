@@ -1,4 +1,5 @@
 import type { QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
+import { normalizeDiscountPercent } from "@/modules/shared/utils/discounts";
 import {
   buildProductName,
   decimalToString,
@@ -14,6 +15,7 @@ export function mapQuotationRowToFormValues(input: {
     productVariantId: string | null;
     quantity: unknown;
     quotedUnitPrice: unknown;
+    discountPercent?: unknown;
     descriptionSnapshot: string | null;
     productVariant: {
       speciesName: string;
@@ -52,6 +54,7 @@ export function mapQuotationRowToFormValues(input: {
         productName,
         quantity,
         quotedUnitPrice: unitPrice,
+        discountPercent: normalizeDiscountPercent(l.discountPercent as number | undefined),
         description: descriptionFromSnapshotForRegisteredLine(
           snapshot,
           productName
@@ -64,6 +67,7 @@ export function mapQuotationRowToFormValues(input: {
         name: name || snapshot || "—",
         quantity,
         quotedUnitPrice: unitPrice,
+        discountPercent: normalizeDiscountPercent(l.discountPercent as number | undefined),
         description,
       });
     }

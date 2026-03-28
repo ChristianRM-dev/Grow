@@ -3,12 +3,21 @@
 import type { QuotationDetailsDto } from "@/modules/quotations/queries/getQuotationDetails.query";
 import { moneyMX } from "@/modules/shared/utils/formatters";
 import { splitSnapshot } from "@/modules/sales-notes/queries/_salesNoteMappers";
+import {
+  formatDiscountLabel,
+  hasAnyDiscount,
+} from "@/modules/shared/utils/discounts";
 
 export function QuotationDetailsClient({
   dto,
 }: {
   dto: QuotationDetailsDto;
 }) {
+  const showDiscountColumn = hasAnyDiscount([
+    ...dto.registeredLines,
+    ...dto.externalLines,
+  ]);
+
   return (
     <div className="space-y-6">
       <div className="card bg-base-100 shadow-sm">
@@ -17,8 +26,26 @@ export function QuotationDetailsClient({
 
           <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-box border border-base-300 bg-base-200 p-4">
-              <div className="text-sm opacity-70">Total</div>
-              <div className="text-2xl font-bold">${moneyMX(dto.total)}</div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm opacity-70">Subtotal</span>
+                  <span className="font-medium">${moneyMX(dto.subtotal)}</span>
+                </div>
+                {Number(dto.discountTotal) > 0 ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm opacity-70">Descuento</span>
+                    <span className="font-medium text-success">
+                      -${moneyMX(dto.discountTotal)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm opacity-70">Total</span>
+                  <span className="text-2xl font-bold">
+                    ${moneyMX(dto.total)}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-box border border-base-300 bg-base-200 p-4">
@@ -49,6 +76,9 @@ export function QuotationDetailsClient({
                   <th>Producto</th>
                   <th className="w-28 text-right">Cantidad</th>
                   <th className="w-28 text-right">Precio</th>
+                  {showDiscountColumn ? (
+                    <th className="w-24 text-right">Descuento</th>
+                  ) : null}
                   <th>Descripción</th>
                   <th className="w-28 text-right">Total</th>
                 </tr>
@@ -56,7 +86,10 @@ export function QuotationDetailsClient({
               <tbody>
                 {dto.registeredLines.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center opacity-70">
+                    <td
+                      colSpan={showDiscountColumn ? 6 : 5}
+                      className="py-10 text-center opacity-70"
+                    >
                       No hay productos registrados.
                     </td>
                   </tr>
@@ -76,6 +109,11 @@ export function QuotationDetailsClient({
                       <td className="text-right">
                         ${moneyMX(l.quotedUnitPrice)}
                       </td>
+                      {showDiscountColumn ? (
+                        <td className="text-right">
+                          {formatDiscountLabel(l.discountPercent)}
+                        </td>
+                      ) : null}
                       <td>{displayDescription}</td>
                       <td className="text-right font-semibold">
                         ${moneyMX(l.lineTotal)}
@@ -101,6 +139,9 @@ export function QuotationDetailsClient({
                     <th>Nombre</th>
                     <th className="w-28 text-right">Cantidad</th>
                     <th className="w-28 text-right">Precio</th>
+                    {showDiscountColumn ? (
+                      <th className="w-24 text-right">Descuento</th>
+                    ) : null}
                     <th>Descripción</th>
                     <th className="w-28 text-right">Total</th>
                   </tr>
@@ -120,6 +161,11 @@ export function QuotationDetailsClient({
                         <td className="text-right">
                           ${moneyMX(l.quotedUnitPrice)}
                         </td>
+                        {showDiscountColumn ? (
+                          <td className="text-right">
+                            {formatDiscountLabel(l.discountPercent)}
+                          </td>
+                        ) : null}
                         <td>{displayDescription}</td>
                         <td className="text-right font-semibold">
                           ${moneyMX(l.lineTotal)}

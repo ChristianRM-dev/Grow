@@ -85,7 +85,7 @@ export function QuotationWizard({
         fieldPaths: ["lines"],
         validator: {
           schema: QuotationLinesStepSchema,
-          getStepValues: (v) => v.lines ?? [],
+          getStepValues: (v) => (v.lines ?? []) as any,
         },
         Component: QuotationLinesStep,
       }),
@@ -96,7 +96,7 @@ export function QuotationWizard({
         fieldPaths: ["unregisteredLines"],
         validator: {
           schema: QuotationUnregisteredLinesStepSchema,
-          getStepValues: (v) => v.unregisteredLines ?? [],
+          getStepValues: (v) => (v.unregisteredLines ?? []) as any,
           mapIssuePathToFieldPath: (issuePath: readonly PropertyKey[]) =>
             `unregisteredLines.${issuePath.map(String).join(".")}` as any,
         },

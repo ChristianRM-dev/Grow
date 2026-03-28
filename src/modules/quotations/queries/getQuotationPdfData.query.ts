@@ -2,6 +2,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { PdfLineDto } from "@/modules/shared/pdf/pdfDtos";
+import { computeDiscountedLineTotalsDecimal } from "@/modules/shared/utils/decimals";
 
 export type QuotationPdfDataDto = {
   id: string;
@@ -10,6 +11,8 @@ export type QuotationPdfDataDto = {
 
   customerName: string;
 
+  subtotal: string;
+  discountTotal: string;
   total: string; // Decimal as string
   lines: PdfLineDto[];
 };
@@ -35,6 +38,7 @@ export async function getQuotationPdfDataById(
           descriptionSnapshot: true,
           quantity: true,
           quotedUnitPrice: true,
+          discountPercent: true,
         },
       },
     },
@@ -43,14 +47,37 @@ export async function getQuotationPdfDataById(
   if (!row) return null;
 
   const lines: PdfLineDto[] = row.lines.map((l) => {
-    const lineTotal = l.quantity.mul(l.quotedUnitPrice);
+    const { lineTotal } = computeDiscountedLineTotalsDecimal({
+      quantity: l.quantity,
+      unitPrice: l.quotedUnitPrice,
+      discountPercent: l.discountPercent,
+    });
     return {
       description: l.descriptionSnapshot,
       quantity: l.quantity.toString(),
       unitPrice: l.quotedUnitPrice.toString(),
+      discountPercent: l.discountPercent,
       lineTotal: lineTotal.toString(),
     };
   });
+
+  const subtotal = row.lines.reduce((acc, l) => {
+    const { subtotal } = computeDiscountedLineTotalsDecimal({
+      quantity: l.quantity,
+      unitPrice: l.quotedUnitPrice,
+      discountPercent: l.discountPercent,
+    });
+    return acc.add(subtotal);
+  }, new Prisma.Decimal(0));
+
+  const discountTotal = row.lines.reduce((acc, l) => {
+    const { discountAmount } = computeDiscountedLineTotalsDecimal({
+      quantity: l.quantity,
+      unitPrice: l.quotedUnitPrice,
+      discountPercent: l.discountPercent,
+    });
+    return acc.add(discountAmount);
+  }, new Prisma.Decimal(0));
 
   const computedTotal = lines.reduce(
     (acc, l) => acc.add(new Prisma.Decimal(l.lineTotal)),
@@ -64,6 +91,8 @@ export async function getQuotationPdfDataById(
     folio: row.folio,
     createdAtIso: row.createdAt.toISOString(),
     customerName: row.party.name,
+    subtotal: subtotal.toString(),
+    discountTotal: discountTotal.toString(),
     total,
     lines,
   };

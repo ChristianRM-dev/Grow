@@ -15,6 +15,10 @@ import {
   auditFormatMoney,
   auditFormatText,
 } from "@/modules/shared/audit/auditUi";
+import {
+  formatDiscountLabel,
+  hasAnyDiscount,
+} from "@/modules/shared/utils/discounts";
 
 import { softDeleteSalesNotePaymentAction } from "@/modules/sales-notes/actions/softDeleteSalesNotePayment.action";
 
@@ -186,6 +190,11 @@ export function SalesNoteDetailsClient({
     return registeredTotal + externalTotal;
   }, [dto.registeredLines, dto.externalLines]);
 
+  const showDiscountColumn = useMemo(
+    () => hasAnyDiscount([...dto.registeredLines, ...dto.externalLines]),
+    [dto.registeredLines, dto.externalLines],
+  );
+
   function canModifyPayment(payment: SalesNoteDetailsDto["payments"][number]) {
     if (isCancelled) return false;
     if (payment.isDeleted) return false;
@@ -285,13 +294,19 @@ export function SalesNoteDetailsClient({
                     <th>Descripción</th>
                     <th className="text-right">Cantidad</th>
                     <th className="text-right">Precio</th>
+                    {showDiscountColumn ? (
+                      <th className="text-right">Descuento</th>
+                    ) : null}
                     <th className="text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dto.registeredLines.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center opacity-70">
+                      <td
+                        colSpan={showDiscountColumn ? 5 : 4}
+                        className="py-6 text-center opacity-70"
+                      >
                         No hay productos registrados
                       </td>
                     </tr>
@@ -301,6 +316,11 @@ export function SalesNoteDetailsClient({
                         <td>{l.descriptionSnapshot}</td>
                         <td className="text-right">{l.quantity}</td>
                         <td className="text-right">${moneyMX(l.unitPrice)}</td>
+                        {showDiscountColumn ? (
+                          <td className="text-right">
+                            {formatDiscountLabel(l.discountPercent)}
+                          </td>
+                        ) : null}
                         <td className="text-right">${moneyMX(l.lineTotal)}</td>
                       </tr>
                     ))
@@ -319,13 +339,19 @@ export function SalesNoteDetailsClient({
                     <th>Descripción</th>
                     <th className="text-right">Cantidad</th>
                     <th className="text-right">Precio</th>
+                    {showDiscountColumn ? (
+                      <th className="text-right">Descuento</th>
+                    ) : null}
                     <th className="text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dto.externalLines.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center opacity-70">
+                      <td
+                        colSpan={showDiscountColumn ? 5 : 4}
+                        className="py-6 text-center opacity-70"
+                      >
                         No hay productos externos
                       </td>
                     </tr>
@@ -335,6 +361,11 @@ export function SalesNoteDetailsClient({
                         <td>{l.descriptionSnapshot}</td>
                         <td className="text-right">{l.quantity}</td>
                         <td className="text-right">${moneyMX(l.unitPrice)}</td>
+                        {showDiscountColumn ? (
+                          <td className="text-right">
+                            {formatDiscountLabel(l.discountPercent)}
+                          </td>
+                        ) : null}
                         <td className="text-right">${moneyMX(l.lineTotal)}</td>
                       </tr>
                     ))
@@ -349,6 +380,15 @@ export function SalesNoteDetailsClient({
               <span>Subtotal</span>
               <span className="font-medium">${moneyMX(dto.subtotal)}</span>
             </div>
+
+            {Number(dto.discountTotal) > 0 ? (
+              <div className="flex justify-between">
+                <span>Descuento</span>
+                <span className="font-medium text-success">
+                  -${moneyMX(dto.discountTotal)}
+                </span>
+              </div>
+            ) : null}
 
             <div className="flex justify-between text-base">
               <span className="font-semibold">Total</span>

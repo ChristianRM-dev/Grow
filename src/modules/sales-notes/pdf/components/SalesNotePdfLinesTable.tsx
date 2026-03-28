@@ -3,6 +3,10 @@ import React from "react";
 import { StyleSheet, Text, View } from "@react-pdf/renderer";
 import { PdfLineDto } from "@/modules/shared/pdf/pdfDtos";
 import { formatQty, moneyMX } from "@/modules/shared/utils/formatters";
+import {
+  formatDiscountLabel,
+  hasAnyDiscount,
+} from "@/modules/shared/utils/discounts";
 
 type SalesNotePdfLinesTableProps = {
   lines: PdfLineDto[];
@@ -34,24 +38,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   colQty: {
-    width: "18%",
     borderRightWidth: 1,
     borderRightColor: "#000",
     textAlign: "center" as const,
   },
   colDesc: {
-    width: "50%",
     borderRightWidth: 1,
     borderRightColor: "#000",
   },
   colUnit: {
-    width: "16%",
+    borderRightWidth: 1,
+    borderRightColor: "#000",
+    textAlign: "right" as const,
+  },
+  colDiscount: {
     borderRightWidth: 1,
     borderRightColor: "#000",
     textAlign: "right" as const,
   },
   colTotal: {
-    width: "16%",
     textAlign: "right" as const,
   },
   headerText: {
@@ -60,19 +65,47 @@ const styles = StyleSheet.create({
 });
 
 export function SalesNotePdfLinesTable({ lines }: SalesNotePdfLinesTableProps) {
+  const showDiscountColumn = hasAnyDiscount(lines);
+
+  const qtyStyle = showDiscountColumn
+    ? { width: "14%" }
+    : { width: "18%" };
+  const descStyle = showDiscountColumn
+    ? { width: "40%" }
+    : { width: "50%" };
+  const unitStyle = showDiscountColumn
+    ? { width: "15%" }
+    : { width: "16%" };
+  const discountStyle = { width: "13%" };
+  const totalStyle = showDiscountColumn
+    ? { width: "18%" }
+    : { width: "16%" };
+
   return (
     <View style={styles.table}>
       <View style={styles.headerRow}>
-        <Text style={[styles.cell, styles.colQty, styles.headerText]}>
+        <Text style={[styles.cell, styles.colQty, qtyStyle, styles.headerText]}>
           Cantidad
         </Text>
-        <Text style={[styles.cell, styles.colDesc, styles.headerText]}>
+        <Text style={[styles.cell, styles.colDesc, descStyle, styles.headerText]}>
           Descripción
         </Text>
-        <Text style={[styles.cell, styles.colUnit, styles.headerText]}>
+        <Text style={[styles.cell, styles.colUnit, unitStyle, styles.headerText]}>
           P. Unitario
         </Text>
-        <Text style={[styles.cell, styles.colTotal, styles.headerText]}>
+        {showDiscountColumn ? (
+          <Text
+            style={[
+              styles.cell,
+              styles.colDiscount,
+              discountStyle,
+              styles.headerText,
+            ]}
+          >
+            Desc.
+          </Text>
+        ) : null}
+        <Text style={[styles.cell, styles.colTotal, totalStyle, styles.headerText]}>
           Total
         </Text>
       </View>
@@ -81,14 +114,21 @@ export function SalesNotePdfLinesTable({ lines }: SalesNotePdfLinesTableProps) {
         const isLast = idx === lines.length - 1;
         return (
           <View key={idx} style={isLast ? styles.rowLast : styles.row}>
-            <Text style={[styles.cell, styles.colQty]}>
+            <Text style={[styles.cell, styles.colQty, qtyStyle]}>
               {formatQty(l.quantity)}
             </Text>
-            <Text style={[styles.cell, styles.colDesc]}>{l.description}</Text>
-            <Text style={[styles.cell, styles.colUnit]}>
+            <Text style={[styles.cell, styles.colDesc, descStyle]}>
+              {l.description}
+            </Text>
+            <Text style={[styles.cell, styles.colUnit, unitStyle]}>
               {moneyMX(l.unitPrice)}
             </Text>
-            <Text style={[styles.cell, styles.colTotal]}>
+            {showDiscountColumn ? (
+              <Text style={[styles.cell, styles.colDiscount, discountStyle]}>
+                {formatDiscountLabel(l.discountPercent)}
+              </Text>
+            ) : null}
+            <Text style={[styles.cell, styles.colTotal, totalStyle]}>
               {moneyMX(l.lineTotal)}
             </Text>
           </View>

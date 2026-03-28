@@ -1,0 +1,5 @@
+ALTER TABLE "SalesNoteLine"
+ADD COLUMN "discountPercent" INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE "QuotationLine"
+ADD COLUMN "discountPercent" INTEGER NOT NULL DEFAULT 0;

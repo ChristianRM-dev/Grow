@@ -16,9 +16,9 @@ import {
   type UseCaseContext,
 } from "@/modules/shared/observability/scopedLogger";
 import {
+  computeDiscountedLineTotalsDecimal,
   toDecimal,
   sumDecimals,
-  zeroDecimal,
 } from "@/modules/shared/utils/decimals";
 import { safeTrim } from "@/modules/shared/utils/strings";
 import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/descriptionSnapshot";
@@ -34,7 +34,10 @@ import { computeSalesNoteBalance } from "./computeSalesNoteBalance";
 type LinePayload = {
   productVariantId: string | null;
   descriptionSnapshot: string;
+  discountPercent: number;
   quantity: Prisma.Decimal;
+  subtotal: Prisma.Decimal;
+  discountAmount: Prisma.Decimal;
   unitPrice: Prisma.Decimal;
   lineTotal: Prisma.Decimal;
 };
@@ -142,7 +145,12 @@ export async function updateSalesNoteUseCase(
     const registeredLines: LinePayload[] = (values.lines ?? []).map((l) => {
       const qty = toDecimal(l.quantity);
       const unitPrice = toDecimal(l.unitPrice);
-      const lineTotal = qty.mul(unitPrice);
+      const { subtotal, discountAmount, lineTotal, discountPercent } =
+        computeDiscountedLineTotalsDecimal({
+          quantity: qty,
+          unitPrice,
+          discountPercent: l.discountPercent,
+        });
 
       return {
         productVariantId: safeTrim(l.productVariantId) || null,
@@ -150,7 +158,10 @@ export async function updateSalesNoteUseCase(
           l.productName,
           l.description
         ),
+        discountPercent,
         quantity: qty,
+        subtotal,
+        discountAmount,
         unitPrice,
         lineTotal,
       };
@@ -161,7 +172,12 @@ export async function updateSalesNoteUseCase(
     ).map((l, index) => {
       const qty = toDecimal(l.quantity);
       const unitPrice = toDecimal(l.unitPrice);
-      const lineTotal = qty.mul(unitPrice);
+      const { subtotal, discountAmount, lineTotal, discountPercent } =
+        computeDiscountedLineTotalsDecimal({
+          quantity: qty,
+          unitPrice,
+          discountPercent: l.discountPercent,
+        });
 
       // If the product was registered, use its productVariantId
       const productVariantId = registeredProductIds.get(index) || null;
@@ -169,7 +185,10 @@ export async function updateSalesNoteUseCase(
       return {
         productVariantId,
         descriptionSnapshot: buildDescriptionSnapshot(l.name, l.description),
+        discountPercent,
         quantity: qty,
+        subtotal,
+        discountAmount,
         unitPrice,
         lineTotal,
       };
@@ -182,8 +201,8 @@ export async function updateSalesNoteUseCase(
     });
 
     // 4) Totals
-    const subtotal = sumDecimals(allLines, (l) => l.lineTotal);
-    const discountTotal = zeroDecimal();
+    const subtotal = sumDecimals(allLines, (l) => l.subtotal);
+    const discountTotal = sumDecimals(allLines, (l) => l.discountAmount);
     const total = subtotal.sub(discountTotal);
 
     logger.log("totals", {
@@ -217,6 +236,7 @@ export async function updateSalesNoteUseCase(
           descriptionSnapshot: l.descriptionSnapshot,
           quantity: l.quantity,
           unitPrice: l.unitPrice,
+          discountPercent: l.discountPercent,
           lineTotal: l.lineTotal,
         })),
       });

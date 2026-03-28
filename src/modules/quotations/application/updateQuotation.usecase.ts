@@ -6,6 +6,7 @@ import {
   type UseCaseContext,
 } from "@/modules/shared/observability/scopedLogger";
 import {
+  computeDiscountedLineTotalsDecimal,
   toDecimal,
   sumDecimals,
   zeroDecimal,
@@ -54,6 +55,12 @@ export async function updateQuotationUseCase(
     const registeredLines = (values.lines ?? []).map((l) => {
       const quantity = toDecimal(l.quantity);
       const quotedUnitPrice = toDecimal(l.quotedUnitPrice);
+      const { subtotal, discountAmount, lineTotal, discountPercent } =
+        computeDiscountedLineTotalsDecimal({
+          quantity,
+          unitPrice: quotedUnitPrice,
+          discountPercent: l.discountPercent,
+        });
 
       return {
         productVariantId: safeTrim(l.productVariantId) || null,
@@ -61,20 +68,34 @@ export async function updateQuotationUseCase(
           l.productName,
           l.description
         ),
+        discountPercent,
         quantity,
+        subtotal,
+        discountAmount,
         quotedUnitPrice,
+        lineTotal,
       };
     });
 
     const externalLines = (values.unregisteredLines ?? []).map((l) => {
       const quantity = toDecimal(l.quantity);
       const quotedUnitPrice = toDecimal(l.quotedUnitPrice);
+      const { subtotal, discountAmount, lineTotal, discountPercent } =
+        computeDiscountedLineTotalsDecimal({
+          quantity,
+          unitPrice: quotedUnitPrice,
+          discountPercent: l.discountPercent,
+        });
 
       return {
         productVariantId: null,
         descriptionSnapshot: buildDescriptionSnapshot(l.name, l.description),
+        discountPercent,
         quantity,
+        subtotal,
+        discountAmount,
         quotedUnitPrice,
+        lineTotal,
       };
     });
 
@@ -83,7 +104,7 @@ export async function updateQuotationUseCase(
 
     const total =
       allLines.length > 0
-        ? sumDecimals(allLines, (l) => l.quantity.mul(l.quotedUnitPrice))
+        ? sumDecimals(allLines, (l) => l.lineTotal)
         : zeroDecimal();
 
     logger.log("totals", { total: total.toString() });
@@ -112,6 +133,7 @@ export async function updateQuotationUseCase(
           descriptionSnapshot: l.descriptionSnapshot,
           quantity: l.quantity,
           quotedUnitPrice: l.quotedUnitPrice,
+          discountPercent: l.discountPercent,
         })),
       });
       logger.log("lines_createMany_done", res);
