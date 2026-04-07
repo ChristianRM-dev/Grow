@@ -1,6 +1,7 @@
 // src/modules/quotations/pdf/QuotationPdfDocument.tsx
 import React from "react";
-import { Document, Page, StyleSheet, View } from "@react-pdf/renderer";
+import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Decimal } from "@prisma/client/runtime/client";
 import {
   SalesNotePdfHeader,
   type SalesNotePdfHeaderConfig,
@@ -23,6 +24,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: "Helvetica",
   },
+  plantTotalContainer: {
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 6,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 4,
+    borderLeft: "3px solid #10b981",
+  },
+  plantTotalText: {
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
+    color: "#374151",
+  },
 });
 
 function formatIssuedDate(iso: string): string {
@@ -34,12 +48,20 @@ function formatIssuedDate(iso: string): string {
   });
 }
 
+function calculateTotalPlants(lines: { quantity: string }[]): number {
+  return lines.reduce((sum, line) => {
+    const quantity = new Decimal(line.quantity);
+    return sum + quantity.toNumber();
+  }, 0);
+}
+
 export function QuotationPdfDocument({
   header,
   headerLogoSrc,
   quotation,
 }: QuotationPdfDocumentProps) {
   const issuedDate = formatIssuedDate(quotation.createdAtIso);
+  const totalPlants = calculateTotalPlants(quotation.lines);
 
   return (
     <Document>
@@ -58,6 +80,12 @@ export function QuotationPdfDocument({
             address=""
             city=""
           />
+
+          <View style={styles.plantTotalContainer}>
+            <Text style={styles.plantTotalText}>
+              Total de plantas: {totalPlants}
+            </Text>
+          </View>
 
           <SalesNotePdfLinesTable lines={quotation.lines} />
 
