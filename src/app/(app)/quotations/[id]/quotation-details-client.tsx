@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useMemo } from "react";
 import type { QuotationDetailsDto } from "@/modules/quotations/queries/getQuotationDetails.query";
 import { moneyMX } from "@/modules/shared/utils/formatters";
 import { splitSnapshot } from "@/modules/sales-notes/queries/_salesNoteMappers";
@@ -13,6 +14,18 @@ export function QuotationDetailsClient({
 }: {
   dto: QuotationDetailsDto;
 }) {
+  const totalPlants = useMemo(() => {
+    const registeredTotal = dto.registeredLines.reduce(
+      (sum, line) => sum + Number(line.quantity),
+      0,
+    );
+    const externalTotal = dto.externalLines.reduce(
+      (sum, line) => sum + Number(line.quantity),
+      0,
+    );
+    return registeredTotal + externalTotal;
+  }, [dto.registeredLines, dto.externalLines]);
+
   const showDiscountColumn = hasAnyDiscount([
     ...dto.registeredLines,
     ...dto.externalLines,
@@ -24,7 +37,7 @@ export function QuotationDetailsClient({
         <div className="card-body">
           <h3 className="font-semibold">Resumen</h3>
 
-          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="rounded-box border border-base-300 bg-base-200 p-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-4">
@@ -59,6 +72,17 @@ export function QuotationDetailsClient({
               <div className="text-sm opacity-70">Productos no registrados</div>
               <div className="text-lg font-semibold">
                 {dto.externalLines.length}
+              </div>
+            </div>
+
+            <div className="card border-l-4 border-l-success bg-success/10">
+              <div className="card-body p-4">
+                <div className="text-sm font-medium opacity-70">
+                  Total de plantas agregadas
+                </div>
+                <div className="text-2xl font-bold text-success">
+                  {totalPlants}
+                </div>
               </div>
             </div>
           </div>
