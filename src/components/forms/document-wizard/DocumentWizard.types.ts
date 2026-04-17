@@ -7,6 +7,7 @@
  */
 
 import type { FieldValues } from "react-hook-form";
+import type { z } from "zod";
 import type { StepDefinition, WizardButtonLabels } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 
 /**
@@ -23,26 +24,20 @@ export type DraftConfig = {
 };
 
 /**
- * A Zod-like schema with parse and safeParse methods.
- * Uses a structural type instead of z.ZodType to avoid Zod version compatibility issues.
- */
-export type FormSchema<TValues> = {
-  parse: (data: unknown) => TValues;
-  safeParse: (data: unknown) => { success: true; data: TValues } | { success: false; error: any };
-};
-
-/**
  * Configuration for a DocumentWizard instance.
  *
- * @template TInput - The Zod input type (what react-hook-form manages)
- * @template TValues - The Zod output type (what the submit handler receives)
+ * @template TInput - The form input managed by react-hook-form.
+ * @template TOutput - The parsed output returned by Zod.
  */
-export type DocumentWizardConfig<
-  TInput extends FieldValues,
-  TValues,
-> = {
+export type DocumentWizardInput<TSchema extends z.ZodTypeAny> =
+  z.input<TSchema> & FieldValues;
+
+export type DocumentWizardOutput<TSchema extends z.ZodTypeAny> =
+  z.output<TSchema>;
+
+export type DocumentWizardConfig<TSchema extends z.ZodTypeAny> = {
   /** The Zod schema for the full form */
-  formSchema: FormSchema<TValues>;
+  formSchema: TSchema;
   /** Spanish labels for wizard navigation buttons */
   labels: Required<WizardButtonLabels>;
   /** Optional draft persistence configuration */
@@ -54,14 +49,11 @@ export type DocumentWizardConfig<
 /**
  * Props for the DocumentWizard component.
  */
-export type DocumentWizardProps<
-  TInput extends FieldValues,
-  TValues,
-> = {
-  config: DocumentWizardConfig<TInput, TValues>;
+export type DocumentWizardProps<TSchema extends z.ZodTypeAny> = {
+  config: DocumentWizardConfig<TSchema>;
   /** Step definitions for this wizard */
-  steps: readonly StepDefinition<TInput>[];
-  initialValues: Partial<TInput>;
-  onSubmit: (values: TValues) => Promise<void> | void;
+  steps: readonly StepDefinition<DocumentWizardInput<TSchema>>[];
+  initialValues: Partial<DocumentWizardInput<TSchema>>;
+  onSubmit: (values: DocumentWizardOutput<TSchema>) => Promise<void> | void;
   submitting: boolean;
 };

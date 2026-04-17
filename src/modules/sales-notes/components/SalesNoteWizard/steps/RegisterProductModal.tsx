@@ -18,7 +18,7 @@ const RegisterProductSchema = z.object({
   shouldRegister: z.boolean(),
 });
 
-type RegisterProductFormValues = z.infer<typeof RegisterProductSchema>;
+export type RegisterProductFormValues = z.infer<typeof RegisterProductSchema>;
 
 interface RegisterProductModalProps {
   isOpen: boolean;

@@ -21,7 +21,7 @@ import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
 type Props = StepComponentProps<SalesNoteFormInput>;
 
 export function SalesNoteSummaryStep({ form }: Props) {
-  const values = useWatch({ control: form.control }) as any;
+  const values = useWatch({ control: form.control }) as SalesNoteFormInput;
 
   // Log step mount/unmount with full summary of form state
   useEffect(() => {
@@ -36,20 +36,17 @@ export function SalesNoteSummaryStep({ form }: Props) {
   }, []);
 
   const registeredPlantsCount = useMemo(() => {
-    return (values.lines ?? []).reduce((sum: number, line: any) => {
+    return (values.lines ?? []).reduce((sum, line) => {
       const qty = Number(line.quantity ?? 0);
       return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
     }, 0);
   }, [values.lines]);
 
   const unregisteredPlantsCount = useMemo(() => {
-    return (values.unregisteredLines ?? []).reduce(
-      (sum: number, line: any) => {
+    return (values.unregisteredLines ?? []).reduce((sum, line) => {
         const qty = Number(line.quantity ?? 0);
         return sum + (Number.isFinite(qty) && qty > 0 ? qty : 0);
-      },
-      0,
-    );
+      }, 0);
   }, [values.unregisteredLines]);
 
   const totalPlants = registeredPlantsCount + unregisteredPlantsCount;
@@ -88,12 +85,12 @@ export function SalesNoteSummaryStep({ form }: Props) {
           </div>
         </div>
       )}
-      renderRegisteredHeader={(lines) => (
+      renderRegisteredHeader={() => (
         <div className="badge badge-success badge-lg">
           {registeredPlantsCount} plantas
         </div>
       )}
-      renderUnregisteredHeader={(lines) => (
+      renderUnregisteredHeader={() => (
         <div className="badge badge-warning badge-lg">
           {unregisteredPlantsCount} plantas
         </div>

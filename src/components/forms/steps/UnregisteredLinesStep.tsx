@@ -13,33 +13,70 @@
  */
 
 import React, { useMemo } from "react";
-import { useFieldArray, useWatch, type FieldValues, type UseFormReturn } from "react-hook-form";
+import {
+  useFieldArray,
+  useWatch,
+  type ArrayPath,
+  type FieldArray,
+  type FieldPath,
+  type PathValue,
+  type UseFormReturn,
+} from "react-hook-form";
 import { moneyMX } from "@/modules/shared/utils/formatters";
-import { parseMoney, isPriceLike, normalizeMoneyInput } from "@/modules/shared/utils/money";
+import {
+  parseMoney,
+  isPriceLike,
+  normalizeMoneyInput,
+} from "@/modules/shared/utils/money";
 import {
   computeDiscountedLineTotalsNumber,
   LINE_DISCOUNT_OPTIONS,
 } from "@/modules/shared/utils/discounts";
+import {
+  type DocumentFormShape,
+  type DocumentPriceFieldKey,
+  type DocumentUnregisteredLine,
+  type UnregisteredLineFieldKey,
+  unregisteredLineFieldPath,
+} from "@/components/forms/document-wizard/documentForm.shared";
+
+type FieldErrorLike = { message?: string };
+type UnregisteredLineError<TLine extends object> = Partial<
+  Record<UnregisteredLineFieldKey<TLine>, FieldErrorLike>
+>;
 
 /**
  * Configuration for customizing UnregisteredLinesStep per document type.
  */
-export type UnregisteredLinesStepConfig = {
+export type UnregisteredLinesStepConfig<
+  TPriceField extends DocumentPriceFieldKey,
+  TLine extends DocumentUnregisteredLine<TPriceField>,
+> = {
   /** The field key for the price within each unregistered line */
-  priceFieldKey: string;
+  priceFieldKey: TPriceField;
   /** The column header label for the price column */
   priceColumnLabel: string;
   /** Placeholder for the name input */
   namePlaceholder: string;
   /** Default empty row for appending */
-  emptyRow: Record<string, any>;
+  emptyRow: TLine;
   /** Whether to normalize money input on change (remove $, commas, etc.) */
   normalizePrice: boolean;
   /** Label for the add button */
   addButtonLabel: string;
 };
 
-export const SALES_NOTE_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig = {
+type SalesNoteUnregisteredLine = DocumentUnregisteredLine<"unitPrice"> & {
+  shouldRegister: boolean;
+  variantName?: string;
+  bagSize?: string;
+  color?: string;
+};
+
+export const SALES_NOTE_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig<
+  "unitPrice",
+  SalesNoteUnregisteredLine
+> = {
   priceFieldKey: "unitPrice",
   priceColumnLabel: "Precio",
   namePlaceholder: "Ej: Tierra preparada",
@@ -55,7 +92,10 @@ export const SALES_NOTE_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig = {
   addButtonLabel: "+ Agregar producto simple",
 };
 
-export const QUOTATION_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig = {
+export const QUOTATION_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig<
+  "quotedUnitPrice",
+  DocumentUnregisteredLine<"quotedUnitPrice">
+> = {
   priceFieldKey: "quotedUnitPrice",
   priceColumnLabel: "Precio cotizado",
   namePlaceholder: "Ej: Servicio de instalación",
@@ -70,30 +110,43 @@ export const QUOTATION_UNREGISTERED_CONFIG: UnregisteredLinesStepConfig = {
   addButtonLabel: "Agregar producto no registrado",
 };
 
-type UnregisteredLinesStepProps<TForm extends FieldValues> = {
+type UnregisteredLinesStepProps<
+  TForm extends DocumentFormShape<TPriceField, TLine>,
+  TPriceField extends DocumentPriceFieldKey,
+  TLine extends DocumentUnregisteredLine<TPriceField>,
+> = {
   form: UseFormReturn<TForm>;
-  config: UnregisteredLinesStepConfig;
+  config: UnregisteredLinesStepConfig<TPriceField, TLine>;
   renderExtraHeaders?: () => React.ReactNode;
-  renderExtraColumns?: (index: number, row: any) => React.ReactNode;
+  renderExtraColumns?: (
+    index: number,
+    row: TLine | undefined,
+  ) => React.ReactNode;
   renderExtraActions?: () => React.ReactNode;
-  renderExtraTotals?: (rows: any[]) => React.ReactNode;
-  renderHeaderBadge?: (rows: any[]) => React.ReactNode;
+  renderExtraTotals?: (rows: readonly TLine[]) => React.ReactNode;
+  renderHeaderBadge?: (rows: readonly TLine[]) => React.ReactNode;
 };
 
-function isRowCompleteGeneric(
-  row: any,
-  priceFieldKey: string,
-): boolean {
+function isRowCompleteGeneric<
+  TPriceField extends DocumentPriceFieldKey,
+  TLine extends DocumentUnregisteredLine<TPriceField>,
+>(row: TLine | undefined, priceFieldKey: TPriceField): boolean {
   if (!row) return false;
+
   const name = String(row.name ?? "").trim();
   if (!name) return false;
+
   const qty = Number(row.quantity);
   if (!Number.isFinite(qty) || qty < 1) return false;
-  if (!isPriceLike(String(row[priceFieldKey] ?? ""))) return false;
-  return true;
+
+  return isPriceLike(String(row[priceFieldKey] ?? ""));
 }
 
-export function UnregisteredLinesStep<TForm extends FieldValues>({
+export function UnregisteredLinesStep<
+  TForm extends DocumentFormShape<TPriceField, TLine>,
+  TPriceField extends DocumentPriceFieldKey,
+  TLine extends DocumentUnregisteredLine<TPriceField>,
+>({
   form,
   config,
   renderExtraHeaders,
@@ -101,7 +154,7 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
   renderExtraActions,
   renderExtraTotals,
   renderHeaderBadge,
-}: UnregisteredLinesStepProps<TForm>) {
+}: UnregisteredLinesStepProps<TForm, TPriceField, TLine>) {
   const {
     control,
     register,
@@ -109,45 +162,66 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
     formState: { errors },
   } = form;
 
+  const unregisteredLinesArrayPath = "unregisteredLines" as ArrayPath<TForm>;
+  const unregisteredLinesFieldPath = "unregisteredLines" as FieldPath<TForm>;
+  const priceFieldKey =
+    config.priceFieldKey as unknown as UnregisteredLineFieldKey<TLine>;
+  const nameFieldKey = "name" as UnregisteredLineFieldKey<TLine>;
+  const quantityFieldKey = "quantity" as UnregisteredLineFieldKey<TLine>;
+  const discountFieldKey = "discountPercent" as UnregisteredLineFieldKey<TLine>;
+  const descriptionFieldKey = "description" as UnregisteredLineFieldKey<TLine>;
+
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "unregisteredLines" as any,
+    name: unregisteredLinesArrayPath,
   });
 
-  const rows = (useWatch({ control, name: "unregisteredLines" as any }) ??
-    []) as any[];
-  const rowsErrors = (errors as any).unregisteredLines;
+  const rows = (useWatch({ control, name: unregisteredLinesFieldPath }) ??
+    []) as unknown as TLine[];
+  const rowsErrors = errors.unregisteredLines as
+    | UnregisteredLineError<TLine>[]
+    | undefined;
 
   const canAddRow =
     rows.length === 0
       ? true
-      : rows.every((r) => isRowCompleteGeneric(r, config.priceFieldKey));
+      : rows.every((row) => isRowCompleteGeneric(row, config.priceFieldKey));
 
   const computedTotals = useMemo(() => {
     let subtotal = 0;
     let discountTotal = 0;
     let total = 0;
 
-    for (const r of rows) {
+    for (const row of rows) {
       const totals = computeDiscountedLineTotalsNumber({
-        quantity: Number(r?.quantity ?? 0),
-        unitPrice: parseMoney(String(r?.[config.priceFieldKey] ?? "")),
-        discountPercent: r?.discountPercent,
+        quantity: Number(row?.quantity ?? 0),
+        unitPrice: parseMoney(String(row?.[config.priceFieldKey] ?? "")),
+        discountPercent: row?.discountPercent,
       });
+
       if (!Number.isFinite(totals.subtotal)) continue;
+
       subtotal += totals.subtotal;
       discountTotal += totals.discountAmount;
       total += totals.lineTotal;
     }
 
     const itemsCount = rows.filter(
-      (r) => String(r?.name ?? "").trim().length > 0,
+      (row) => String(row?.name ?? "").trim().length > 0,
     ).length;
 
     return { subtotal, discountTotal, total, itemsCount };
   }, [rows, config.priceFieldKey]);
 
-  const hasExtraColumns = !!renderExtraHeaders;
+  const setField = <TPath extends FieldPath<TForm>>(
+    path: TPath,
+    value: PathValue<TForm, TPath>,
+    options?: Parameters<UseFormReturn<TForm>["setValue"]>[2],
+  ) => {
+    setValue(path, value, options);
+  };
+
+  const hasExtraColumns = Boolean(renderExtraHeaders);
   const totalColSpan = hasExtraColumns ? 8 : 7;
 
   return (
@@ -191,7 +265,7 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                   </tr>
                 ) : null}
 
-                {fields.map((f, index) => {
+                {fields.map((field, index) => {
                   const row = rows[index];
                   const rowErr = rowsErrors?.[index];
                   const rowTotals = computeDiscountedLineTotalsNumber({
@@ -203,10 +277,9 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                   });
 
                   return (
-                    <tr key={f.id}>
+                    <tr key={field.id}>
                       {renderExtraColumns?.(index, row)}
 
-                      {/* Name */}
                       <td className="min-w-[260px]">
                         <input
                           className={`input input-bordered w-full ${
@@ -214,7 +287,10 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                           }`}
                           placeholder={config.namePlaceholder}
                           {...register(
-                            `unregisteredLines.${index}.name` as any,
+                            unregisteredLineFieldPath<TForm, TLine>(
+                              index,
+                              nameFieldKey,
+                            ),
                           )}
                         />
                         {rowErr?.name?.message ? (
@@ -224,7 +300,6 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                         ) : null}
                       </td>
 
-                      {/* Quantity */}
                       <td>
                         <input
                           type="number"
@@ -233,7 +308,10 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                             rowErr?.quantity ? "input-error" : ""
                           }`}
                           {...register(
-                            `unregisteredLines.${index}.quantity` as any,
+                            unregisteredLineFieldPath<TForm, TLine>(
+                              index,
+                              quantityFieldKey,
+                            ),
                             { valueAsNumber: true },
                           )}
                         />
@@ -244,38 +322,60 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                         ) : null}
                       </td>
 
-                      {/* Price */}
                       <td>
                         <input
                           className={`input input-bordered w-28 ${
-                            rowErr?.[config.priceFieldKey] ? "input-error" : ""
+                            rowErr?.[priceFieldKey]
+                              ? "input-error"
+                              : ""
                           }`}
                           placeholder="12.50"
                           inputMode="decimal"
                           {...register(
-                            `unregisteredLines.${index}.${config.priceFieldKey}` as any,
+                            unregisteredLineFieldPath<TForm, TLine>(
+                              index,
+                              priceFieldKey,
+                            ),
                             config.normalizePrice
                               ? {
-                                  onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                                    const raw = String(e.target.value ?? "");
+                                  onChange: (
+                                    event: React.ChangeEvent<HTMLInputElement>,
+                                  ) => {
+                                    const raw = String(event.target.value ?? "");
                                     const normalized = normalizeMoneyInput(raw);
-                                    if (normalized !== raw) {
-                                      setValue(
-                                        `unregisteredLines.${index}.${config.priceFieldKey}` as any,
-                                        normalized as any,
-                                        {
-                                          shouldDirty: true,
-                                          shouldValidate: true,
-                                        },
+                                    if (normalized === raw) return;
+
+                                    const path =
+                                      unregisteredLineFieldPath<TForm, TLine>(
+                                        index,
+                                        priceFieldKey,
                                       );
-                                    }
+
+                                    setField(
+                                      path,
+                                      normalized as PathValue<TForm, typeof path>,
+                                      {
+                                        shouldDirty: true,
+                                        shouldValidate: true,
+                                      },
+                                    );
                                   },
                                 }
                               : {
-                                  onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                                    setValue(
-                                      `unregisteredLines.${index}.${config.priceFieldKey}` as any,
-                                      String(e.target.value ?? "") as any,
+                                  onChange: (
+                                    event: React.ChangeEvent<HTMLInputElement>,
+                                  ) => {
+                                    const path =
+                                      unregisteredLineFieldPath<TForm, TLine>(
+                                        index,
+                                        priceFieldKey,
+                                      );
+
+                                    setField(
+                                      path,
+                                      String(
+                                        event.target.value ?? "",
+                                      ) as PathValue<TForm, typeof path>,
                                       {
                                         shouldDirty: true,
                                         shouldValidate: true,
@@ -285,19 +385,21 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                                 },
                           )}
                         />
-                        {rowErr?.[config.priceFieldKey]?.message ? (
+                        {rowErr?.[priceFieldKey]?.message ? (
                           <p className="mt-1 text-sm text-error">
-                            {String(rowErr[config.priceFieldKey].message)}
+                            {String(rowErr[priceFieldKey]?.message)}
                           </p>
                         ) : null}
                       </td>
 
-                      {/* Discount */}
                       <td>
                         <select
                           className="select select-bordered w-24"
                           {...register(
-                            `unregisteredLines.${index}.discountPercent` as any,
+                            unregisteredLineFieldPath<TForm, TLine>(
+                              index,
+                              discountFieldKey,
+                            ),
                             {
                               setValueAs: (value) => Number(value),
                             },
@@ -311,7 +413,6 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                         </select>
                       </td>
 
-                      {/* Description */}
                       <td className="min-w-[240px]">
                         <input
                           className={`input input-bordered w-full ${
@@ -319,7 +420,10 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                           }`}
                           placeholder="Opcional"
                           {...register(
-                            `unregisteredLines.${index}.description` as any,
+                            unregisteredLineFieldPath<TForm, TLine>(
+                              index,
+                              descriptionFieldKey,
+                            ),
                           )}
                         />
                         {rowErr?.description?.message ? (
@@ -329,12 +433,10 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
                         ) : null}
                       </td>
 
-                      {/* Total */}
                       <td className="text-right font-medium">
                         {moneyMX(rowTotals.lineTotal)}
                       </td>
 
-                      {/* Actions */}
                       <td>
                         <button
                           type="button"
@@ -396,7 +498,14 @@ export function UnregisteredLinesStep<TForm extends FieldValues>({
               type="button"
               className="btn btn-outline"
               disabled={!canAddRow}
-              onClick={() => append(config.emptyRow as any)}
+              onClick={() =>
+                append(
+                  config.emptyRow as FieldArray<
+                    TForm,
+                    typeof unregisteredLinesArrayPath
+                  >,
+                )
+              }
             >
               {config.addButtonLabel}
             </button>

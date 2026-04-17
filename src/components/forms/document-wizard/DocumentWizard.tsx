@@ -11,22 +11,51 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react"
-import { useForm } from "react-hook-form"
+import {
+  useForm,
+  type DefaultValues,
+  type Resolver,
+} from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import type { FieldValues } from "react-hook-form"
+import type { z } from "zod"
+import type * as z4 from "zod/v4/core"
 
 import { MultiStepForm } from "@/components/ui/MultiStepForm/MultiStepForm"
 import { useFormDraft } from "@/hooks"
 import { useDraftRecoveryDialog } from "@/components/ui/DraftRecovery"
-import type { DocumentWizardProps } from "./DocumentWizard.types"
+import type {
+  DocumentWizardInput,
+  DocumentWizardOutput,
+  DocumentWizardProps,
+} from "./DocumentWizard.types"
 
-export function DocumentWizard<TInput extends FieldValues, TValues>({
+type DraftableInitialValues = {
+  lines?: unknown[];
+  unregisteredLines?: unknown[];
+}
+
+type DraftSchemaResult<TInput> =
+  | { success: true; data: TInput }
+  | {
+      success: false;
+      error: {
+        issues: readonly {
+          path?: readonly PropertyKey[];
+          message?: string;
+        }[];
+      };
+    }
+
+export function DocumentWizard<TSchema extends z.ZodTypeAny>({
   config,
   steps,
   initialValues,
   onSubmit,
   submitting,
-}: DocumentWizardProps<TInput, TValues>) {
+}: DocumentWizardProps<TSchema>) {
+  type TInput = DocumentWizardInput<TSchema>
+  type TValues = DocumentWizardOutput<TSchema>
+
   const {
     formSchema,
     labels,
@@ -45,16 +74,37 @@ export function DocumentWizard<TInput extends FieldValues, TValues>({
     })
   }
 
-  // Cast formSchema to `any` for zodResolver / useFormDraft because our
-  // structural FormSchema type is compatible at runtime but not at the TS level.
+  const initialDocumentValues = initialValues as DraftableInitialValues
+  const draftSchema = {
+    safeParse(data: unknown): DraftSchemaResult<TInput> {
+      const parsed = formSchema.safeParse(data)
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: {
+            issues: parsed.error.issues.map((issue) => ({
+              path: issue.path,
+              message: issue.message,
+            })),
+          },
+        }
+      }
+      return { success: true, data: data as TInput }
+    },
+  }
+
+  const resolver = zodResolver(
+    formSchema as unknown as z4.$ZodType<TValues, TInput>,
+  ) as unknown as Resolver<TInput>
+
   const form = useForm<TInput>({
-    resolver: zodResolver(formSchema as any),
+    resolver,
     shouldUnregister: false,
     defaultValues: {
       ...initialValues,
-      lines: (initialValues as any)?.lines ?? [],
-      unregisteredLines: (initialValues as any)?.unregisteredLines ?? [],
-    } as any,
+      lines: initialDocumentValues.lines ?? [],
+      unregisteredLines: initialDocumentValues.unregisteredLines ?? [],
+    } as DefaultValues<TInput>,
     mode: "onSubmit",
   })
 
@@ -65,7 +115,7 @@ export function DocumentWizard<TInput extends FieldValues, TValues>({
     enabled: !!draftConfig?.enabled && !submitting,
     validateMode: "safe",
     debounceMs: draftConfig?.debounceMs ?? 1000,
-    schema: formSchema as any,
+    schema: draftSchema,
     expirationDays: draftConfig?.expirationDays ?? 7,
     onAutoSave: () => {
       console.log(`${logPrefix} Draft auto-saved`)
@@ -183,12 +233,12 @@ export function DocumentWizard<TInput extends FieldValues, TValues>({
           labels,
         }}
         steps={memoizedSteps}
-        form={form as any}
+        form={form}
         onSubmit={handleSubmit}
         onEvent={(e) => {
           const safe = {
-            type: (e as any)?.type ?? "unknown",
-            stepId: (e as any)?.stepId ?? (e as any)?.step?.id ?? null,
+            type: e.type,
+            stepId: e.type === "step_change" ? e.toStepId : null,
           }
           console.log(`${logPrefix} event`, safe)
         }}

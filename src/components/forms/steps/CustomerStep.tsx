@@ -13,8 +13,31 @@
  */
 
 import React, { useEffect, useState } from "react";
-import type { FieldValues, UseFormReturn } from "react-hook-form";
+import type {
+  FieldPath,
+  PathValue,
+  UseFormReturn,
+} from "react-hook-form";
 import { PartyAutocomplete } from "@/modules/reports/components/PartyAutocomplete";
+import {
+  customerFieldPath,
+  type DocumentCustomerFieldPath,
+  type DocumentCustomerValue,
+  type DocumentFormShape,
+  type DocumentPriceFieldKey,
+} from "@/components/forms/document-wizard/documentForm.shared";
+
+type FieldErrorLike = { message?: string };
+type CustomerFieldErrors = {
+  partyMode?: FieldErrorLike;
+  existingPartyId?: FieldErrorLike;
+  existingPartyName?: FieldErrorLike;
+  newParty?: {
+    name?: FieldErrorLike;
+    phone?: FieldErrorLike;
+    notes?: FieldErrorLike;
+  };
+};
 
 /**
  * Configuration for customizing CustomerStep labels per document type.
@@ -66,15 +89,18 @@ export const QUOTATION_CUSTOMER_CONFIG: CustomerStepConfig = {
   clearFieldsOnModeSwitch: false,
 };
 
-type CustomerStepProps<TForm extends FieldValues> = {
+type CustomerStepProps<
+  TForm extends DocumentFormShape<TPriceField>,
+  TPriceField extends DocumentPriceFieldKey,
+> = {
   form: UseFormReturn<TForm>;
   config: CustomerStepConfig;
 };
 
-export function CustomerStep<TForm extends FieldValues>({
-  form,
-  config,
-}: CustomerStepProps<TForm>) {
+export function CustomerStep<
+  TForm extends DocumentFormShape<TPriceField>,
+  TPriceField extends DocumentPriceFieldKey,
+>({ form, config }: CustomerStepProps<TForm, TPriceField>) {
   const {
     register,
     setValue,
@@ -82,54 +108,89 @@ export function CustomerStep<TForm extends FieldValues>({
     formState: { errors },
   } = form;
 
-  // Use `any` for dynamic field paths since the form type varies
-  const mode = watch("customer.mode" as any);
-  const partyMode = watch("customer.partyMode" as any);
-  const existingPartyId = watch("customer.existingPartyId" as any) as string | undefined;
-  const existingPartyName = watch("customer.existingPartyName" as any) as string | undefined;
+  const customerModePath = customerFieldPath<TForm>("mode");
+  const customerPartyModePath = customerFieldPath<TForm>("partyMode");
+  const customerExistingPartyIdPath = customerFieldPath<TForm>("existingPartyId");
+  const customerExistingPartyNamePath = customerFieldPath<TForm>(
+    "existingPartyName",
+  );
+
+  const mode = watch(customerModePath);
+  const partyMode = watch(customerPartyModePath);
+  const existingPartyId = watch(customerExistingPartyIdPath);
+  const existingPartyName = watch(customerExistingPartyNamePath);
 
   const [term, setTerm] = useState("");
   const [open, setOpen] = useState(false);
 
-  const customerErrors = (errors as any).customer;
+  const customerErrors = errors.customer as CustomerFieldErrors | undefined;
 
-  // Set field value with correct typing bypass
-  const setField = (path: string, value: any, options?: any) => {
-    setValue(path as any, value, options);
+  const setField = <TPath extends FieldPath<TForm>>(
+    path: TPath,
+    value: PathValue<TForm, TPath>,
+    options?: Parameters<UseFormReturn<TForm>["setValue"]>[2],
+  ) => {
+    setValue(path, value, options);
   };
 
-  // Clean state when switching modes (Sales Notes behavior)
+  const setCustomerField = <TPath extends DocumentCustomerFieldPath>(
+    path: TPath,
+    value: PathValue<TForm, FieldPath<TForm>>,
+    options?: Parameters<UseFormReturn<TForm>["setValue"]>[2],
+  ) => {
+    const fieldPath = customerFieldPath<TForm>(path);
+    setField(fieldPath, value as PathValue<TForm, typeof fieldPath>, options);
+  };
+
   useEffect(() => {
     if (!config.clearFieldsOnModeSwitch) return;
 
     if (mode === "PUBLIC") {
-      setField("customer.partyMode", undefined);
-      setField("customer.existingPartyId", "");
-      setField("customer.existingPartyName", "");
-      setField("customer.newParty.name", "");
-      setField("customer.newParty.phone", "");
-      setField("customer.newParty.notes", "");
+      setCustomerField("partyMode", undefined as PathValue<TForm, FieldPath<TForm>>);
+      setCustomerField(
+        "existingPartyId",
+        "" as PathValue<TForm, FieldPath<TForm>>,
+      );
+      setCustomerField(
+        "existingPartyName",
+        "" as PathValue<TForm, FieldPath<TForm>>,
+      );
+      setCustomerField("newParty.name", "" as PathValue<TForm, FieldPath<TForm>>);
+      setCustomerField(
+        "newParty.phone",
+        "" as PathValue<TForm, FieldPath<TForm>>,
+      );
+      setCustomerField(
+        "newParty.notes",
+        "" as PathValue<TForm, FieldPath<TForm>>,
+      );
       setTerm("");
       setOpen(false);
       return;
     }
 
-    // mode === "PARTY"
     if (!partyMode) {
-      setField("customer.partyMode", "EXISTING");
+      setCustomerField(
+        "partyMode",
+        "EXISTING" as PathValue<TForm, FieldPath<TForm>>,
+      );
     }
   }, [mode, partyMode, config.clearFieldsOnModeSwitch]);
 
-  // Clean state when switching partyMode (Sales Notes behavior)
   useEffect(() => {
     if (!config.clearFieldsOnModeSwitch) return;
-    if (mode !== "PARTY") return;
-    if (!partyMode) return;
+    if (mode !== "PARTY" || !partyMode) return;
 
     if (partyMode === "EXISTING") {
-      setField("customer.newParty.name", "");
-      setField("customer.newParty.phone", "");
-      setField("customer.newParty.notes", "");
+      setCustomerField("newParty.name", "" as PathValue<TForm, FieldPath<TForm>>);
+      setCustomerField(
+        "newParty.phone",
+        "" as PathValue<TForm, FieldPath<TForm>>,
+      );
+      setCustomerField(
+        "newParty.notes",
+        "" as PathValue<TForm, FieldPath<TForm>>,
+      );
 
       const label = String(existingPartyName ?? "").trim();
       if (existingPartyId && label && term.trim().length === 0) {
@@ -138,49 +199,70 @@ export function CustomerStep<TForm extends FieldValues>({
       return;
     }
 
-    // partyMode === "NEW"
-    setField("customer.existingPartyId", "");
-    setField("customer.existingPartyName", "");
+    setCustomerField(
+      "existingPartyId",
+      "" as PathValue<TForm, FieldPath<TForm>>,
+    );
+    setCustomerField(
+      "existingPartyName",
+      "" as PathValue<TForm, FieldPath<TForm>>,
+    );
     setTerm("");
     setOpen(false);
-  }, [mode, partyMode, existingPartyId, existingPartyName, term, config.clearFieldsOnModeSwitch]);
+  }, [
+    mode,
+    partyMode,
+    existingPartyId,
+    existingPartyName,
+    term,
+    config.clearFieldsOnModeSwitch,
+  ]);
 
-  // Hydrate term from existingPartyName when selection exists (edit scenario)
   useEffect(() => {
     if (config.clearFieldsOnModeSwitch) {
-      // Already handled in the effects above for Sales Notes
       if (mode !== "PARTY" || partyMode !== "EXISTING") return;
       const label = String(existingPartyName ?? "").trim();
       if (!existingPartyId || !label) return;
       if (!open && term.trim() !== label) {
         setTerm(label);
       }
-    } else {
-      // Quotation behavior: simple hydration
-      const label = String(existingPartyName ?? "").trim();
-      if (existingPartyId && label && term.trim().length === 0) {
-        setTerm(label);
-      }
+      return;
     }
-  }, [existingPartyId, existingPartyName, mode, partyMode, open, term, config.clearFieldsOnModeSwitch]);
+
+    const label = String(existingPartyName ?? "").trim();
+    if (existingPartyId && label && term.trim().length === 0) {
+      setTerm(label);
+    }
+  }, [
+    existingPartyId,
+    existingPartyName,
+    mode,
+    partyMode,
+    open,
+    term,
+    config.clearFieldsOnModeSwitch,
+  ]);
 
   return (
     <div className="grid grid-cols-1 gap-5">
-      {/* Mode: PUBLIC vs PARTY */}
       <div className="card bg-base-200">
         <div className="card-body">
           <h3 className="font-semibold">{config.heading}</h3>
-          {config.description && (
+          {config.description ? (
             <p className="text-sm opacity-70">{config.description}</p>
-          )}
+          ) : null}
 
-          <div className={`flex flex-col gap-2 md:flex-row md:items-center ${config.description ? "mt-4" : ""}`}>
+          <div
+            className={`flex flex-col gap-2 md:flex-row md:items-center ${
+              config.description ? "mt-4" : ""
+            }`}
+          >
             <label className="label cursor-pointer justify-start gap-3">
               <input
                 type="radio"
                 className="radio radio-primary"
                 value="PUBLIC"
-                {...register("customer.mode" as any)}
+                {...register(customerFieldPath<TForm>("mode"))}
               />
               <span className="label-text">Venta al público</span>
             </label>
@@ -190,13 +272,12 @@ export function CustomerStep<TForm extends FieldValues>({
                 type="radio"
                 className="radio radio-primary"
                 value="PARTY"
-                {...register("customer.mode" as any)}
+                {...register(customerFieldPath<TForm>("mode"))}
               />
               <span className="label-text">{config.partyRadioLabel}</span>
             </label>
           </div>
 
-          {/* PARTY block - rendered inside same card for Quotation layout */}
           {mode === "PARTY" ? (
             <div className="mt-4">
               <h4 className="font-semibold">{config.partyTypeHeading}</h4>
@@ -207,9 +288,11 @@ export function CustomerStep<TForm extends FieldValues>({
                     type="radio"
                     className="radio radio-primary"
                     value="EXISTING"
-                    {...register("customer.partyMode" as any)}
+                    {...register(customerFieldPath<TForm>("partyMode"))}
                   />
-                  <span className="label-text">{config.existingPartyLabel}</span>
+                  <span className="label-text">
+                    {config.existingPartyLabel}
+                  </span>
                 </label>
 
                 <label className="label cursor-pointer justify-start gap-3">
@@ -217,7 +300,7 @@ export function CustomerStep<TForm extends FieldValues>({
                     type="radio"
                     className="radio radio-primary"
                     value="NEW"
-                    {...register("customer.partyMode" as any)}
+                    {...register(customerFieldPath<TForm>("partyMode"))}
                   />
                   <span className="label-text">{config.newPartyLabel}</span>
                 </label>
@@ -229,7 +312,6 @@ export function CustomerStep<TForm extends FieldValues>({
                 </p>
               ) : null}
 
-              {/* EXISTING - PartyAutocomplete */}
               {partyMode === "EXISTING" ? (
                 <div className="mt-4">
                   <PartyAutocomplete
@@ -238,110 +320,119 @@ export function CustomerStep<TForm extends FieldValues>({
                     selectedId={existingPartyId || ""}
                     selectedName={existingPartyName || ""}
                     onSelect={(id, name) => {
-                      setField("customer.existingPartyId", id, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      setField("customer.existingPartyName", name, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
+                      setField(
+                        customerFieldPath<TForm>("existingPartyId"),
+                        id as PathValue<TForm, FieldPath<TForm>>,
+                        {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        },
+                      );
+                      setField(
+                        customerFieldPath<TForm>("existingPartyName"),
+                        name as PathValue<TForm, FieldPath<TForm>>,
+                        {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        },
+                      );
                     }}
                     onClear={() => {
-                      setField("customer.existingPartyId", "", {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                      setField("customer.existingPartyName", "", {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
+                      setCustomerField(
+                        "existingPartyId",
+                        "" as PathValue<TForm, FieldPath<TForm>>,
+                        {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        },
+                      );
+                      setCustomerField(
+                        "existingPartyName",
+                        "" as PathValue<TForm, FieldPath<TForm>>,
+                        {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        },
+                      );
                     }}
                     value={term}
-                    onChange={setTerm}
+                    onChange={(value) => {
+                      setTerm(value);
+                      setOpen(value.trim().length > 0);
+                    }}
+                  />
+
+                  <input
+                    type="hidden"
+                    {...register(customerFieldPath<TForm>("existingPartyId"))}
+                  />
+                  <input
+                    type="hidden"
+                    {...register(
+                      customerFieldPath<TForm>("existingPartyName"),
+                    )}
                   />
 
                   {customerErrors?.existingPartyId?.message ? (
-                    <p className="mt-2 text-sm text-error">
+                    <p className="mt-1 text-sm text-error">
                       {String(customerErrors.existingPartyId.message)}
                     </p>
                   ) : null}
-
-                  {/* Hidden inputs for react-hook-form */}
-                  <input
-                    type="hidden"
-                    {...register("customer.existingPartyId" as any)}
-                  />
-                  <input
-                    type="hidden"
-                    {...register("customer.existingPartyName" as any)}
-                  />
                 </div>
               ) : null}
 
-              {/* NEW party form */}
               {partyMode === "NEW" ? (
-                <div className="mt-4 space-y-6">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {/* Name */}
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text font-medium">Nombre</span>
-                      </label>
-                      <input
-                        className={`input input-bordered w-full ${
-                          customerErrors?.newParty?.name ? "input-error" : ""
-                        }`}
-                        placeholder={config.namePlaceholder}
-                        {...register("customer.newParty.name" as any)}
-                      />
-                      {customerErrors?.newParty?.name?.message ? (
-                        <p className="mt-2 text-sm text-error">
-                          {String(customerErrors.newParty.name.message)}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    {/* Phone */}
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text font-medium">
-                          Teléfono (opcional)
-                        </span>
-                      </label>
-                      <input
-                        className={`input input-bordered w-full ${
-                          customerErrors?.newParty?.phone ? "input-error" : ""
-                        }`}
-                        placeholder="Ej: 8112345678"
-                        inputMode="tel"
-                        {...register("customer.newParty.phone" as any)}
-                      />
-                      {customerErrors?.newParty?.phone?.message ? (
-                        <p className="mt-2 text-sm text-error">
-                          {String(customerErrors.newParty.phone.message)}
-                        </p>
-                      ) : null}
-                    </div>
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="label">
+                      <span className="label-text">Nombre</span>
+                    </label>
+                    <input
+                      className={`input input-bordered w-full ${
+                        customerErrors?.newParty?.name ? "input-error" : ""
+                      }`}
+                      placeholder={config.namePlaceholder}
+                      {...register(customerFieldPath<TForm>("newParty.name"))}
+                    />
+                    {customerErrors?.newParty?.name?.message ? (
+                      <p className="mt-1 text-sm text-error">
+                        {String(customerErrors.newParty.name.message)}
+                      </p>
+                    ) : null}
                   </div>
 
-                  {/* Notes */}
-                  <div className="form-control">
+                  <div>
                     <label className="label">
-                      <span className="label-text font-medium">
-                        Notas (opcional)
-                      </span>
+                      <span className="label-text">Teléfono</span>
+                    </label>
+                    <input
+                      className={`input input-bordered w-full ${
+                        customerErrors?.newParty?.phone ? "input-error" : ""
+                      }`}
+                      placeholder="Ej: 55 1234 5678"
+                      {...register(customerFieldPath<TForm>("newParty.phone"))}
+                    />
+                    {customerErrors?.newParty?.phone?.message ? (
+                      <p className="mt-1 text-sm text-error">
+                        {String(customerErrors.newParty.phone.message)}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="label">
+                      <span className="label-text">Notas</span>
                     </label>
                     <textarea
                       className={`textarea textarea-bordered w-full ${
                         customerErrors?.newParty?.notes ? "textarea-error" : ""
                       }`}
-                      placeholder="Información adicional"
-                      rows={4}
-                      {...register("customer.newParty.notes" as any)}
+                      placeholder="Opcional"
+                      rows={3}
+                      {...register(customerFieldPath<TForm>("newParty.notes"))}
                     />
                     {customerErrors?.newParty?.notes?.message ? (
-                      <p className="mt-2 text-sm text-error">
+                      <p className="mt-1 text-sm text-error">
                         {String(customerErrors.newParty.notes.message)}
                       </p>
                     ) : null}

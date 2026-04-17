@@ -54,7 +54,7 @@ export async function validateStep<TFormValues extends FieldValues>({
   }
 
   // 2) Fallback: RHF field-level validation for steps without Zod validator
-  const okRhf = await form.trigger(step.fieldPaths as any);
+  const okRhf = await form.trigger(step.fieldPaths);
   if (!okRhf) {
     onStepError(step.id);
     await focusFirstField(step.fieldPaths?.[0]);

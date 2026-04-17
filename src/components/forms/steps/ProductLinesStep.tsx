@@ -14,7 +14,14 @@
  */
 
 import React, { useRef, useState } from "react";
-import { useFieldArray, type FieldValues, type UseFormReturn } from "react-hook-form";
+import {
+  useFieldArray,
+  type ArrayPath,
+  type FieldArray,
+  type FieldPath,
+  type PathValue,
+  type UseFormReturn,
+} from "react-hook-form";
 import {
   searchProductVariantsAction,
   type ProductVariantLookupDto,
@@ -25,22 +32,34 @@ import {
   computeDiscountedLineTotalsNumber,
   LINE_DISCOUNT_OPTIONS,
 } from "@/modules/shared/utils/discounts";
+import {
+  lineFieldPath,
+  type DocumentFormShape,
+  type DocumentPriceFieldKey,
+  type DocumentRegisteredLine,
+  type RegisteredLineFieldKey,
+} from "@/components/forms/document-wizard/documentForm.shared";
+
+type FieldErrorLike = { message?: string };
+type RegisteredLineError<TPriceField extends DocumentPriceFieldKey> = Partial<
+  Record<RegisteredLineFieldKey<TPriceField>, FieldErrorLike>
+>;
 
 /**
  * Configuration for customizing ProductLinesStep per document type.
  */
-export type ProductLinesStepConfig = {
+export type ProductLinesStepConfig<TPriceField extends DocumentPriceFieldKey> = {
   /** The field key for the price within each line (e.g., "unitPrice" or "quotedUnitPrice") */
-  priceFieldKey: string;
+  priceFieldKey: TPriceField;
   /** The column header label for the price column (e.g., "Precio" or "Precio cotizado") */
   priceColumnLabel: string;
   /** Description text below the heading */
   description: string;
   /** Default empty row for appending */
-  emptyRow: Record<string, any>;
+  emptyRow: DocumentRegisteredLine<TPriceField>;
 };
 
-export const SALES_NOTE_LINES_CONFIG: ProductLinesStepConfig = {
+export const SALES_NOTE_LINES_CONFIG: ProductLinesStepConfig<"unitPrice"> = {
   priceFieldKey: "unitPrice",
   priceColumnLabel: "Precio",
   description:
@@ -55,50 +74,71 @@ export const SALES_NOTE_LINES_CONFIG: ProductLinesStepConfig = {
   },
 };
 
-export const QUOTATION_LINES_CONFIG: ProductLinesStepConfig = {
-  priceFieldKey: "quotedUnitPrice",
-  priceColumnLabel: "Precio cotizado",
-  description:
-    "Agrega productos del catálogo y ajusta cantidades, precios cotizados y descuentos. Este paso es opcional.",
-  emptyRow: {
-    productVariantId: "",
-    productName: "",
-    quantity: 1,
-    quotedUnitPrice: "",
-    discountPercent: 0,
-    description: "",
-  },
-};
+export const QUOTATION_LINES_CONFIG: ProductLinesStepConfig<"quotedUnitPrice"> =
+  {
+    priceFieldKey: "quotedUnitPrice",
+    priceColumnLabel: "Precio cotizado",
+    description:
+      "Agrega productos del catálogo y ajusta cantidades, precios cotizados y descuentos. Este paso es opcional.",
+    emptyRow: {
+      productVariantId: "",
+      productName: "",
+      quantity: 1,
+      quotedUnitPrice: "",
+      discountPercent: 0,
+      description: "",
+    },
+  };
 
-type ProductLinesStepProps<TForm extends FieldValues> = {
+type ProductLinesStepProps<
+  TForm extends DocumentFormShape<TPriceField>,
+  TPriceField extends DocumentPriceFieldKey,
+> = {
   form: UseFormReturn<TForm>;
-  config: ProductLinesStepConfig;
+  config: ProductLinesStepConfig<TPriceField>;
 };
 
-export function ProductLinesStep<TForm extends FieldValues>({
-  form,
-  config,
-}: ProductLinesStepProps<TForm>) {
+function isRowComplete<TPriceField extends DocumentPriceFieldKey>(
+  row: DocumentRegisteredLine<TPriceField> | undefined,
+  priceFieldKey: TPriceField,
+) {
+  if (!row) return false;
+  if (!row.productVariantId?.trim()) return false;
+  if (!row.productName?.trim()) return false;
+
+  const qty = Number(row.quantity);
+  if (!Number.isFinite(qty) || qty < 1) return false;
+
+  return isPriceLike(String(row[priceFieldKey] ?? ""));
+}
+
+export function ProductLinesStep<
+  TForm extends DocumentFormShape<TPriceField>,
+  TPriceField extends DocumentPriceFieldKey,
+>({ form, config }: ProductLinesStepProps<TForm, TPriceField>) {
   const {
     control,
     register,
     setValue,
     watch,
-    getValues,
     trigger,
     formState: { errors },
   } = form;
 
+  const linesArrayPath = "lines" as ArrayPath<TForm>;
+  const linesFieldPath = "lines" as FieldPath<TForm>;
+  const priceFieldKey =
+    config.priceFieldKey as unknown as RegisteredLineFieldKey<TPriceField>;
+
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "lines" as any,
+    name: linesArrayPath,
   });
 
-  const lines = (watch("lines" as any) ?? []) as any[];
-
-  const selectedIds = (lines ?? [])
-    .map((l: any) => l?.productVariantId?.trim())
-    .filter((x: any): x is string => Boolean(x));
+  const lines = (watch(linesFieldPath) ?? []) as unknown as DocumentRegisteredLine<TPriceField>[];
+  const selectedIds = lines
+    .map((line) => line?.productVariantId?.trim())
+    .filter((value): value is string => Boolean(value));
 
   // Per-row autocomplete UI state
   const [openRow, setOpenRow] = useState<string | null>(null);
@@ -109,34 +149,27 @@ export function ProductLinesStep<TForm extends FieldValues>({
   const [termRow, setTermRow] = useState<Record<string, string>>({});
   const debounceRef = useRef<Record<string, number | null>>({});
 
-  const linesErrors = (errors as any).lines;
-
-  const isRowComplete = (idx: number) => {
-    const row = (getValues as any)(`lines.${idx}`);
-    if (!row) return false;
-    if (!row.productVariantId?.trim()) return false;
-    if (!row.productName?.trim()) return false;
-    const qty = Number(row.quantity);
-    if (!Number.isFinite(qty) || qty < 1) return false;
-    if (!isPriceLike(String(row[config.priceFieldKey] ?? ""))) return false;
-    return true;
-  };
+  const linesErrors = errors.lines as RegisteredLineError<TPriceField>[] | undefined;
 
   const canAddRow =
-    fields.length === 0 ? true : fields.every((_, idx) => isRowComplete(idx));
+    fields.length === 0
+      ? true
+      : lines.every((row) => isRowComplete(row, config.priceFieldKey));
 
   const computedTotals = (() => {
     let subtotal = 0;
     let discountTotal = 0;
     let total = 0;
 
-    for (const r of lines) {
+    for (const row of lines) {
       const totals = computeDiscountedLineTotalsNumber({
-        quantity: Number(r?.quantity ?? 0),
-        unitPrice: parseMoney(String(r?.[config.priceFieldKey] ?? "")),
-        discountPercent: r?.discountPercent,
+        quantity: Number(row?.quantity ?? 0),
+        unitPrice: parseMoney(String(row?.[config.priceFieldKey] ?? "")),
+        discountPercent: row?.discountPercent,
       });
+
       if (!Number.isFinite(totals.subtotal)) continue;
+
       subtotal += totals.subtotal;
       discountTotal += totals.discountAmount;
       total += totals.lineTotal;
@@ -151,69 +184,126 @@ export function ProductLinesStep<TForm extends FieldValues>({
   })();
 
   const handleSearch = (rowKey: string, term: string, excludeIds: string[]) => {
-    const existing = debounceRef.current[rowKey];
-    if (existing) window.clearTimeout(existing);
+    const existingTimeout = debounceRef.current[rowKey];
+    if (existingTimeout) {
+      window.clearTimeout(existingTimeout);
+    }
 
     debounceRef.current[rowKey] = window.setTimeout(async () => {
-      const q = term.trim();
-      if (q.length < 2) {
-        setResultsRow((p) => ({ ...p, [rowKey]: [] }));
+      const query = term.trim();
+      if (query.length < 2) {
+        setResultsRow((prev) => ({ ...prev, [rowKey]: [] }));
         return;
       }
 
-      setLoadingRow((p) => ({ ...p, [rowKey]: true }));
+      setLoadingRow((prev) => ({ ...prev, [rowKey]: true }));
       try {
         const rows = await searchProductVariantsAction({
-          term: q,
+          term: query,
           excludeIds,
           take: 10,
         });
-        setResultsRow((p) => ({ ...p, [rowKey]: rows }));
+        setResultsRow((prev) => ({ ...prev, [rowKey]: rows }));
       } finally {
-        setLoadingRow((p) => ({ ...p, [rowKey]: false }));
+        setLoadingRow((prev) => ({ ...prev, [rowKey]: false }));
       }
     }, 300);
   };
 
-  const setField = (path: string, value: any, options?: any) => {
-    setValue(path as any, value, options);
+  const setField = <TPath extends FieldPath<TForm>>(
+    path: TPath,
+    value: PathValue<TForm, TPath>,
+    options?: Parameters<UseFormReturn<TForm>["setValue"]>[2],
+  ) => {
+    setValue(path, value, options);
   };
 
   const selectProduct = async (
     index: number,
     rowKey: string,
-    p: ProductVariantLookupDto,
+    product: ProductVariantLookupDto,
   ) => {
     const opts = { shouldDirty: true, shouldValidate: true };
-    setField(`lines.${index}.productVariantId`, p.id, opts);
-    setField(`lines.${index}.productName`, p.label, opts);
-    setField(`lines.${index}.${config.priceFieldKey}`, p.defaultPrice, opts);
-    setField(`lines.${index}.quantity`, 1, opts);
-    if (p.descriptionSuggestion) {
-      setField(`lines.${index}.description`, p.descriptionSuggestion, opts);
+    const productVariantIdPath = lineFieldPath<TForm, TPriceField>(
+      index,
+      "productVariantId",
+    );
+    const productNamePath = lineFieldPath<TForm, TPriceField>(
+      index,
+      "productName",
+    );
+    const pricePath = lineFieldPath<TForm, TPriceField>(
+      index,
+      priceFieldKey,
+    );
+    const quantityPath = lineFieldPath<TForm, TPriceField>(index, "quantity");
+    const descriptionPath = lineFieldPath<TForm, TPriceField>(
+      index,
+      "description",
+    );
+
+    setField(
+      productVariantIdPath,
+      product.id as PathValue<TForm, typeof productVariantIdPath>,
+      opts,
+    );
+    setField(
+      productNamePath,
+      product.label as PathValue<TForm, typeof productNamePath>,
+      opts,
+    );
+    setField(
+      pricePath,
+      product.defaultPrice as PathValue<TForm, typeof pricePath>,
+      opts,
+    );
+    setField(quantityPath, 1 as PathValue<TForm, typeof quantityPath>, opts);
+
+    if (product.descriptionSuggestion) {
+      setField(
+        descriptionPath,
+        product.descriptionSuggestion as PathValue<TForm, typeof descriptionPath>,
+        opts,
+      );
     }
 
-    setTermRow((prev) => ({ ...prev, [rowKey]: p.label }));
+    setTermRow((prev) => ({ ...prev, [rowKey]: product.label }));
     setOpenRow(null);
 
     await trigger([
-      `lines.${index}.productVariantId`,
-      `lines.${index}.productName`,
-      `lines.${index}.quantity`,
-      `lines.${index}.${config.priceFieldKey}`,
-      `lines.${index}.description`,
-    ] as any);
+      productVariantIdPath,
+      productNamePath,
+      quantityPath,
+      pricePath,
+      descriptionPath,
+    ]);
   };
 
   const clearSelectionIfTyped = (index: number) => {
-    const currentId = (
-      (getValues as any)(`lines.${index}.productVariantId`) ?? ""
-    ).trim();
-    if (currentId) {
-      const opts = { shouldDirty: true, shouldValidate: true };
-      setField(`lines.${index}.productVariantId`, "", opts);
-      setField(`lines.${index}.productName`, "", opts);
-    }
+    const row = lines[index];
+    const currentId = row?.productVariantId?.trim() ?? "";
+    if (!currentId) return;
+
+    const opts = { shouldDirty: true, shouldValidate: true };
+    const productVariantIdPath = lineFieldPath<TForm, TPriceField>(
+      index,
+      "productVariantId",
+    );
+    const productNamePath = lineFieldPath<TForm, TPriceField>(
+      index,
+      "productName",
+    );
+
+    setField(
+      productVariantIdPath,
+      "" as PathValue<TForm, typeof productVariantIdPath>,
+      opts,
+    );
+    setField(
+      productNamePath,
+      "" as PathValue<TForm, typeof productNamePath>,
+      opts,
+    );
   };
 
   return (
@@ -223,8 +313,8 @@ export function ProductLinesStep<TForm extends FieldValues>({
           <h3 className="font-semibold">Productos Registrados</h3>
           <p className="text-sm opacity-70">{config.description}</p>
 
-          <div className="mt-4 -mx-4 md:mx-0 overflow-x-auto md:overflow-x-visible">
-            <div className="min-w-[980px] md:min-w-0 px-4 md:px-0">
+          <div className="mt-4 -mx-4 overflow-x-auto md:mx-0 md:overflow-x-visible">
+            <div className="min-w-[980px] px-4 md:min-w-0 md:px-0">
               <table className="table table-zebra w-full">
                 <thead>
                   <tr>
@@ -240,15 +330,17 @@ export function ProductLinesStep<TForm extends FieldValues>({
                 <tbody>
                   {fields.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-8">
+                      <td colSpan={7} className="py-8 text-center">
                         <div className="flex flex-col items-center gap-2 opacity-70">
                           <span>No hay productos agregados</span>
                           <button
                             type="button"
                             className="btn btn-outline btn-sm"
-                            onClick={() => {
-                              append(config.emptyRow as any);
-                            }}
+                            onClick={() =>
+                              append(
+                                config.emptyRow as FieldArray<TForm, typeof linesArrayPath>,
+                              )
+                            }
                           >
                             Agregar primer producto
                           </button>
@@ -256,11 +348,11 @@ export function ProductLinesStep<TForm extends FieldValues>({
                       </td>
                     </tr>
                   ) : (
-                    fields.map((f, index) => {
-                      const rowKey = f.id;
+                    fields.map((field, index) => {
+                      const rowKey = field.id;
                       const row = lines[index];
-                      const term = termRow[rowKey] ?? row?.productName ?? "";
                       const rowErr = linesErrors?.[index];
+                      const term = termRow[rowKey] ?? row?.productName ?? "";
                       const excludeIdsForRow = selectedIds.filter(
                         (id) => id !== row?.productVariantId,
                       );
@@ -274,7 +366,6 @@ export function ProductLinesStep<TForm extends FieldValues>({
 
                       return (
                         <tr key={rowKey}>
-                          {/* Product autocomplete */}
                           <td className="w-[380px] max-w-[380px]">
                             <div className="relative">
                               <input
@@ -283,32 +374,21 @@ export function ProductLinesStep<TForm extends FieldValues>({
                                 }`}
                                 placeholder="Buscar producto (2+ letras)…"
                                 value={term}
-                                onChange={(e) => {
-                                  const next = e.target.value;
-                                  setTermRow((p) => ({
-                                    ...p,
+                                onChange={(event) => {
+                                  const next = event.target.value;
+                                  setTermRow((prev) => ({
+                                    ...prev,
                                     [rowKey]: next,
                                   }));
                                   clearSelectionIfTyped(index);
-                                  handleSearch(
-                                    rowKey,
-                                    next,
-                                    excludeIdsForRow,
-                                  );
+                                  handleSearch(rowKey, next, excludeIdsForRow);
                                 }}
                                 onFocus={() => {
                                   setOpenRow(rowKey);
-                                  handleSearch(
-                                    rowKey,
-                                    term,
-                                    excludeIdsForRow,
-                                  );
+                                  handleSearch(rowKey, term, excludeIdsForRow);
                                 }}
                                 onBlur={() =>
-                                  window.setTimeout(
-                                    () => setOpenRow(null),
-                                    150,
-                                  )
+                                  window.setTimeout(() => setOpenRow(null), 150)
                                 }
                                 aria-label="Buscar producto"
                               />
@@ -320,29 +400,28 @@ export function ProductLinesStep<TForm extends FieldValues>({
                                 )}
                               </div>
 
-                              {/* Dropdown */}
                               {openRow === rowKey &&
                               (resultsRow[rowKey]?.length ?? 0) > 0 ? (
                                 <div className="absolute z-50 mt-2 w-full rounded-box border border-base-300 bg-base-100 shadow">
                                   <ul className="menu menu-sm w-full">
-                                    {(resultsRow[rowKey] ?? []).map((p) => (
-                                      <li key={p.id} className="w-full">
+                                    {(resultsRow[rowKey] ?? []).map((product) => (
+                                      <li key={product.id} className="w-full">
                                         <button
                                           type="button"
                                           className="w-full justify-start text-left"
-                                          onMouseDown={(e) =>
-                                            e.preventDefault()
+                                          onMouseDown={(event) =>
+                                            event.preventDefault()
                                           }
                                           onClick={() =>
-                                            selectProduct(index, rowKey, p)
+                                            selectProduct(index, rowKey, product)
                                           }
                                         >
-                                          <div className="flex w-full items-center justify-between gap-3 min-w-0">
-                                            <span className="font-medium truncate">
-                                              {p.label}
+                                          <div className="flex min-w-0 w-full items-center justify-between gap-3">
+                                            <span className="truncate font-medium">
+                                              {product.label}
                                             </span>
-                                            <span className="text-xs opacity-70 whitespace-nowrap">
-                                              ${p.defaultPrice}
+                                            <span className="whitespace-nowrap text-xs opacity-70">
+                                              ${product.defaultPrice}
                                             </span>
                                           </div>
                                         </button>
@@ -353,17 +432,22 @@ export function ProductLinesStep<TForm extends FieldValues>({
                               ) : null}
                             </div>
 
-                            {/* Hidden fields */}
                             <input
                               type="hidden"
                               {...register(
-                                `lines.${index}.productVariantId` as any,
+                                lineFieldPath<TForm, TPriceField>(
+                                  index,
+                                  "productVariantId",
+                                ),
                               )}
                             />
                             <input
                               type="hidden"
                               {...register(
-                                `lines.${index}.productName` as any,
+                                lineFieldPath<TForm, TPriceField>(
+                                  index,
+                                  "productName",
+                                ),
                               )}
                             />
 
@@ -374,7 +458,6 @@ export function ProductLinesStep<TForm extends FieldValues>({
                             ) : null}
                           </td>
 
-                          {/* Quantity */}
                           <td>
                             <input
                               type="number"
@@ -383,7 +466,10 @@ export function ProductLinesStep<TForm extends FieldValues>({
                                 rowErr?.quantity ? "input-error" : ""
                               }`}
                               {...register(
-                                `lines.${index}.quantity` as any,
+                                lineFieldPath<TForm, TPriceField>(
+                                  index,
+                                  "quantity",
+                                ),
                                 { valueAsNumber: true },
                               )}
                             />
@@ -394,31 +480,37 @@ export function ProductLinesStep<TForm extends FieldValues>({
                             ) : null}
                           </td>
 
-                          {/* Price */}
                           <td>
                             <input
                               className={`input input-bordered w-28 ${
-                                rowErr?.[config.priceFieldKey] ? "input-error" : ""
+                                rowErr?.[priceFieldKey]
+                                  ? "input-error"
+                                  : ""
                               }`}
                               placeholder="12.50"
                               inputMode="decimal"
                               {...register(
-                                `lines.${index}.${config.priceFieldKey}` as any,
+                                lineFieldPath<TForm, TPriceField>(
+                                  index,
+                                  priceFieldKey,
+                                ),
                               )}
                             />
-                            {rowErr?.[config.priceFieldKey]?.message ? (
+                            {rowErr?.[priceFieldKey]?.message ? (
                               <p className="mt-1 text-sm text-error">
-                                {String(rowErr[config.priceFieldKey].message)}
+                                {String(rowErr[priceFieldKey]?.message)}
                               </p>
                             ) : null}
                           </td>
 
-                          {/* Discount */}
                           <td>
                             <select
                               className="select select-bordered w-24"
                               {...register(
-                                `lines.${index}.discountPercent` as any,
+                                lineFieldPath<TForm, TPriceField>(
+                                  index,
+                                  "discountPercent",
+                                ),
                                 {
                                   setValueAs: (value) => Number(value),
                                 },
@@ -432,7 +524,6 @@ export function ProductLinesStep<TForm extends FieldValues>({
                             </select>
                           </td>
 
-                          {/* Description */}
                           <td className="min-w-[240px]">
                             <input
                               className={`input input-bordered w-full ${
@@ -440,7 +531,10 @@ export function ProductLinesStep<TForm extends FieldValues>({
                               }`}
                               placeholder="Opcional"
                               {...register(
-                                `lines.${index}.description` as any,
+                                lineFieldPath<TForm, TPriceField>(
+                                  index,
+                                  "description",
+                                ),
                               )}
                             />
                             {rowErr?.description?.message ? (
@@ -450,12 +544,10 @@ export function ProductLinesStep<TForm extends FieldValues>({
                             ) : null}
                           </td>
 
-                          {/* Total */}
                           <td className="text-right font-medium">
                             {moneyMX(rowTotals.lineTotal)}
                           </td>
 
-                          {/* Actions */}
                           <td>
                             <button
                               type="button"
@@ -480,9 +572,7 @@ export function ProductLinesStep<TForm extends FieldValues>({
             <div className="w-full max-w-sm rounded-box border border-base-300 bg-base-100 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm opacity-70">Productos</span>
-                <span className="font-medium">
-                  {computedTotals.itemsCount}
-                </span>
+                <span className="font-medium">{computedTotals.itemsCount}</span>
               </div>
 
               <div className="mt-2 flex items-center justify-between">
@@ -515,7 +605,11 @@ export function ProductLinesStep<TForm extends FieldValues>({
               type="button"
               className="btn btn-outline"
               disabled={!canAddRow}
-              onClick={() => append(config.emptyRow as any)}
+              onClick={() =>
+                append(
+                  config.emptyRow as FieldArray<TForm, typeof linesArrayPath>,
+                )
+              }
             >
               + Agregar producto
             </button>

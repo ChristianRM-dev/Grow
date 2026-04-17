@@ -15,6 +15,7 @@ import {
   defineFormStep,
   prefixIssuePathMapper,
 } from "@/components/ui/MultiStepForm/stepBuilders";
+import { arrayIssuePathToFieldPath } from "@/components/forms/document-wizard/documentForm.shared";
 import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
 
 import {
@@ -34,7 +35,7 @@ import { SalesNoteSummaryStep } from "./steps/SalesNoteSummaryStep";
 // Keep Step factory stable across renders
 const Step = defineFormStep<SalesNoteFormInput>();
 
-const wizardConfig: DocumentWizardConfig<SalesNoteFormInput, SalesNoteFormValues> = {
+const wizardConfig: DocumentWizardConfig<typeof SalesNoteFormSchema> = {
   formSchema: SalesNoteFormSchema,
   labels: {
     back: "Atrás",
@@ -66,9 +67,10 @@ export function SalesNoteWizard({
   // Lifecycle logging
   useEffect(() => {
     salesNoteLogger.info("SalesNoteWizard", "Wizard mounted", {
-      initialLinesCount: (initialValues as any)?.lines?.length ?? 0,
-      initialUnregisteredLinesCount: (initialValues as any)?.unregisteredLines?.length ?? 0,
-      customerMode: (initialValues as any)?.customer?.mode,
+      initialLinesCount: initialValues.lines?.length ?? 0,
+      initialUnregisteredLinesCount:
+        initialValues.unregisteredLines?.length ?? 0,
+      customerMode: initialValues.customer?.mode,
     });
     return () => {
       salesNoteLogger.info("SalesNoteWizard", "Wizard unmounting");
@@ -107,7 +109,7 @@ export function SalesNoteWizard({
         fieldPaths: ["lines"],
         validator: {
           schema: SalesNoteLinesStepSchema,
-          getStepValues: (v) => (v.lines ?? []) as any,
+          getStepValues: (v) => v.lines ?? [],
         },
         Component: SalesNoteLinesStep,
       }),
@@ -117,9 +119,12 @@ export function SalesNoteWizard({
         fieldPaths: ["unregisteredLines"],
         validator: {
           schema: SalesNoteUnregisteredLinesStepSchema,
-          getStepValues: (v) => (v.unregisteredLines ?? []) as any,
+          getStepValues: (v) => v.unregisteredLines ?? [],
           mapIssuePathToFieldPath: (issuePath: readonly PropertyKey[]) =>
-            `unregisteredLines.${issuePath.map(String).join(".")}` as any,
+            arrayIssuePathToFieldPath<SalesNoteFormInput>(
+              "unregisteredLines",
+              issuePath,
+            ),
         },
         Component: SalesNoteUnregisteredLinesStep,
       }),
@@ -150,7 +155,7 @@ export function SalesNoteWizard({
   };
 
   return (
-    <DocumentWizard<SalesNoteFormInput, SalesNoteFormValues>
+    <DocumentWizard<typeof SalesNoteFormSchema>
       config={wizardConfig}
       steps={steps}
       initialValues={initialValues}

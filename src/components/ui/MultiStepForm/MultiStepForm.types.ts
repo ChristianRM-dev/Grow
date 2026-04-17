@@ -62,6 +62,20 @@ export type WizardEvent<TFormValues extends FieldValues> =
  */
 export type ZodSchema<T> = z.ZodType<T>;
 
+export type StepValidationSchema<T> = {
+  safeParse: (data: unknown) =>
+    | { success: true; data: unknown }
+    | {
+        success: false;
+        error: {
+          issues: readonly {
+            path: readonly PropertyKey[];
+            message: string;
+          }[];
+        };
+      };
+};
+
 /**
  * A "slice" validator for a step.
  * - getStepValues extracts the subset of the full form values that this step owns
@@ -70,7 +84,7 @@ export type ZodSchema<T> = z.ZodType<T>;
  * This enables cross-field validation inside the step without validating the entire form.
  */
 export type StepValidator<TFormValues extends FieldValues, TStepValues> = {
-  schema: ZodSchema<TStepValues>;
+  schema: StepValidationSchema<TStepValues>;
   getStepValues: (values: TFormValues) => TStepValues;
 
   /**
@@ -160,7 +174,7 @@ export type SummaryStepDefinition<TFormValues extends FieldValues> = {
  * Discriminated union for all steps.
  */
 export type StepDefinition<TFormValues extends FieldValues> =
-  | FormStepDefinition<TFormValues, any>
+  | FormStepDefinition<TFormValues, unknown>
   | SummaryStepDefinition<TFormValues>;
 
 /**

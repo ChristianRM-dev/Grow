@@ -15,6 +15,7 @@ import {
   defineFormStep,
   prefixIssuePathMapper,
 } from "@/components/ui/MultiStepForm/stepBuilders";
+import { arrayIssuePathToFieldPath } from "@/components/forms/document-wizard/documentForm.shared";
 
 import {
   QuotationFormSchema,
@@ -34,7 +35,7 @@ import { QuotationSummaryStep } from "./steps/QuotationSummaryStep";
 // Keep Step factory stable across renders
 const Step = defineFormStep<QuotationFormInput>();
 
-const wizardConfig: DocumentWizardConfig<QuotationFormInput, QuotationFormValues> = {
+const wizardConfig: DocumentWizardConfig<typeof QuotationFormSchema> = {
   formSchema: QuotationFormSchema,
   labels: {
     back: "Atrás",
@@ -85,7 +86,7 @@ export function QuotationWizard({
         fieldPaths: ["lines"],
         validator: {
           schema: QuotationLinesStepSchema,
-          getStepValues: (v) => (v.lines ?? []) as any,
+          getStepValues: (v) => v.lines ?? [],
         },
         Component: QuotationLinesStep,
       }),
@@ -96,9 +97,12 @@ export function QuotationWizard({
         fieldPaths: ["unregisteredLines"],
         validator: {
           schema: QuotationUnregisteredLinesStepSchema,
-          getStepValues: (v) => (v.unregisteredLines ?? []) as any,
+          getStepValues: (v) => v.unregisteredLines ?? [],
           mapIssuePathToFieldPath: (issuePath: readonly PropertyKey[]) =>
-            `unregisteredLines.${issuePath.map(String).join(".")}` as any,
+            arrayIssuePathToFieldPath<QuotationFormInput>(
+              "unregisteredLines",
+              issuePath,
+            ),
         },
         Component: QuotationUnregisteredLinesStep,
       }),
@@ -120,7 +124,7 @@ export function QuotationWizard({
   }, [submitting]);
 
   return (
-    <DocumentWizard<QuotationFormInput, QuotationFormValues>
+    <DocumentWizard<typeof QuotationFormSchema>
       config={wizardConfig}
       steps={steps}
       initialValues={initialValues}
