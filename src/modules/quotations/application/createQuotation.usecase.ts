@@ -1,31 +1,18 @@
-import { FolioType, Prisma } from "@/generated/prisma/client";
+import { FolioType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
 import {
   createScopedLogger,
   type UseCaseContext,
 } from "@/modules/shared/observability/scopedLogger";
-import {
-  computeDiscountedLineTotalsDecimal,
-  toDecimal,
-  sumDecimals,
-  zeroDecimal,
-} from "@/modules/shared/utils/decimals";
-import { safeTrim } from "@/modules/shared/utils/strings";
-import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/descriptionSnapshot";
 import { generateMonthlyFolio } from "@/modules/shared/folio/monthlyFolio";
 import { resolvePartyIdForCustomerSelection } from "@/modules/parties/application/resolvePartyIdForCustomerSelection";
-
-export type QuotationLinePayload = {
-  productVariantId: string | null;
-  descriptionSnapshot: string;
-  discountPercent: number;
-  quantity: Prisma.Decimal;
-  subtotal: Prisma.Decimal;
-  discountAmount: Prisma.Decimal;
-  quotedUnitPrice: Prisma.Decimal;
-  lineTotal: Prisma.Decimal;
-};
+import {
+  buildRegisteredDocumentLinePayloads,
+  buildUnregisteredDocumentLinePayloads,
+  calculateDocumentTotals,
+  persistDocumentLines,
+} from "@/modules/shared/documents/documentLines";
 
 export async function createQuotationUseCase(
   values: QuotationFormValues,
@@ -53,64 +40,20 @@ export async function createQuotationUseCase(
       logger
     );
 
-    const registeredLines: QuotationLinePayload[] = (values.lines ?? []).map(
-      (l) => {
-        const quantity = toDecimal(l.quantity);
-        const quotedUnitPrice = toDecimal(l.quotedUnitPrice);
-        const { subtotal, discountAmount, lineTotal, discountPercent } =
-          computeDiscountedLineTotalsDecimal({
-            quantity,
-            unitPrice: quotedUnitPrice,
-            discountPercent: l.discountPercent,
-          });
-
-        return {
-          productVariantId: safeTrim(l.productVariantId) || null,
-          descriptionSnapshot: buildDescriptionSnapshot(
-            l.productName,
-            l.description
-          ),
-          discountPercent,
-          quantity,
-          subtotal,
-          discountAmount,
-          quotedUnitPrice,
-          lineTotal,
-        };
-      }
+    const registeredLines = buildRegisteredDocumentLinePayloads(
+      values.lines ?? [],
+      "quotedUnitPrice",
     );
 
-    const externalLines: QuotationLinePayload[] = (
-      values.unregisteredLines ?? []
-    ).map((l) => {
-      const quantity = toDecimal(l.quantity);
-      const quotedUnitPrice = toDecimal(l.quotedUnitPrice);
-      const { subtotal, discountAmount, lineTotal, discountPercent } =
-        computeDiscountedLineTotalsDecimal({
-          quantity,
-          unitPrice: quotedUnitPrice,
-          discountPercent: l.discountPercent,
-        });
-
-      return {
-        productVariantId: null,
-        descriptionSnapshot: buildDescriptionSnapshot(l.name, l.description),
-        discountPercent,
-        quantity,
-        subtotal,
-        discountAmount,
-        quotedUnitPrice,
-        lineTotal,
-      };
-    });
+    const externalLines = buildUnregisteredDocumentLinePayloads(
+      values.unregisteredLines ?? [],
+      "quotedUnitPrice",
+    );
 
     const allLines = [...registeredLines, ...externalLines];
     logger.log("lines_built", { allLines: allLines.length });
 
-    const total =
-      allLines.length > 0
-        ? sumDecimals(allLines, (l) => l.lineTotal)
-        : zeroDecimal();
+    const { total } = calculateDocumentTotals(allLines);
 
     logger.log("totals", { total: total.toString() });
 
@@ -135,21 +78,21 @@ export async function createQuotationUseCase(
 
     logger.log("quotation_created", created);
 
-    if (allLines.length > 0) {
-      const res = await tx.quotationLine.createMany({
-        data: allLines.map((l) => ({
-          quotationId: created.id,
-          productVariantId: l.productVariantId,
-          descriptionSnapshot: l.descriptionSnapshot,
-          quantity: l.quantity,
-          quotedUnitPrice: l.quotedUnitPrice,
-          discountPercent: l.discountPercent,
-        })),
-      });
-      logger.log("lines_createMany_done", res);
-    } else {
-      logger.log("lines_skipped_empty");
-    }
+    await persistDocumentLines({
+      payloads: allLines,
+      logger,
+      createMany: (payloads) =>
+        tx.quotationLine.createMany({
+          data: payloads.map((line) => ({
+            quotationId: created.id,
+            productVariantId: line.productVariantId,
+            descriptionSnapshot: line.descriptionSnapshot,
+            quantity: line.quantity,
+            quotedUnitPrice: line.quotedUnitPrice,
+            discountPercent: line.discountPercent,
+          })),
+        }),
+    });
 
     return { quotationId: created.id };
   });
