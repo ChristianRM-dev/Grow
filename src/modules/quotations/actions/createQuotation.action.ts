@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { QuotationFormSchema } from "@/modules/quotations/forms/quotationForm.schemas";
 import { createQuotationUseCase } from "@/modules/quotations/application/createQuotation.usecase";
+import { createScopedLogger } from "@/modules/shared/observability/scopedLogger";
 
 const CreateQuotationActionSchema = QuotationFormSchema;
 
@@ -28,29 +29,35 @@ export async function createQuotationAction(input: unknown) {
   const traceId = `q_${Date.now().toString(36)}_${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+  const logger = createScopedLogger("createQuotationAction", { traceId });
 
-  console.log(`[createQuotationAction] start traceId=${traceId}`);
+  logger.debug("start", { traceId });
 
   const parsed = CreateQuotationActionSchema.safeParse(input);
   if (!parsed.success) {
-    console.warn(
-      `[createQuotationAction] validation_failed traceId=${traceId}`,
-      parsed.error.flatten()
-    );
+    logger.warn("validation_failed", {
+      traceId,
+      fieldErrors: Object.keys(parsed.error.flatten().fieldErrors),
+    });
     return { ok: false as const, errors: parsed.error.flatten(), traceId };
   }
 
   try {
     const result = await createQuotationUseCase(parsed.data, { traceId });
 
-    console.log(
-      `[createQuotationAction] success traceId=${traceId} quotationId=${result.quotationId}`
-    );
+    logger.info("success", {
+      traceId,
+      quotationId: result.quotationId,
+    });
 
     return { ok: true as const, quotationId: result.quotationId, traceId };
   } catch (err: unknown) {
     const summary = getErrorSummary(err);
-    console.error(`[createQuotationAction] failed traceId=${traceId}`, summary);
+    logger.error("failed", {
+      traceId,
+      errorKind: summary.kind,
+      detail: summary,
+    });
 
     return {
       ok: false as const,

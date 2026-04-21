@@ -10,7 +10,7 @@
  * - Submit handling with Zod parsing
  */
 
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import {
   useForm,
   type DefaultValues,
@@ -23,6 +23,7 @@ import type * as z4 from "zod/v4/core"
 import { MultiStepForm } from "@/components/ui/MultiStepForm/MultiStepForm"
 import { useFormDraft } from "@/hooks"
 import { useDraftRecoveryDialog } from "@/components/ui/DraftRecovery"
+import { emitLog } from "@/modules/shared/observability/logging.shared"
 import type {
   DocumentWizardInput,
   DocumentWizardOutput,
@@ -64,15 +65,6 @@ export function DocumentWizard<TSchema extends z.ZodTypeAny>({
   } = config
 
   const [draftCheckComplete, setDraftCheckComplete] = useState(!draftConfig)
-  const renderCountRef = useRef(0)
-  renderCountRef.current += 1
-
-  if (renderCountRef.current <= 3) {
-    console.log(`${logPrefix} render #${renderCountRef.current}`, {
-      submitting,
-      hasDraftConfig: !!draftConfig,
-    })
-  }
 
   const initialDocumentValues = initialValues as DraftableInitialValues
   const draftSchema = {
@@ -117,11 +109,13 @@ export function DocumentWizard<TSchema extends z.ZodTypeAny>({
     debounceMs: draftConfig?.debounceMs ?? 1000,
     schema: draftSchema,
     expirationDays: draftConfig?.expirationDays ?? 7,
-    onAutoSave: () => {
-      console.log(`${logPrefix} Draft auto-saved`)
-    },
     onSaveError: (error) => {
-      console.error(`${logPrefix} Draft save error`, error)
+      emitLog({
+        prefix: logPrefix,
+        level: "error",
+        message: "draft_save_failed",
+        data: error,
+      })
     },
   })
 
@@ -131,11 +125,6 @@ export function DocumentWizard<TSchema extends z.ZodTypeAny>({
     if (!draftConfig) return
     if (!draft.hasInitialized) return
     if (draftCheckComplete) return
-
-    console.log(`${logPrefix} draft check start`, {
-      hasDraft: draft.hasDraft,
-      hasTimestamp: !!draft.draftTimestamp,
-    })
 
     async function checkForDraft() {
       if (draft.hasDraft && draft.draftTimestamp) {
@@ -147,19 +136,30 @@ export function DocumentWizard<TSchema extends z.ZodTypeAny>({
         if (shouldRestore) {
           const draftData = draft.loadDraft()
           if (draftData) {
-            console.log(`${logPrefix} Restoring draft`)
+            emitLog({
+              prefix: logPrefix,
+              level: "debug",
+              message: "draft_restored",
+            })
             form.reset(draftData)
           } else {
-            console.warn(`${logPrefix} Draft load failed`)
+            emitLog({
+              prefix: logPrefix,
+              level: "warn",
+              message: "draft_restore_failed",
+            })
           }
         } else {
-          console.log(`${logPrefix} Draft discarded by user`)
+          emitLog({
+            prefix: logPrefix,
+            level: "debug",
+            message: "draft_discarded",
+          })
           draft.clearDraft()
         }
       }
 
       setDraftCheckComplete(true)
-      console.log(`${logPrefix} draft check complete`)
     }
 
     checkForDraft()
@@ -179,18 +179,25 @@ export function DocumentWizard<TSchema extends z.ZodTypeAny>({
     const t0 = performance.now()
     try {
       const parsed = formSchema.parse(input) as TValues
-      console.log(`${logPrefix} Submit parse ok`, {
-        ms: Math.round(performance.now() - t0),
+      emitLog({
+        prefix: logPrefix,
+        level: "debug",
+        message: "submit_parsed",
+        data: { ms: Math.round(performance.now() - t0) },
       })
 
       await onSubmit(parsed)
 
       if (draftConfig) {
         draft.clearDraft()
-        console.log(`${logPrefix} Submit successful, draft cleared`)
       }
     } catch (error) {
-      console.error(`${logPrefix} Submit error`, error)
+      emitLog({
+        prefix: logPrefix,
+        level: "error",
+        message: "submit_failed",
+        data: error,
+      })
       throw error
     }
   }
@@ -236,11 +243,15 @@ export function DocumentWizard<TSchema extends z.ZodTypeAny>({
         form={form}
         onSubmit={handleSubmit}
         onEvent={(e) => {
-          const safe = {
-            type: e.type,
-            stepId: e.type === "step_change" ? e.toStepId : null,
-          }
-          console.log(`${logPrefix} event`, safe)
+          emitLog({
+            prefix: logPrefix,
+            level: "debug",
+            message: "wizard_event",
+            data: {
+              type: e.type,
+              stepId: e.type === "step_change" ? e.toStepId : null,
+            },
+          })
         }}
       />
     </div>

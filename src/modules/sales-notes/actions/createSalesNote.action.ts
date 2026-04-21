@@ -4,9 +4,9 @@
 import { z } from "zod";
 import { SalesNoteFormSchema } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
 import { createSalesNoteUseCase } from "@/modules/sales-notes/application/createSalesNote.usecase";
-import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/auth";
+import { createScopedLogger } from "@/modules/shared/observability/scopedLogger";
 
 const CreateSalesNoteActionSchema = z.object({
   clientRequestId: z.string().uuid(),
@@ -34,9 +34,9 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
   const traceId = `sn_${Date.now().toString(36)}_${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+  const logger = createScopedLogger("createSalesNoteAction", { traceId });
 
-  console.log(`[createSalesNoteAction] start traceId=${traceId}`);
-  salesNoteLogger.info("createSalesNoteAction", "Action invoked", {
+  logger.debug("start", {
     traceId,
     clientRequestId: input.clientRequestId,
     customerMode: input.values?.customer?.mode,
@@ -46,11 +46,7 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
 
   const parsed = CreateSalesNoteActionSchema.safeParse(input);
   if (!parsed.success) {
-    console.warn(
-      `[createSalesNoteAction] validation_failed traceId=${traceId}`,
-      parsed.error.flatten(),
-    );
-    salesNoteLogger.warn("createSalesNoteAction", "Input validation failed", {
+    logger.warn("validation_failed", {
       traceId,
       fieldErrors: Object.keys(parsed.error.flatten().fieldErrors),
     });
@@ -58,17 +54,14 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
   }
 
   try {
-    console.log(
-      `[createSalesNoteAction] validated traceId=${traceId} customer.mode=${parsed.data.values.customer.mode}`,
-    );
-    salesNoteLogger.info("createSalesNoteAction", "Input validated, calling use case", {
+    logger.debug("validated", {
       traceId,
       customerMode: parsed.data.values.customer.mode,
     });
 
     const session = await auth();
     const userId = session?.user?.id;
-    salesNoteLogger.info("createSalesNoteAction", "Auth session resolved", {
+    logger.debug("auth_session_resolved", {
       traceId,
       hasUserId: !!userId,
     });
@@ -82,10 +75,7 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
     );
     const elapsedMs = Math.round(performance.now() - t0);
 
-    console.log(
-      `[createSalesNoteAction] success traceId=${traceId} salesNoteId=${result.salesNoteId}`,
-    );
-    salesNoteLogger.info("createSalesNoteAction", "Use case completed successfully", {
+    logger.info("success", {
       traceId,
       salesNoteId: result.salesNoteId,
       elapsedMs,
@@ -94,10 +84,10 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
     return { ok: true as const, salesNoteId: result.salesNoteId, traceId };
   } catch (err: unknown) {
     const summary = getErrorSummary(err);
-    console.error(`[createSalesNoteAction] failed traceId=${traceId}`, summary);
-    salesNoteLogger.error("createSalesNoteAction", "Use case failed", {
+    logger.error("failed", {
       traceId,
       errorKind: summary.kind,
+      detail: summary,
     });
 
     return {

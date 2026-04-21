@@ -21,7 +21,6 @@ export default async function SalesNoteDetailsPage({
   const dto = await getSalesNoteDetailsById(id);
   if (!dto) return notFound();
   const auditLog = await getSalesNoteAuditLogById(dto.id);
-  console.log("auditLog", auditLog);
   const canAddPayment = !dto.isFullyPaid;
 
   return (
