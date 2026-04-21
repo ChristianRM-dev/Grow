@@ -19,13 +19,11 @@ import {
   PencilSquareIcon,
   DocumentIcon,
   TrashIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  NoSymbolIcon,
 } from "@heroicons/react/16/solid";
 
 import { routes } from "@/lib/routes";
-import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
+import { moneyMX } from "@/modules/shared/utils/formatters";
+import { renderPaymentStatusCell } from "@/modules/shared/tables/tableCellFormatters";
 
 import { useBlockingDialogs } from "@/components/ui/Dialogs";
 import { toggleSalesNoteActiveAction } from "@/modules/sales-notes/actions/toggleSalesNoteActive.action";
@@ -152,31 +150,15 @@ export function SalesNotesTableClient({
       sortable: false,
       sortField: "isFullyPaid",
       cell: (_v, row) => {
-        // Cancelled wins visually
         if (row.status === "CANCELLED") {
-          return (
-            <div className="flex items-center gap-2">
-              <NoSymbolIcon className="h-5 w-5 text-error" />
-              <span className="text-sm opacity-80">Cancelada</span>
-            </div>
-          )
+          return renderPaymentStatusCell("CANCELLED");
         }
 
         if (row.isFullyPaid) {
-          return (
-            <div className="flex items-center gap-2">
-              <CheckCircleIcon className="h-5 w-5 text-success" />
-              <span className="text-sm opacity-80">Pagada</span>
-            </div>
-          )
+          return renderPaymentStatusCell("PAID");
         }
 
-        return (
-          <div className="flex items-center gap-2">
-            <ClockIcon className="h-5 w-5 text-warning" />
-            <span className="text-sm opacity-80">Pendiente</span>
-          </div>
-        )
+        return renderPaymentStatusCell("PENDING");
       },
     },
   ]

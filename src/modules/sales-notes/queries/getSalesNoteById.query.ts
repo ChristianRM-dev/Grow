@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { assertNotSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 import {
-  buildProductName,
-  decimalToString,
   descriptionFromSnapshotForRegisteredLine,
+  getSnapshotDisplayParts,
   inferCustomerModeFromSystemKey,
-  splitSnapshot,
-  toNumberSafe,
-} from "./_salesNoteMappers";
+} from "@/modules/shared/documents/documentSnapshot";
+import { buildProductName } from "@/modules/shared/products/productLabels";
+import { decimalToString, toNumberSafe } from "./_salesNoteMappers";
 
 export type SalesNoteDetailsLineDto = {
   kind: "REGISTERED" | "UNREGISTERED";
@@ -129,14 +128,14 @@ export async function getSalesNoteById(
     }
 
     // UNREGISTERED
-    const { name, description } = splitSnapshot(snapshot);
+    const { description, displayName } = getSnapshotDisplayParts(snapshot);
     const lineTotal = moneyMultiply(quantity, unitPrice);
     subtotalUnregistered += lineTotal;
 
     return {
       kind: "UNREGISTERED",
       productVariantId: null,
-      name: name || snapshot || "—",
+      name: displayName,
       quantity,
       unitPrice,
       description,

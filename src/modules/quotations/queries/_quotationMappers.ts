@@ -1,13 +1,15 @@
 import type { QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
+import {
+  descriptionFromSnapshotForRegisteredLine,
+  getSnapshotDisplayParts,
+  inferCustomerModeFromSystemKey,
+} from "@/modules/shared/documents/documentSnapshot";
+import { buildProductName } from "@/modules/shared/products/productLabels";
 import { normalizeDiscountPercent } from "@/modules/shared/utils/discounts";
 import {
-  buildProductName,
   decimalToString,
-  descriptionFromSnapshotForRegisteredLine,
-  splitSnapshot,
   toNumberSafe,
 } from "@/modules/sales-notes/queries/_salesNoteMappers";
-import { inferCustomerModeFromSystemKey } from "@/modules/sales-notes/queries/_salesNoteMappers";
 
 export function mapQuotationRowToFormValues(input: {
   party: { id: string; name: string; systemKey: string | null } | null;
@@ -61,10 +63,10 @@ export function mapQuotationRowToFormValues(input: {
         ),
       });
     } else {
-      const { name, description } = splitSnapshot(snapshot);
+      const { description, displayName } = getSnapshotDisplayParts(snapshot);
 
       values.unregisteredLines.push({
-        name: name || snapshot || "—",
+        name: displayName,
         quantity,
         quotedUnitPrice: unitPrice,
         discountPercent: normalizeDiscountPercent(l.discountPercent as number | undefined),
@@ -72,8 +74,6 @@ export function mapQuotationRowToFormValues(input: {
       });
     }
   }
-
-
 
   return values;
 }
