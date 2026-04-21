@@ -1,4 +1,5 @@
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
+import { computeOutstandingBalance } from "@/modules/shared/utils/decimals";
 
 export type SalesNoteBalanceResult = {
   salesNoteId: string;
@@ -29,11 +30,10 @@ export async function computeSalesNoteBalance(
     _sum: { amount: true },
   });
 
-  const total = note.total as Prisma.Decimal;
-  const paid = (agg._sum.amount ?? new Prisma.Decimal(0)) as Prisma.Decimal;
+  const { paid, remaining, total } = computeOutstandingBalance({
+    total: note.total as Prisma.Decimal,
+    paid: agg._sum.amount,
+  });
 
-  const raw = total.sub(paid);
-  const balance = raw.lt(0) ? new Prisma.Decimal(0) : raw;
-
-  return { salesNoteId: note.id, total, paid, balance };
+  return { salesNoteId: note.id, total, paid, balance: remaining };
 }

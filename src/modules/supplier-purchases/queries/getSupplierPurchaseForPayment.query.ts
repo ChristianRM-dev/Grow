@@ -4,6 +4,10 @@ import {
   assertNotSoftDeleted,
   excludeSoftDeletedPayments,
 } from "@/modules/shared/queries/softDeleteHelpers";
+import {
+  computeOutstandingBalance,
+  decimalToString,
+} from "@/modules/shared/utils/decimals";
 
 export type SupplierPurchaseForPaymentDto = {
   id: string; // supplierPurchaseId
@@ -43,20 +47,19 @@ export async function getSupplierPurchaseForPaymentById(id: string) {
     _sum: { amount: true },
   });
 
-  const paid = (paidAgg._sum.amount ?? new Prisma.Decimal(0)) as Prisma.Decimal;
-  const total = row.total as Prisma.Decimal;
-
-  const remainingRaw = total.sub(paid);
-  const remaining = remainingRaw.lt(0) ? new Prisma.Decimal(0) : remainingRaw;
+  const { isFullyPaid, paid, remaining, total } = computeOutstandingBalance({
+    total: row.total as Prisma.Decimal,
+    paid: paidAgg._sum.amount,
+  });
 
   return {
     id: row.id,
     party: { id: row.party.id, name: row.party.name },
     supplierFolio: row.supplierFolio,
-    total: total.toString(),
-    paidTotal: paid.toString(),
-    remainingTotal: remaining.toString(),
-    isFullyPaid: remaining.lte(0),
+    total: decimalToString(total),
+    paidTotal: decimalToString(paid),
+    remainingTotal: decimalToString(remaining),
+    isFullyPaid,
     occurredAt: row.occurredAt.toISOString().slice(0, 10),
   } satisfies SupplierPurchaseForPaymentDto;
 }

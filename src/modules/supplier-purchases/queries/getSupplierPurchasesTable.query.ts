@@ -5,6 +5,11 @@ import {
   type ParsedTableQuery,
 } from "@/modules/shared/tables/parseTableSearchParams";
 import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers"
+import {
+  computeOutstandingBalance,
+  decimalToString,
+  mapDecimalSumsByKey,
+} from "@/modules/shared/utils/decimals";
 
 export type SupplierPurchaseRowDto = {
   id: string
@@ -103,30 +108,25 @@ export async function getSupplierPurchasesTableQuery(rawSearchParams: unknown) {
       })
     : []
 
-  const paidByPurchaseId = new Map<string, Prisma.Decimal>()
-  for (const g of paidGroups) {
-    if (!g.supplierPurchaseId) continue
-    paidByPurchaseId.set(
-      g.supplierPurchaseId,
-      (g._sum.amount ?? new Prisma.Decimal(0)) as Prisma.Decimal
-    )
-  }
+  const paidByPurchaseId = mapDecimalSumsByKey(
+    paidGroups,
+    "supplierPurchaseId",
+  )
 
   const data: SupplierPurchaseRowDto[] = rows.map((r) => {
-    const total = r.total as Prisma.Decimal
-    const paid = paidByPurchaseId.get(r.id) ?? new Prisma.Decimal(0)
-
-    const remainingRaw = total.sub(paid)
-    const remaining = remainingRaw.lt(0) ? new Prisma.Decimal(0) : remainingRaw
+    const { isFullyPaid, paid, remaining, total } = computeOutstandingBalance({
+      total: r.total as Prisma.Decimal,
+      paid: paidByPurchaseId.get(r.id),
+    })
 
     return {
       id: r.id,
       supplierName: r.party.name,
       supplierFolio: r.supplierFolio,
-      total: total.toString(),
-      paidTotal: paid.toString(),
-      remainingTotal: remaining.toString(),
-      isFullyPaid: remaining.lte(0),
+      total: decimalToString(total),
+      paidTotal: decimalToString(paid),
+      remainingTotal: decimalToString(remaining),
+      isFullyPaid,
       createdAt: r.createdAt.toISOString(),
       occurredAt: r.occurredAt,
     }

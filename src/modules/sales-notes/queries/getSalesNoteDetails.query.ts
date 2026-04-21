@@ -1,6 +1,10 @@
-import { Prisma, PaymentDirection } from "@/generated/prisma/client";
+import { PaymentDirection } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers";
+import {
+  computeOutstandingBalance,
+  decimalToString,
+} from "@/modules/shared/utils/decimals";
 
 export type SalesNoteLineDetailsDto = {
   id: string;
@@ -49,10 +53,6 @@ export type SalesNoteDetailsDto = {
 
   payments: SalesNotePaymentDetailsDto[];
 };
-
-function decToString(v: Prisma.Decimal | null | undefined): string {
-  return (v ?? new Prisma.Decimal(0)).toString();
-}
 
 export async function getSalesNoteDetailsById(
   id: string
@@ -116,18 +116,19 @@ export async function getSalesNoteDetailsById(
     _sum: { amount: true },
   });
 
-  const paidTotal = paidAgg._sum.amount ?? new Prisma.Decimal(0);
-  const remainingRaw = note.total.sub(paidTotal);
-  const remaining = remainingRaw.lt(0) ? new Prisma.Decimal(0) : remainingRaw;
+  const { isFullyPaid, paid, remaining } = computeOutstandingBalance({
+    total: note.total,
+    paid: paidAgg._sum.amount,
+  });
 
   const linesDto: SalesNoteLineDetailsDto[] = note.lines.map((l) => ({
     id: l.id,
     productVariantId: l.productVariantId ?? null,
     descriptionSnapshot: l.descriptionSnapshot,
-    quantity: decToString(l.quantity),
-    unitPrice: decToString(l.unitPrice),
+    quantity: decimalToString(l.quantity),
+    unitPrice: decimalToString(l.unitPrice),
     discountPercent: l.discountPercent,
-    lineTotal: decToString(l.lineTotal),
+    lineTotal: decimalToString(l.lineTotal),
   }));
 
   return {
@@ -140,13 +141,13 @@ export async function getSalesNoteDetailsById(
 
     party: note.party,
 
-    subtotal: decToString(note.subtotal),
-    discountTotal: decToString(note.discountTotal),
-    total: decToString(note.total),
+    subtotal: decimalToString(note.subtotal),
+    discountTotal: decimalToString(note.discountTotal),
+    total: decimalToString(note.total),
 
-    paidTotal: paidTotal.toString(),
-    remainingTotal: remaining.toString(),
-    isFullyPaid: remaining.lte(0),
+    paidTotal: decimalToString(paid),
+    remainingTotal: decimalToString(remaining),
+    isFullyPaid,
 
     registeredLines: linesDto.filter((l) => l.productVariantId !== null),
     externalLines: linesDto.filter((l) => l.productVariantId === null),
@@ -154,7 +155,7 @@ export async function getSalesNoteDetailsById(
     payments: payments.map((p) => ({
       id: p.id,
       paymentType: String(p.paymentType),
-      amount: decToString(p.amount),
+      amount: decimalToString(p.amount),
       reference: p.reference,
       notes: p.notes,
       occurredAt: p.occurredAt.toISOString(),
