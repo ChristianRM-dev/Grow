@@ -16,8 +16,6 @@ import { routes } from "@/lib/routes"
 import type { SupplierPurchaseRowDto } from "@/modules/supplier-purchases/queries/getSupplierPurchasesTable.query"
 
 import {
-  CheckCircleIcon,
-  ClockIcon,
   CurrencyDollarIcon,
   DocumentIcon,
   EyeIcon,
@@ -27,6 +25,7 @@ import {
 
 import { useBlockingDialogs } from "@/components/ui/Dialogs"
 import { softDeleteSupplierPurchaseAction } from "@/modules/supplier-purchases/actions/softDeleteSupplierPurchase.action"
+import { renderPaymentStatusCell } from "@/modules/shared/tables/tableCellFormatters"
 
 export function SupplierPurchasesTableClient({
   data,
@@ -116,23 +115,8 @@ export function SupplierPurchasesTableClient({
       header: "Pagado",
       field: "isFullyPaid",
       sortable: false, // computed; avoid fake sorting unless you persist it
-      cell: (_v, row) => {
-        if (row.isFullyPaid) {
-          return (
-            <div className="flex items-center gap-2">
-              <CheckCircleIcon className="h-5 w-5 text-success" />
-              <span className="text-sm opacity-80">Pagada</span>
-            </div>
-          )
-        }
-
-        return (
-          <div className="flex items-center gap-2">
-            <ClockIcon className="h-5 w-5 text-warning" />
-            <span className="text-sm opacity-80">Pendiente</span>
-          </div>
-        )
-      },
+      cell: (_v, row) =>
+        renderPaymentStatusCell(row.isFullyPaid ? "PAID" : "PENDING"),
     },
 
     {

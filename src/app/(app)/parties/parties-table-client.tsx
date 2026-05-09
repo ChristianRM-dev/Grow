@@ -12,6 +12,7 @@ import type {
 
 import type { PartyRowDto } from "@/modules/parties/queries/getPartiesTable.query";
 import { useTableUrlQuery } from "@/modules/shared/tables/useTableUrlQuery";
+import { renderBooleanBadge } from "@/modules/shared/tables/tableCellFormatters";
 import { dateMX, phoneMX } from "@/modules/shared/utils/formatters";
 import { routes } from "@/lib/routes";
 
@@ -107,23 +108,13 @@ export function PartiesTableClient({
       header: "Es cliente",
       field: "isCustomer",
       sortable: false,
-      cell: (v) =>
-        v ? (
-          <span className="badge badge-success">Sí</span>
-        ) : (
-          <span className="badge">No</span>
-        ),
+      cell: (v) => renderBooleanBadge(v),
     },
     {
       header: "Es proveedor",
       field: "isSupplier",
       sortable: false,
-      cell: (v) =>
-        v ? (
-          <span className="badge badge-success">Sí</span>
-        ) : (
-          <span className="badge">No</span>
-        ),
+      cell: (v) => renderBooleanBadge(v),
     },
   ];
 

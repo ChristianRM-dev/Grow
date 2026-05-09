@@ -22,30 +22,52 @@ import {
   formatDiscountLabel,
   hasAnyDiscount,
 } from "@/modules/shared/utils/discounts";
+import {
+  type DocumentCustomerValue,
+  type DocumentPriceFieldKey,
+  type DocumentRegisteredLine,
+  type DocumentUnregisteredLine,
+} from "@/components/forms/document-wizard/documentForm.shared";
+
+type SummaryFormShape<
+  TLinePriceField extends DocumentPriceFieldKey,
+  TUnregisteredPriceField extends DocumentPriceFieldKey,
+  TUnregisteredLine extends DocumentUnregisteredLine<TUnregisteredPriceField> = DocumentUnregisteredLine<TUnregisteredPriceField>,
+> = FieldValues & {
+  customer: DocumentCustomerValue;
+  lines?: DocumentRegisteredLine<TLinePriceField>[];
+  unregisteredLines?: TUnregisteredLine[];
+};
 
 /**
  * Configuration for customizing SummaryStep per document type.
  */
-export type SummaryStepConfig = {
+export type SummaryStepConfig<
+  TLinePriceField extends DocumentPriceFieldKey,
+  TUnregisteredPriceField extends DocumentPriceFieldKey,
+> = {
   /** The field key for the price in registered lines */
-  linesPriceFieldKey: string;
+  linesPriceFieldKey: TLinePriceField;
   /** The field key for the price in unregistered lines */
-  unregisteredPriceFieldKey: string;
+  unregisteredPriceFieldKey: TUnregisteredPriceField;
   /** Label for the customer section (e.g., "Cliente" or "Contacto") */
   customerSectionLabel: string;
   /** Function to extract customer display label from form values */
-  getCustomerLabel: (customer: any) => string;
+  getCustomerLabel: (customer: DocumentCustomerValue) => string;
   /** Label for the unregistered lines section */
   unregisteredSectionLabel: string;
   /** Label for the unregistered subtotal */
   unregisteredSubtotalLabel: string;
 };
 
-export const SALES_NOTE_SUMMARY_CONFIG: SummaryStepConfig = {
+export const SALES_NOTE_SUMMARY_CONFIG: SummaryStepConfig<
+  "unitPrice",
+  "unitPrice"
+> = {
   linesPriceFieldKey: "unitPrice",
   unregisteredPriceFieldKey: "unitPrice",
   customerSectionLabel: "Cliente",
-  getCustomerLabel: (customer: any) => {
+  getCustomerLabel: (customer) => {
     if (customer.mode === "PUBLIC") return "Venta al público";
     if (customer.partyMode === "NEW") {
       return customer.newParty?.name?.trim() || "\u2014";
@@ -56,11 +78,14 @@ export const SALES_NOTE_SUMMARY_CONFIG: SummaryStepConfig = {
   unregisteredSubtotalLabel: "Subtotal externos",
 };
 
-export const QUOTATION_SUMMARY_CONFIG: SummaryStepConfig = {
+export const QUOTATION_SUMMARY_CONFIG: SummaryStepConfig<
+  "quotedUnitPrice",
+  "quotedUnitPrice"
+> = {
   linesPriceFieldKey: "quotedUnitPrice",
   unregisteredPriceFieldKey: "quotedUnitPrice",
   customerSectionLabel: "Contacto",
-  getCustomerLabel: (customer: any) => {
+  getCustomerLabel: (customer) => {
     if (customer.mode === "PUBLIC") return "Venta al público";
     if (customer.partyMode === "NEW") {
       return customer.newParty?.name?.trim() || "\u2014";
@@ -75,20 +100,38 @@ export const QUOTATION_SUMMARY_CONFIG: SummaryStepConfig = {
   unregisteredSubtotalLabel: "Subtotal no registrados",
 };
 
-type SummaryStepProps<TForm extends FieldValues> = {
+type SummaryStepProps<
+  TForm extends SummaryFormShape<
+    TLinePriceField,
+    TUnregisteredPriceField,
+    TUnregisteredLine
+  >,
+  TLinePriceField extends DocumentPriceFieldKey,
+  TUnregisteredPriceField extends DocumentPriceFieldKey,
+  TUnregisteredLine extends DocumentUnregisteredLine<TUnregisteredPriceField>,
+> = {
   form: UseFormReturn<TForm>;
-  config: SummaryStepConfig;
+  config: SummaryStepConfig<TLinePriceField, TUnregisteredPriceField>;
   /** Optional render prop for extra content between customer and products sections */
-  renderExtraInfo?: (values: any) => React.ReactNode;
+  renderExtraInfo?: (values: TForm) => React.ReactNode;
   /** Optional render prop for extra badges/info in the registered products section header */
-  renderRegisteredHeader?: (lines: any[]) => React.ReactNode;
+  renderRegisteredHeader?: (
+    lines: readonly DocumentRegisteredLine<TLinePriceField>[],
+  ) => React.ReactNode;
   /** Optional render prop for extra badges/info in the unregistered products section header */
-  renderUnregisteredHeader?: (lines: any[]) => React.ReactNode;
+  renderUnregisteredHeader?: (lines: readonly TUnregisteredLine[]) => React.ReactNode;
 };
 
-function sumLineTotals(
-  lines: any[],
-  priceFieldKey: string,
+function sumLineTotals<
+  TPriceField extends DocumentPriceFieldKey,
+  TLine extends {
+    quantity: number;
+    discountPercent?: number;
+    description?: string;
+  } & Record<TPriceField, string>,
+>(
+  lines: readonly TLine[],
+  priceFieldKey: TPriceField,
 ): { subtotal: number; discountTotal: number; total: number } {
   let subtotal = 0;
   let discountTotal = 0;
@@ -111,14 +154,28 @@ function sumLineTotals(
   return { subtotal, discountTotal, total };
 }
 
-export function SummaryStep<TForm extends FieldValues>({
+export function SummaryStep<
+  TForm extends SummaryFormShape<
+    TLinePriceField,
+    TUnregisteredPriceField,
+    TUnregisteredLine
+  >,
+  TLinePriceField extends DocumentPriceFieldKey,
+  TUnregisteredPriceField extends DocumentPriceFieldKey,
+  TUnregisteredLine extends DocumentUnregisteredLine<TUnregisteredPriceField>,
+>({
   form,
   config,
   renderExtraInfo,
   renderRegisteredHeader,
   renderUnregisteredHeader,
-}: SummaryStepProps<TForm>) {
-  const values = useWatch({ control: form.control }) as any;
+}: SummaryStepProps<
+  TForm,
+  TLinePriceField,
+  TUnregisteredPriceField,
+  TUnregisteredLine
+>) {
+  const values = useWatch({ control: form.control }) as TForm;
 
   const customerLabel = useMemo(
     () => config.getCustomerLabel(values.customer),
@@ -150,7 +207,6 @@ export function SummaryStep<TForm extends FieldValues>({
 
   return (
     <div className="w-full space-y-4">
-      {/* Customer */}
       <div className="card bg-base-200">
         <div className="card-body">
           <h3 className="font-semibold">Resumen</h3>
@@ -164,10 +220,8 @@ export function SummaryStep<TForm extends FieldValues>({
         </div>
       </div>
 
-      {/* Extra info section (e.g., plant counts for Sales Notes) */}
       {renderExtraInfo?.(values)}
 
-      {/* Registered products */}
       <div className="card bg-base-200">
         <div className="card-body">
           <div className="flex items-center justify-between">
@@ -190,28 +244,32 @@ export function SummaryStep<TForm extends FieldValues>({
                 </tr>
               </thead>
               <tbody>
-                {(values.lines ?? []).map((r: any, idx: number) => {
+                {(values.lines ?? []).map((line, idx) => {
                   const rowTotals = computeDiscountedLineTotalsNumber({
-                    quantity: Number(r.quantity ?? 0),
+                    quantity: Number(line.quantity ?? 0),
                     unitPrice: toNumber(
-                      String(r[config.linesPriceFieldKey] ?? ""),
+                      String(line[config.linesPriceFieldKey] ?? ""),
                     ),
-                    discountPercent: r.discountPercent,
+                    discountPercent: line.discountPercent,
                   });
 
                   return (
-                    <tr key={`${r.productVariantId}-${idx}`}>
-                      <td>{r.productName || "\u2014"}</td>
-                      <td className="text-right">{Number(r.quantity ?? 0) || 0}</td>
+                    <tr key={`${line.productVariantId}-${idx}`}>
+                      <td>{line.productName || "\u2014"}</td>
                       <td className="text-right">
-                        {moneyMX(toNumber(String(r[config.linesPriceFieldKey] ?? "")))}
+                        {Number(line.quantity ?? 0) || 0}
+                      </td>
+                      <td className="text-right">
+                        {moneyMX(
+                          toNumber(String(line[config.linesPriceFieldKey] ?? "")),
+                        )}
                       </td>
                       {showDiscountColumn ? (
                         <td className="text-right">
-                          {formatDiscountLabel(r.discountPercent)}
+                          {formatDiscountLabel(line.discountPercent)}
                         </td>
                       ) : null}
-                      <td>{r.description?.trim() || "\u2014"}</td>
+                      <td>{line.description?.trim() || "\u2014"}</td>
                       <td className="text-right font-medium">
                         {moneyMX(rowTotals.lineTotal)}
                       </td>
@@ -249,7 +307,6 @@ export function SummaryStep<TForm extends FieldValues>({
         </div>
       </div>
 
-      {/* Unregistered products (optional) */}
       {(values.unregisteredLines?.length ?? 0) > 0 ? (
         <div className="card bg-base-200">
           <div className="card-body">
@@ -275,42 +332,42 @@ export function SummaryStep<TForm extends FieldValues>({
                   </tr>
                 </thead>
                 <tbody>
-                  {(values.unregisteredLines ?? []).map(
-                    (r: any, idx: number) => {
-                      const rowTotals = computeDiscountedLineTotalsNumber({
-                        quantity: Number(r.quantity ?? 0),
-                        unitPrice: toNumber(
-                          String(r[config.unregisteredPriceFieldKey] ?? ""),
-                        ),
-                        discountPercent: r.discountPercent,
-                      });
+                  {(values.unregisteredLines ?? []).map((line, idx) => {
+                    const rowTotals = computeDiscountedLineTotalsNumber({
+                      quantity: Number(line.quantity ?? 0),
+                      unitPrice: toNumber(
+                        String(line[config.unregisteredPriceFieldKey] ?? ""),
+                      ),
+                      discountPercent: line.discountPercent,
+                    });
 
-                      return (
-                        <tr key={`${r.name}-${idx}`}>
-                          <td>{r.name || "\u2014"}</td>
-                          <td className="text-right">
-                            {Number(r.quantity ?? 0) || 0}
-                          </td>
-                          <td className="text-right">
-                            {moneyMX(
-                              toNumber(
-                                String(r[config.unregisteredPriceFieldKey] ?? ""),
+                    return (
+                      <tr key={`${line.name}-${idx}`}>
+                        <td>{line.name || "\u2014"}</td>
+                        <td className="text-right">
+                          {Number(line.quantity ?? 0) || 0}
+                        </td>
+                        <td className="text-right">
+                          {moneyMX(
+                            toNumber(
+                              String(
+                                line[config.unregisteredPriceFieldKey] ?? "",
                               ),
-                            )}
+                            ),
+                          )}
+                        </td>
+                        {showDiscountColumn ? (
+                          <td className="text-right">
+                            {formatDiscountLabel(line.discountPercent)}
                           </td>
-                          {showDiscountColumn ? (
-                            <td className="text-right">
-                              {formatDiscountLabel(r.discountPercent)}
-                            </td>
-                          ) : null}
-                          <td>{r.description?.trim() || "\u2014"}</td>
-                          <td className="text-right font-medium">
-                            {moneyMX(rowTotals.lineTotal)}
-                          </td>
-                        </tr>
-                      );
-                    },
-                  )}
+                        ) : null}
+                        <td>{line.description?.trim() || "\u2014"}</td>
+                        <td className="text-right font-medium">
+                          {moneyMX(rowTotals.lineTotal)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -345,7 +402,6 @@ export function SummaryStep<TForm extends FieldValues>({
         </div>
       ) : null}
 
-      {/* Grand total */}
       <div className="card bg-base-100 shadow-sm">
         <div className="card-body">
           <div className="space-y-2">

@@ -5,6 +5,11 @@ import {
   type ParsedTableQuery,
 } from "@/modules/shared/tables/parseTableSearchParams";
 import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers";
+import {
+  computeOutstandingBalance,
+  decimalToString,
+  mapDecimalSumsByKey,
+} from "@/modules/shared/utils/decimals";
 
 export type SalesNoteRowDto = {
   id: string;
@@ -97,19 +102,13 @@ export async function getSalesNotesTableQuery(rawSearchParams: unknown) {
       })
     : [];
 
-  const paidByNoteId = new Map<string, Prisma.Decimal>();
-  for (const g of paidGroups) {
-    if (!g.salesNoteId) continue;
-    paidByNoteId.set(
-      g.salesNoteId,
-      (g._sum.amount ?? new Prisma.Decimal(0)) as Prisma.Decimal
-    );
-  }
+  const paidByNoteId = mapDecimalSumsByKey(paidGroups, "salesNoteId");
 
   const data: SalesNoteRowDto[] = rows.map((r) => {
-    const paid = paidByNoteId.get(r.id) ?? new Prisma.Decimal(0);
-    const remainingRaw = (r.total as Prisma.Decimal).sub(paid);
-    const remaining = remainingRaw.lt(0) ? new Prisma.Decimal(0) : remainingRaw;
+    const { isFullyPaid, paid, remaining, total } = computeOutstandingBalance({
+      total: r.total as Prisma.Decimal,
+      paid: paidByNoteId.get(r.id),
+    });
 
     return {
       id: r.id,
@@ -117,13 +116,13 @@ export async function getSalesNotesTableQuery(rawSearchParams: unknown) {
       createdAt: r.createdAt.toISOString(),
       partyName: r.party.name,
       status: r.status,
-      total: (r.total as Prisma.Decimal).toString(),
-      paidTotal: paid.toString(),
-      remainingTotal: remaining.toString(),
+      total: decimalToString(total),
+      paidTotal: decimalToString(paid),
+      remainingTotal: decimalToString(remaining),
       // Business choice:
       // if cancelled, we treat it as "not payable" (disable payment anyway in UI),
       // but keeping the original computation is fine for display.
-      isFullyPaid: remaining.lte(0),
+      isFullyPaid,
     };
   });
 

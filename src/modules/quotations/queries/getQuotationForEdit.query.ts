@@ -13,8 +13,8 @@ export type QuotationForEditDto = {
 export async function getQuotationForEditById(
   id: string
 ): Promise<QuotationForEditDto | null> {
-  const row = await prisma.quotation.findUnique({
-    where: { id },
+  const row = await prisma.quotation.findFirst({
+    where: { id, isDeleted: false },
     select: {
       id: true,
       folio: true,

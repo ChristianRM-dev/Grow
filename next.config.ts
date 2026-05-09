@@ -19,16 +19,21 @@ const nextConfig: NextConfig = {
   // Config vacía para Turbopack
   turbopack: {},
 
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.resolve.alias.canvas = false;
       config.resolve.alias.encoding = false;
     }
 
-    // 🔥 DESACTIVA FILE WATCHING COMPLETAMENTE
-    config.watchOptions = {
-      ignored: "**/*", // Ignora TODO
-    };
+    // Preserve normal HMR/file watching. Polling remains opt-in for
+    // containerized or network-mounted filesystems.
+    if (dev && process.env.NEXT_WEBPACK_POLL === "true") {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: ["**/.git/**", "**/.next/**", "**/node_modules/**"],
+      };
+    }
 
     return config;
   },

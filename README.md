@@ -1,38 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Grow
 
-## Getting Started
+Grow es una plataforma de gestión para vivero construida para Los Laureles. El repositorio está organizado como un monolito modular sobre Next.js App Router y Prisma, con foco en flujos operativos como ventas, cotizaciones, compras, pagos, ledger y auditoría.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Next.js 16 + React 19 + TypeScript
+- Prisma + PostgreSQL
+- Zod + React Hook Form
+- NextAuth
+- Tailwind CSS 4 + DaisyUI
+- Serwist para PWA/offline
+- React PDF para documentos imprimibles
+- Vitest + Testing Library para pruebas automatizadas
+
+## Módulos Principales
+
+- `sales-notes`: notas de venta, pagos, ledger y auditoría
+- `quotations`: cotizaciones y prefill hacia ventas
+- `supplier-purchases`: compras a proveedor y cuentas por pagar
+- `products`: catálogo de variantes y precios
+- `parties`: identidad compartida para clientes y proveedores
+- `reports`: reportes operativos y exportables
+
+## Estructura Del Repo
+
+```text
+src/app/        App Router pages, layouts, routes y server components
+src/components/ UI compartida y bloques reutilizables de formularios
+src/modules/    Módulos de negocio con actions, queries, use cases y forms
+src/lib/        Helpers de infraestructura y utilidades comunes
+prisma/         Schema, migraciones y seed de Prisma
+docs/           Documentación de producto y de ingeniería
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Desarrollo
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Comandos útiles:
 
-## Learn More
+- `pnpm dev:turbo` para levantar el servidor con Turbopack
+- `pnpm dev:pwa` para validar comportamiento PWA localmente
+- `NEXT_WEBPACK_POLL=true pnpm dev` si trabajas sobre Docker o un filesystem montado que necesite polling
 
-To learn more about Next.js, take a look at the following resources:
+## Calidad
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm lint
+pnpm test
+pnpm test:coverage
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Base De Datos
 
-## Deploy on Vercel
+```bash
+pnpm db:generate
+pnpm db:migrate:dev
+pnpm db:seed
+pnpm studio
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Observabilidad
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `warn` y `error` se emiten por defecto.
+- Los logs verbosos son opt-in con `DEBUG_OBSERVABILITY=true` o `NEXT_PUBLIC_DEBUG_OBSERVABILITY=true`.
+- El flag histórico `NEXT_PUBLIC_DEBUG_SALES_FLOW=true` sigue habilitando trazas detalladas del flujo de ventas.
 
+## Documentación
 
+- Índice documental: [docs/README.md](docs/README.md)
+- Arquitectura vigente: [docs/98-architecture.md](docs/98-architecture.md)

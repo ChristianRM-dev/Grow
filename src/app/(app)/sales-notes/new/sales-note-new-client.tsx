@@ -10,6 +10,8 @@ import { createSalesNoteAction } from "@/modules/sales-notes/actions/createSales
 import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger"
 import { toast } from "@/components/ui/Toast/toast"
 import { routes } from "@/lib/routes"
+import { useBlockingDialogs } from "@/components/ui/Dialogs"
+import { softDeleteQuotationAction } from "@/modules/quotations/actions/softDeleteQuotation.action"
 
 const REQUEST_ID_KEY = "sales-note:new:clientRequestId"
 const LOG_PREFIX = "[SalesNoteNew]"
@@ -90,6 +92,7 @@ export function SalesNoteNewClient({
 }) {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
+  const dialogs = useBlockingDialogs()
 
   // Logger buffer lives for the lifetime of this component instance
   const loggerRef = useRef<ReturnType<typeof createLogBuffer> | null>(null)
@@ -219,6 +222,39 @@ export function SalesNoteNewClient({
         "SalesNoteNewClient",
         "Idempotency key cleared after success"
       )
+
+      if (sourceQuotation) {
+        const shouldDeleteQuotation = await dialogs.confirmDelete({
+          resourceLabel: "cotización",
+          message: (
+            <div className="space-y-2">
+              <p>
+                La nota de venta se creó desde la cotización{" "}
+                <strong>{sourceQuotation.folio}</strong>.
+              </p>
+              <p className="text-sm opacity-80">
+                ¿Deseas eliminar esa cotización ahora?
+              </p>
+            </div>
+          ),
+          confirmText: "Eliminar cotización",
+          cancelText: "Conservar",
+        })
+
+        if (shouldDeleteQuotation) {
+          try {
+            await softDeleteQuotationAction({ id: sourceQuotation.id })
+          } catch (err) {
+            await dialogs.error({
+              title: "No se pudo eliminar la cotización",
+              message:
+                "La nota de venta se guardó correctamente, pero falló la eliminación de la cotización.",
+              details: err instanceof Error ? err.message : String(err),
+              labels: { confirmText: "Entendido" },
+            })
+          }
+        }
+      }
 
       const targetUrl = routes.salesNotes.details(res.salesNoteId)
       logger.log("Navigating to targetUrl", { targetUrl })

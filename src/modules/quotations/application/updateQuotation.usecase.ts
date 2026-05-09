@@ -1,19 +1,16 @@
-import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { QuotationFormValues } from "@/modules/quotations/forms/quotationForm.schemas";
 import {
   createScopedLogger,
   type UseCaseContext,
 } from "@/modules/shared/observability/scopedLogger";
-import {
-  computeDiscountedLineTotalsDecimal,
-  toDecimal,
-  sumDecimals,
-  zeroDecimal,
-} from "@/modules/shared/utils/decimals";
-import { safeTrim } from "@/modules/shared/utils/strings";
-import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/descriptionSnapshot";
 import { resolvePartyIdForCustomerSelection } from "@/modules/parties/application/resolvePartyIdForCustomerSelection";
+import {
+  buildRegisteredDocumentLinePayloads,
+  buildUnregisteredDocumentLinePayloads,
+  calculateDocumentTotals,
+  persistDocumentLines,
+} from "@/modules/shared/documents/documentLines";
 
 export async function updateQuotationUseCase(
   quotationId: string,
@@ -52,60 +49,20 @@ export async function updateQuotationUseCase(
       logger
     );
 
-    const registeredLines = (values.lines ?? []).map((l) => {
-      const quantity = toDecimal(l.quantity);
-      const quotedUnitPrice = toDecimal(l.quotedUnitPrice);
-      const { subtotal, discountAmount, lineTotal, discountPercent } =
-        computeDiscountedLineTotalsDecimal({
-          quantity,
-          unitPrice: quotedUnitPrice,
-          discountPercent: l.discountPercent,
-        });
+    const registeredLines = buildRegisteredDocumentLinePayloads(
+      values.lines ?? [],
+      "quotedUnitPrice",
+    );
 
-      return {
-        productVariantId: safeTrim(l.productVariantId) || null,
-        descriptionSnapshot: buildDescriptionSnapshot(
-          l.productName,
-          l.description
-        ),
-        discountPercent,
-        quantity,
-        subtotal,
-        discountAmount,
-        quotedUnitPrice,
-        lineTotal,
-      };
-    });
-
-    const externalLines = (values.unregisteredLines ?? []).map((l) => {
-      const quantity = toDecimal(l.quantity);
-      const quotedUnitPrice = toDecimal(l.quotedUnitPrice);
-      const { subtotal, discountAmount, lineTotal, discountPercent } =
-        computeDiscountedLineTotalsDecimal({
-          quantity,
-          unitPrice: quotedUnitPrice,
-          discountPercent: l.discountPercent,
-        });
-
-      return {
-        productVariantId: null,
-        descriptionSnapshot: buildDescriptionSnapshot(l.name, l.description),
-        discountPercent,
-        quantity,
-        subtotal,
-        discountAmount,
-        quotedUnitPrice,
-        lineTotal,
-      };
-    });
+    const externalLines = buildUnregisteredDocumentLinePayloads(
+      values.unregisteredLines ?? [],
+      "quotedUnitPrice",
+    );
 
     const allLines = [...registeredLines, ...externalLines];
     logger.log("lines_built", { allLines: allLines.length });
 
-    const total =
-      allLines.length > 0
-        ? sumDecimals(allLines, (l) => l.lineTotal)
-        : zeroDecimal();
+    const { total } = calculateDocumentTotals(allLines);
 
     logger.log("totals", { total: total.toString() });
 
@@ -121,25 +78,23 @@ export async function updateQuotationUseCase(
       select: { id: true },
     });
 
-    logger.log("lines_replace_start");
-
-    await tx.quotationLine.deleteMany({ where: { quotationId } });
-
-    if (allLines.length > 0) {
-      const res = await tx.quotationLine.createMany({
-        data: allLines.map((l) => ({
-          quotationId,
-          productVariantId: l.productVariantId,
-          descriptionSnapshot: l.descriptionSnapshot,
-          quantity: l.quantity,
-          quotedUnitPrice: l.quotedUnitPrice,
-          discountPercent: l.discountPercent,
-        })),
-      });
-      logger.log("lines_createMany_done", res);
-    } else {
-      logger.log("lines_skipped_empty");
-    }
+    await persistDocumentLines({
+      payloads: allLines,
+      logger,
+      startMessage: "lines_replace_start",
+      deleteExisting: () => tx.quotationLine.deleteMany({ where: { quotationId } }),
+      createMany: (payloads) =>
+        tx.quotationLine.createMany({
+          data: payloads.map((line) => ({
+            quotationId,
+            productVariantId: line.productVariantId,
+            descriptionSnapshot: line.descriptionSnapshot,
+            quantity: line.quantity,
+            quotedUnitPrice: line.quotedUnitPrice,
+            discountPercent: line.discountPercent,
+          })),
+        }),
+    });
 
     const written = await tx.quotation.findUnique({
       where: { id: quotationId },

@@ -2,8 +2,8 @@
 
 import React, { useMemo } from "react";
 import type { QuotationDetailsDto } from "@/modules/quotations/queries/getQuotationDetails.query";
+import { getSnapshotDisplayParts } from "@/modules/shared/documents/documentSnapshot";
 import { moneyMX } from "@/modules/shared/utils/formatters";
-import { splitSnapshot } from "@/modules/sales-notes/queries/_salesNoteMappers";
 import {
   formatDiscountLabel,
   hasAnyDiscount,
@@ -120,11 +120,8 @@ export function QuotationDetailsClient({
                 ) : null}
 
                 {dto.registeredLines.map((l) => {
-                  const { name, description } = splitSnapshot(
-                    l.descriptionSnapshot,
-                  );
-                  const displayName = name || l.descriptionSnapshot || "—";
-                  const displayDescription = description || "—";
+                  const { displayDescription, displayName } =
+                    getSnapshotDisplayParts(l.descriptionSnapshot);
 
                   return (
                     <tr key={l.id}>
@@ -172,11 +169,8 @@ export function QuotationDetailsClient({
                 </thead>
                 <tbody>
                   {dto.externalLines.map((l) => {
-                    const { name, description } = splitSnapshot(
-                      l.descriptionSnapshot,
-                    );
-                    const displayName = name || l.descriptionSnapshot || "—";
-                    const displayDescription = description || "—";
+                    const { displayDescription, displayName } =
+                      getSnapshotDisplayParts(l.descriptionSnapshot);
 
                     return (
                       <tr key={l.id}>

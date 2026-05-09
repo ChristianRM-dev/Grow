@@ -1,76 +1,11 @@
 import type { SalesNoteFormValues } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
+import {
+  descriptionFromSnapshotForRegisteredLine,
+  getSnapshotDisplayParts,
+  inferCustomerModeFromSystemKey,
+} from "@/modules/shared/documents/documentSnapshot";
+import { buildProductName } from "@/modules/shared/products/productLabels";
 import { normalizeDiscountPercent } from "@/modules/shared/utils/discounts";
-
-export function buildProductName(input: {
-  speciesName: string;
-  variantName: string | null;
-  bagSize: string | null;
-  color: string | null;
-}): string {
-  const parts = [
-    input.speciesName,
-    input.variantName ?? undefined,
-    input.bagSize ?? undefined,
-    input.color ?? undefined,
-  ].filter(Boolean) as string[];
-
-  return parts.join(" · ");
-}
-
-export function inferCustomerModeFromSystemKey(
-  systemKey: string | null | undefined
-): "PUBLIC" | "PARTY" {
-  const key = (systemKey ?? "").toUpperCase();
-  if (key === "PUBLIC" || key === "WALK_IN_PUBLIC" || key === "WALKIN_PUBLIC") {
-    return "PUBLIC";
-  }
-  return "PARTY";
-}
-
-/**
- * Your DB stores a snapshot string like:
- *   "Name — Description"
- * Sometimes description can be empty, or snapshot can be just the name.
- */
-export function splitSnapshot(snapshot: string): {
-  name: string;
-  description: string;
-} {
-  const s = String(snapshot ?? "").trim();
-  if (!s) return { name: "", description: "" };
-
-  const sep = " — ";
-  const idx = s.indexOf(sep);
-  if (idx < 0) return { name: s, description: "" };
-
-  const name = s.slice(0, idx).trim();
-  const description = s.slice(idx + sep.length).trim();
-  return { name, description };
-}
-
-/**
- * If snapshot includes the productName prefix (common in your create use case),
- * strip it so the form "description" field doesn't show duplicated names.
- */
-export function descriptionFromSnapshotForRegisteredLine(
-  snapshot: string,
-  productName: string
-): string {
-  const s = String(snapshot ?? "").trim();
-  const pn = String(productName ?? "").trim();
-  if (!s) return "";
-
-  const sep = " — ";
-  const prefix = pn ? `${pn}${sep}` : "";
-
-  if (prefix && s.startsWith(prefix)) {
-    return s.slice(prefix.length).trim();
-  }
-
-  // Fallback: if it's "name — desc", return desc
-  const { description } = splitSnapshot(s);
-  return description || "";
-}
 
 export function toNumberSafe(v: unknown, fallback: number): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -83,10 +18,14 @@ export function decimalToString(value: unknown): string {
   if (typeof value === "string") return value;
   if (typeof value === "number") return value.toFixed(2);
 
-  // Prisma Decimal has toString()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const anyVal = value as any;
-  if (typeof anyVal?.toString === "function") return anyVal.toString();
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    typeof value.toString === "function"
+  ) {
+    return value.toString();
+  }
+
   return "";
 }
 
@@ -159,10 +98,10 @@ export function mapSalesNoteRowToFormValues(input: {
       });
     } else {
       // Unregistered -> name is stored inside descriptionSnapshot
-      const { name, description } = splitSnapshot(snapshot);
+      const { description, displayName } = getSnapshotDisplayParts(snapshot);
 
       values.unregisteredLines.push({
-        name: name || snapshot || "—",
+        name: displayName,
         quantity,
         unitPrice,
         discountPercent: normalizeDiscountPercent(l.discountPercent as number | undefined),
@@ -171,7 +110,6 @@ export function mapSalesNoteRowToFormValues(input: {
       });
     }
   }
-
 
   return values;
 }

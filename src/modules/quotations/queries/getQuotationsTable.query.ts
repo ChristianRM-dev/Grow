@@ -31,9 +31,10 @@ function toPrismaOrderBy(
 
 function toWhere(q: ParsedTableQuery): Prisma.QuotationWhereInput {
   const term = (q.search ?? "").trim();
-  if (!term) return {};
+  if (!term) return { isDeleted: false };
 
   return {
+    isDeleted: false,
     OR: [
       { folio: { contains: term, mode: "insensitive" } },
       { party: { name: { contains: term, mode: "insensitive" } } },

@@ -57,7 +57,7 @@ export function defineFormStep<TFormValues extends FieldValues>() {
     };
   }
 
-  function withValidator<TSchema extends z.ZodType<any>>(def: {
+  function withValidator<TSchema extends z.ZodType>(def: {
     id: string;
     title: string;
     description?: string;
@@ -74,15 +74,14 @@ export function defineFormStep<TFormValues extends FieldValues>() {
     };
     validator: {
       schema: TSchema;
-      getStepValues: (values: TFormValues) => z.infer<TSchema>;
+      getStepValues: (values: TFormValues) => z.input<TSchema>;
       mapIssuePathToFieldPath?: (
         issuePath: readonly PropertyKey[]
       ) => FieldPath<TFormValues> | undefined;
     };
     Component: React.ComponentType<StepComponentProps<TFormValues>>;
-  }): FormStepDefinition<TFormValues, z.infer<TSchema>> {
-    // Usa any para evitar conflictos de tipos
-    const validator: any = {
+  }): FormStepDefinition<TFormValues, z.input<TSchema>> {
+    const validator: StepValidator<TFormValues, z.input<TSchema>> = {
       schema: def.validator.schema,
       getStepValues: def.validator.getStepValues,
       mapIssuePathToFieldPath: def.validator.mapIssuePathToFieldPath,
@@ -90,15 +89,8 @@ export function defineFormStep<TFormValues extends FieldValues>() {
 
     return {
       kind: "step",
-      id: def.id,
-      title: def.title,
-      description: def.description,
-      optional: def.optional,
-      isVisible: def.isVisible,
-      fieldPaths: def.fieldPaths,
-      labels: def.labels,
+      ...def,
       validator,
-      Component: def.Component,
     };
   }
 

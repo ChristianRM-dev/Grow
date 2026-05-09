@@ -1,6 +1,7 @@
 // src/modules/shared/observability/scopedLogger.ts
 
 import { UserRole } from "@/generated/prisma/client";
+import { emitLog } from "@/modules/shared/observability/logging.shared";
 
 export type UseCaseContext = {
   traceId?: string;
@@ -13,6 +14,10 @@ export type UseCaseContext = {
 
 export type Logger = {
   log: (message: string, extra?: unknown) => void;
+  debug: (message: string, extra?: unknown) => void;
+  info: (message: string, extra?: unknown) => void;
+  warn: (message: string, extra?: unknown) => void;
+  error: (message: string, extra?: unknown) => void;
 };
 
 export function createScopedLogger(
@@ -23,8 +28,19 @@ export function createScopedLogger(
 
   return {
     log(message, extra) {
-      if (extra !== undefined) console.log(prefix, message, extra);
-      else console.log(prefix, message);
+      emitLog({ prefix, level: "debug", message, data: extra });
+    },
+    debug(message, extra) {
+      emitLog({ prefix, level: "debug", message, data: extra });
+    },
+    info(message, extra) {
+      emitLog({ prefix, level: "info", message, data: extra });
+    },
+    warn(message, extra) {
+      emitLog({ prefix, level: "warn", message, data: extra });
+    },
+    error(message, extra) {
+      emitLog({ prefix, level: "error", message, data: extra });
     },
   };
 }

@@ -1,9 +1,13 @@
-import { Prisma, PaymentDirection } from "@/generated/prisma/client";
+import { PaymentDirection } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   assertNotSoftDeleted,
   excludeSoftDeletedPayments,
 } from "@/modules/shared/queries/softDeleteHelpers";
+import {
+  computeOutstandingBalance,
+  decimalToString,
+} from "@/modules/shared/utils/decimals";
 
 export type SalesNoteForPaymentDto = {
   id: string;
@@ -43,17 +47,17 @@ export async function getSalesNoteForPaymentById(
     _sum: { amount: true },
   });
 
-  const paid = agg._sum.amount ?? new Prisma.Decimal(0);
-  const total = note.total;
-  const remainingRaw = total.sub(paid);
-  const remaining = remainingRaw.lt(0) ? new Prisma.Decimal(0) : remainingRaw;
+  const { paid, remaining, total } = computeOutstandingBalance({
+    total: note.total,
+    paid: agg._sum.amount,
+  });
 
   return {
     id: note.id,
     folio: note.folio,
     party: note.party,
-    total: total.toString(),
-    paid: paid.toString(),
-    remaining: remaining.toString(),
+    total: decimalToString(total),
+    paid: decimalToString(paid),
+    remaining: decimalToString(remaining),
   };
 }

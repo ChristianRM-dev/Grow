@@ -8,6 +8,10 @@ import {
   assertNotSoftDeleted,
   excludeSoftDeletedPayments,
 } from "@/modules/shared/queries/softDeleteHelpers";
+import {
+  computeOutstandingBalance,
+  decimalToString,
+} from "@/modules/shared/utils/decimals";
 
 export type SupplierPurchasePaymentRowDto = {
   id: string;
@@ -85,29 +89,28 @@ export async function getSupplierPurchaseDetailsById(id: string) {
     _sum: { amount: true },
   });
 
-  const total = purchase.total as Prisma.Decimal;
-  const paid = (agg._sum.amount ?? new Prisma.Decimal(0)) as Prisma.Decimal;
-
-  const remainingRaw = total.sub(paid);
-  const remaining = remainingRaw.lt(0) ? new Prisma.Decimal(0) : remainingRaw;
+  const { isFullyPaid, paid, remaining, total } = computeOutstandingBalance({
+    total: purchase.total as Prisma.Decimal,
+    paid: agg._sum.amount,
+  });
 
   const dto: SupplierPurchaseDetailsDto = {
     id: purchase.id,
     supplierFolio: purchase.supplierFolio,
     occurredAt: purchase.occurredAt.toISOString(),
     createdAt: purchase.createdAt.toISOString(),
-    total: total.toString(),
+    total: decimalToString(total),
     notes: purchase.notes ?? null,
     party: { id: purchase.party.id, name: purchase.party.name },
 
-    paidTotal: paid.toString(),
-    remainingTotal: remaining.toString(),
-    isFullyPaid: remaining.lte(0),
+    paidTotal: decimalToString(paid),
+    remainingTotal: decimalToString(remaining),
+    isFullyPaid,
 
     payments: payments.map((p) => ({
       id: p.id,
       paymentType: p.paymentType,
-      amount: (p.amount ?? new Prisma.Decimal(0)).toString(),
+      amount: decimalToString(p.amount),
       occurredAt: p.occurredAt.toISOString(),
       reference: p.reference ?? null,
       notes: p.notes ?? null,

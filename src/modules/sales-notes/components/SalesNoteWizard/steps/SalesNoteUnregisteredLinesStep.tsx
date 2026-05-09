@@ -19,7 +19,10 @@ import {
   isUnregisteredRowComplete,
 } from "@/components/forms/steps/UnregisteredLinesStep";
 import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
-import { RegisterProductModal } from "./RegisterProductModal";
+import {
+  RegisterProductModal,
+  type RegisterProductFormValues,
+} from "./RegisterProductModal";
 
 type Props = StepComponentProps<SalesNoteFormInput>;
 
@@ -38,19 +41,19 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
       const rowsOnUnmount = form.getValues("unregisteredLines");
       salesNoteLogger.info("UnregisteredLinesStep", "Step unmounting", {
         rowsCount: rowsOnUnmount?.length ?? 0,
-        toRegisterCount: (rowsOnUnmount ?? []).filter((r: any) => r?.shouldRegister).length,
+        toRegisterCount:
+          (rowsOnUnmount ?? []).filter((row) => row?.shouldRegister).length,
       });
     };
   }, []);
 
-  const handleModalSubmit = (data: any) => {
+  const handleModalSubmit = (data: RegisterProductFormValues) => {
     salesNoteLogger.info("UnregisteredLinesStep", "Modal product submitted", {
       productName: data.name,
       quantity: data.quantity,
       shouldRegister: true,
     });
-    // Append via the shared component's field array is not accessible here,
-    // so we use the form directly to append to the array
+
     const current = form.getValues("unregisteredLines") ?? [];
     form.setValue("unregisteredLines", [
       ...current,
@@ -65,10 +68,14 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
         bagSize: data.bagSize || undefined,
         color: data.color || undefined,
       },
-    ] as any, { shouldDirty: true });
-    salesNoteLogger.info("UnregisteredLinesStep", "Product appended to unregistered lines", {
-      newTotalCount: current.length + 1,
-    });
+    ], { shouldDirty: true });
+    salesNoteLogger.info(
+      "UnregisteredLinesStep",
+      "Product appended to unregistered lines",
+      {
+        newTotalCount: current.length + 1,
+      },
+    );
   };
 
   return (
@@ -112,7 +119,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
         )}
         renderHeaderBadge={(currentRows) => {
           const toRegister = currentRows.filter(
-            (r: any) => r?.shouldRegister === true,
+            (row) => row.shouldRegister === true,
           ).length;
           return toRegister > 0 ? (
             <div className="badge badge-success gap-2">
@@ -122,7 +129,7 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
         }}
         renderExtraTotals={(currentRows) => {
           const toRegister = currentRows.filter(
-            (r: any) => r?.shouldRegister === true,
+            (row) => row.shouldRegister === true,
           ).length;
           return toRegister > 0 ? (
             <div className="mt-2 flex items-center justify-between">

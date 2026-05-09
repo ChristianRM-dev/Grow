@@ -1,11 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import {
-  Prisma,
   PartyLedgerSide,
   PartyLedgerSourceType,
+  type Prisma,
 } from "@/generated/prisma/client";
 import { parseTableSearchParams } from "@/modules/shared/tables/parseTableSearchParams";
 import { excludeSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
+import {
+  buildPartyLedgerSummary,
+  mapPartyLedgerRows,
+} from "./_partyLedgerMappers";
 
 export type PartyDetailsDto = {
   id: string;
@@ -54,7 +58,9 @@ function toOrderBy(q: {
   const order = (q.sortOrder ?? "desc") as Prisma.SortOrder;
 
   return [
-    { [field]: order } as Prisma.PartyLedgerEntryOrderByWithRelationInput,
+    {
+      [field]: order,
+    } as Prisma.PartyLedgerEntryOrderByWithRelationInput,
   ];
 }
 
@@ -79,10 +85,6 @@ function toWhere(
       { notes: { contains: term, mode: "insensitive" } },
     ],
   };
-}
-
-function toDecimalString(d: Prisma.Decimal | null | undefined) {
-  return (d ?? new Prisma.Decimal(0)).toString();
 }
 
 export async function getPartyDetailsWithLedgerQuery(params: {
@@ -121,22 +123,7 @@ export async function getPartyDetailsWithLedgerQuery(params: {
     _sum: { amount: true },
   });
 
-  const receivable =
-    grouped.find((g) => g.side === PartyLedgerSide.RECEIVABLE)?._sum.amount ??
-    null;
-  const payable =
-    grouped.find((g) => g.side === PartyLedgerSide.PAYABLE)?._sum.amount ??
-    null;
-
-  const receivableDec = (receivable ?? new Prisma.Decimal(0)) as Prisma.Decimal;
-  const payableDec = (payable ?? new Prisma.Decimal(0)) as Prisma.Decimal;
-  const netDec = receivableDec.sub(payableDec);
-
-  const summary: PartyLedgerSummaryDto = {
-    receivableTotal: toDecimalString(receivableDec),
-    payableTotal: toDecimalString(payableDec),
-    netTotal: toDecimalString(netDec),
-  };
+  const summary: PartyLedgerSummaryDto = buildPartyLedgerSummary(grouped);
 
   const where = toWhere(partyId, q.search);
   const orderBy = toOrderBy({ sortField: q.sortField, sortOrder: q.sortOrder });
@@ -177,16 +164,7 @@ export async function getPartyDetailsWithLedgerQuery(params: {
     } satisfies PartyDetailsDto,
     summary,
     ledger: {
-      data: rows.map((r) => ({
-        id: r.id,
-        occurredAt: r.occurredAt.toISOString(),
-        side: r.side,
-        sourceType: r.sourceType,
-        sourceId: r.sourceId,
-        reference: r.reference,
-        amount: r.amount.toString(),
-        notes: r.notes,
-      })) satisfies PartyLedgerRowDto[],
+      data: mapPartyLedgerRows(rows) satisfies PartyLedgerRowDto[],
       pagination: {
         page,
         pageSize,

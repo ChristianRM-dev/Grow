@@ -16,29 +16,18 @@ import {
   createScopedLogger,
   type UseCaseContext,
 } from "@/modules/shared/observability/scopedLogger";
-import {
-  computeDiscountedLineTotalsDecimal,
-  toDecimal,
-  sumDecimals,
-} from "@/modules/shared/utils/decimals";
-import { safeTrim } from "@/modules/shared/utils/strings";
-import { buildDescriptionSnapshot } from "@/modules/shared/snapshots/descriptionSnapshot";
 import { generateMonthlyFolio } from "@/modules/shared/folio/monthlyFolio";
 import { resolvePartyIdForCustomerSelection } from "@/modules/parties/application/resolvePartyIdForCustomerSelection";
 import { ensureSingleLedgerEntryForSource } from "@/modules/shared/ledger/partyLedger";
 import { createAuditLog } from "@/modules/shared/audit/createAuditLog.helper";
 import { auditDecimalChange } from "@/modules/shared/audit/auditChanges";
-
-type LinePayload = {
-  productVariantId: string | null;
-  descriptionSnapshot: string;
-  discountPercent: number;
-  quantity: Prisma.Decimal;
-  subtotal: Prisma.Decimal;
-  discountAmount: Prisma.Decimal;
-  unitPrice: Prisma.Decimal;
-  lineTotal: Prisma.Decimal;
-};
+import {
+  buildRegisteredDocumentLinePayloads,
+  buildUnregisteredDocumentLinePayloads,
+  calculateDocumentTotals,
+  persistDocumentLines,
+  registerProductVariantsFromUnregisteredLines,
+} from "@/modules/shared/documents/documentLines";
 
 function isUniqueConstraintError(
   err: unknown,
@@ -97,110 +86,23 @@ export async function createSalesNoteUseCase(
       );
 
       // 2) Register products marked for registration
-      const registeredProductIds = new Map<number, string>();
-
-      for (let i = 0; i < (values.unregisteredLines ?? []).length; i++) {
-        const line = values.unregisteredLines![i];
-
-        if (line.shouldRegister) {
-          logger.log("registering_product", { index: i, name: line.name });
-
-          // Check if a similar product already exists (case-insensitive)
-          const existing = await tx.productVariant.findFirst({
-            where: {
-              speciesName: { equals: line.name.trim(), mode: "insensitive" },
-              variantName: line.variantName?.trim() || null,
-              isDeleted: false,
-            },
-          });
-
-          if (existing) {
-            registeredProductIds.set(i, existing.id);
-            logger.log("product_already_exists", {
-              index: i,
-              productId: existing.id,
-              name: line.name,
-            });
-          } else {
-            const newProduct = await tx.productVariant.create({
-              data: {
-                speciesName: line.name.trim(),
-                variantName: line.variantName?.trim() || null,
-                bagSize: line.bagSize?.trim() || null,
-                color: line.color?.trim() || null,
-                defaultPrice: toDecimal(line.unitPrice),
-                isActive: true,
-              },
-            });
-
-            registeredProductIds.set(i, newProduct.id);
-            logger.log("product_registered", {
-              index: i,
-              productId: newProduct.id,
-              name: line.name,
-              defaultPrice: newProduct.defaultPrice.toString(),
-            });
-          }
-        }
-      }
+      const registeredProductIds = await registerProductVariantsFromUnregisteredLines(
+        tx,
+        values.unregisteredLines ?? [],
+        "unitPrice",
+        logger,
+      );
 
       // 3) Build line payloads
-      const registeredLines: LinePayload[] = (values.lines ?? []).map((l) => {
-        const qty = toDecimal(l.quantity);
-        const unitPrice = toDecimal(l.unitPrice);
-        const { subtotal, discountAmount, lineTotal, discountPercent } =
-          computeDiscountedLineTotalsDecimal({
-            quantity: qty,
-            unitPrice,
-            discountPercent: l.discountPercent,
-          });
-
-        return {
-          productVariantId: safeTrim(l.productVariantId) || null,
-          descriptionSnapshot: buildDescriptionSnapshot(
-            l.productName,
-            l.description,
-          ),
-          discountPercent,
-          quantity: qty,
-          subtotal,
-          discountAmount,
-          unitPrice,
-          lineTotal,
-        };
-      });
-
-      const filterUnregisterLines = (
-        l: SalesNoteFormValues["unregisteredLines"][number],
-        index: number,
-      ) => {
-        const qty = toDecimal(l.quantity);
-        const unitPrice = toDecimal(l.unitPrice);
-        const { subtotal, discountAmount, lineTotal, discountPercent } =
-          computeDiscountedLineTotalsDecimal({
-            quantity: qty,
-            unitPrice,
-            discountPercent: l.discountPercent,
-          });
-
-        // If the product was registered, use its productVariantId
-        const productVariantId = registeredProductIds.get(index) || null;
-
-        return {
-          productVariantId,
-          descriptionSnapshot: buildDescriptionSnapshot(l.name, l.description),
-          discountPercent,
-          quantity: qty,
-          subtotal,
-          discountAmount,
-          unitPrice,
-          lineTotal,
-        };
-      };
-
-      const unregisteredLines: LinePayload[] = (
-        values.unregisteredLines ?? []
-      ).map(filterUnregisterLines);
+      const registeredLines = buildRegisteredDocumentLinePayloads(
+        values.lines ?? [],
+        "unitPrice",
+      );
+      const unregisteredLines = buildUnregisteredDocumentLinePayloads(
+        values.unregisteredLines ?? [],
+        "unitPrice",
+        registeredProductIds,
+      );
 
       const allLines = [...registeredLines, ...unregisteredLines];
       logger.log("lines_built", {
@@ -209,9 +111,8 @@ export async function createSalesNoteUseCase(
       });
 
       // 4) Totals
-      const subtotal = sumDecimals(allLines, (l) => l.subtotal);
-      const discountTotal = sumDecimals(allLines, (l) => l.discountAmount);
-      const total = subtotal.sub(discountTotal);
+      const { subtotal, discountTotal, total } =
+        calculateDocumentTotals(allLines);
 
       logger.log("totals", {
         subtotal: subtotal.toString(),
@@ -300,23 +201,23 @@ export async function createSalesNoteUseCase(
       });
 
       // 6) Create lines
-      if (allLines.length > 0) {
-        logger.log("lines_createMany_start");
-        const res = await tx.salesNoteLine.createMany({
-          data: allLines.map((l) => ({
-            salesNoteId: created.id,
-            productVariantId: l.productVariantId,
-            descriptionSnapshot: l.descriptionSnapshot,
-            quantity: l.quantity,
-            unitPrice: l.unitPrice,
-            discountPercent: l.discountPercent,
-            lineTotal: l.lineTotal,
-          })),
-        });
-        logger.log("lines_createMany_done", res);
-      } else {
-        logger.log("lines_skipped_empty");
-      }
+      await persistDocumentLines({
+        payloads: allLines,
+        logger,
+        startMessage: "lines_createMany_start",
+        createMany: (payloads) =>
+          tx.salesNoteLine.createMany({
+            data: payloads.map((line) => ({
+              salesNoteId: created.id,
+              productVariantId: line.productVariantId,
+              descriptionSnapshot: line.descriptionSnapshot,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              discountPercent: line.discountPercent,
+              lineTotal: line.lineTotal,
+            })),
+          }),
+      });
 
       // 7) Optional: verify snapshot
       const written = await tx.salesNote.findUnique({

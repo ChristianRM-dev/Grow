@@ -18,6 +18,8 @@ import {
   EyeSlashIcon,
 } from "@heroicons/react/16/solid";
 import { routes } from "@/lib/routes";
+import { buildProductVariantDisplayName } from "@/modules/shared/products/productLabels";
+import { renderBooleanBadge } from "@/modules/shared/tables/tableCellFormatters";
 import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 import { useBlockingDialogs } from "@/components/ui/Dialogs";
 import { softDeleteProductVariantAction } from "@/modules/products/actions/softDeleteProductVariant.action";
@@ -37,9 +39,7 @@ export function ProductsTableClient({
 
   // Toggle active flow
   const handleToggleActive = async (row: ProductVariantRowDto) => {
-    const displayName = row.variantName
-      ? `${row.speciesName} - ${row.variantName}`
-      : row.speciesName;
+    const displayName = buildProductVariantDisplayName(row);
 
     const newState = !row.isActive;
     const action = newState ? "activar" : "desactivar";
@@ -140,9 +140,7 @@ export function ProductsTableClient({
 
   // Delete flow
   const handleDeleteProduct = async (row: ProductVariantRowDto) => {
-    const displayName = row.variantName
-      ? `${row.speciesName} - ${row.variantName}`
-      : row.speciesName;
+    const displayName = buildProductVariantDisplayName(row);
 
     const ok = await dialogs.confirmDelete({
       resourceLabel: "producto",
@@ -243,11 +241,7 @@ export function ProductsTableClient({
       header: "Activo",
       field: "isActive",
       sortable: true,
-      cell: (v) => (
-        <span className={`badge ${v ? "badge-success" : "badge-ghost"}`}>
-          {v ? "Sí" : "No"}
-        </span>
-      ),
+      cell: (v) => renderBooleanBadge(v),
       sortField: "isActive",
     },
     {

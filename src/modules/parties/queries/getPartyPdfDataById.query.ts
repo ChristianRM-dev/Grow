@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import {
-  Prisma,
   PartyLedgerSide,
   PartyLedgerSourceType,
 } from "@/generated/prisma/client";
 import { excludeSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
+import {
+  buildPartyLedgerSummary,
+  mapPartyLedgerRows,
+} from "./_partyLedgerMappers";
 
 export type PartyPdfPartyDto = {
   id: string;
@@ -32,10 +35,6 @@ export type PartyPdfSummaryDto = {
   netTotal: string; // receivable - payable
 };
 
-function toDecimalString(d: Prisma.Decimal | null | undefined) {
-  return (d ?? new Prisma.Decimal(0)).toString();
-}
-
 export async function getPartyPdfDataById(partyId: string) {
   const party = await prisma.party.findFirst({
     where: { id: partyId, isDeleted: false },
@@ -62,22 +61,7 @@ export async function getPartyPdfDataById(partyId: string) {
     _sum: { amount: true },
   });
 
-  const receivable =
-    grouped.find((g) => g.side === PartyLedgerSide.RECEIVABLE)?._sum.amount ??
-    null;
-  const payable =
-    grouped.find((g) => g.side === PartyLedgerSide.PAYABLE)?._sum.amount ??
-    null;
-
-  const receivableDec = (receivable ?? new Prisma.Decimal(0)) as Prisma.Decimal;
-  const payableDec = (payable ?? new Prisma.Decimal(0)) as Prisma.Decimal;
-  const netDec = receivableDec.sub(payableDec);
-
-  const summary: PartyPdfSummaryDto = {
-    receivableTotal: toDecimalString(receivableDec),
-    payableTotal: toDecimalString(payableDec),
-    netTotal: toDecimalString(netDec),
-  };
+  const summary: PartyPdfSummaryDto = buildPartyLedgerSummary(grouped);
 
   // Full ledger (no pagination)
   // ✅ Solo mostrar entradas activas en el PDF
@@ -109,15 +93,6 @@ export async function getPartyPdfDataById(partyId: string) {
       roles: party.roles.map((r) => r.role),
     } satisfies PartyPdfPartyDto,
     summary,
-    ledger: rows.map((r) => ({
-      id: r.id,
-      occurredAt: r.occurredAt.toISOString(),
-      side: r.side,
-      sourceType: r.sourceType,
-      sourceId: r.sourceId,
-      reference: r.reference,
-      amount: r.amount.toString(),
-      notes: r.notes,
-    })) satisfies PartyPdfLedgerRowDto[],
+    ledger: mapPartyLedgerRows(rows) satisfies PartyPdfLedgerRowDto[],
   };
 }

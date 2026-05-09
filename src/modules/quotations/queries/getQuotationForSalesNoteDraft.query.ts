@@ -11,8 +11,8 @@ export type QuotationSalesNoteDraftDto = {
 export async function getQuotationForSalesNoteDraft(
   quotationId: string
 ): Promise<QuotationSalesNoteDraftDto | null> {
-  const row = await prisma.quotation.findUnique({
-    where: { id: quotationId },
+  const row = await prisma.quotation.findFirst({
+    where: { id: quotationId, isDeleted: false },
     select: {
       id: true,
       folio: true,

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { buildProductVariantDisplayName } from "@/modules/shared/products/productLabels";
 
 const ToggleProductVariantActiveSchema = z.object({
   id: z.string().min(1),
@@ -63,9 +64,7 @@ export async function toggleProductVariantActiveAction(
     revalidatePath("/products");
     revalidatePath(`/products/${id}`);
 
-    const displayName = product.variantName
-      ? `${product.speciesName} - ${product.variantName}`
-      : product.speciesName;
+    const displayName = buildProductVariantDisplayName(product);
 
     return {
       ok: true as const,

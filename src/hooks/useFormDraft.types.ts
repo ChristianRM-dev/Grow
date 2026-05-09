@@ -5,7 +5,24 @@
  */
 
 import type { FieldValues, UseFormReturn } from "react-hook-form";
-import type { ZodSchema } from "zod";
+export type DraftValidationIssue = {
+  path?: readonly PropertyKey[];
+  message?: string;
+};
+
+export type DraftSafeParseResult<T> =
+  | { success: true; data: T }
+  | {
+      success: false;
+      error: {
+        issues: readonly DraftValidationIssue[];
+      };
+    };
+
+export type DraftSchema<T> = {
+  safeParse: (data: unknown) => DraftSafeParseResult<T>;
+  parse?: (data: unknown) => T;
+};
 
 /**
  * Options for useFormDraft hook
@@ -38,7 +55,7 @@ export interface UseFormDraftOptions<T extends FieldValues> {
    * Zod schema to validate drafts when loading
    * If validation fails, draft is discarded
    */
-  schema?: ZodSchema<T>;
+  schema?: DraftSchema<T>;
 
   /**
    * Number of days until draft expires

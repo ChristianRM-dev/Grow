@@ -276,7 +276,15 @@ export function useFormDraft<T extends FieldValues>(
 
           if (currentSchema) {
             if (mode === "strict") {
-              dataToSave = currentSchema.parse(values) as T;
+              if (currentSchema.parse) {
+                dataToSave = currentSchema.parse(values) as T;
+              } else {
+                const parsed = currentSchema.safeParse(values);
+                if (!parsed.success) {
+                  throw new Error("Draft validation failed");
+                }
+                dataToSave = parsed.data as T;
+              }
             } else if (mode === "safe") {
               const parsed = currentSchema.safeParse(values);
               if (!parsed.success) {
