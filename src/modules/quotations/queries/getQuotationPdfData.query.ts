@@ -24,8 +24,8 @@ function dec(v: Prisma.Decimal | null | undefined): Prisma.Decimal {
 export async function getQuotationPdfDataById(
   quotationId: string
 ): Promise<QuotationPdfDataDto | null> {
-  const row = await prisma.quotation.findUnique({
-    where: { id: quotationId },
+  const row = await prisma.quotation.findFirst({
+    where: { id: quotationId, isDeleted: false },
     select: {
       id: true,
       folio: true,

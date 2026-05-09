@@ -33,8 +33,8 @@ function decToString(v: Prisma.Decimal | null | undefined): string {
 export async function getQuotationDetailsById(
   id: string
 ): Promise<QuotationDetailsDto | null> {
-  const quotation = await prisma.quotation.findUnique({
-    where: { id },
+  const quotation = await prisma.quotation.findFirst({
+    where: { id, isDeleted: false },
     select: {
       id: true,
       folio: true,
