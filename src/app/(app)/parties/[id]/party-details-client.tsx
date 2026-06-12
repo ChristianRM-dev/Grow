@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { GenericPaginatedTable } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable";
@@ -15,7 +15,13 @@ import type {
   PartyDetailsDto,
   PartyLedgerRowDto,
   PartyLedgerSummaryDto,
+  PartyLedgerQuery,
 } from "@/modules/parties/queries/getPartyDetailsWithLedger.query";
+import type {
+  PartySalesNotesTableResult,
+} from "@/modules/parties/queries/getPartySalesNotesTable.query";
+import { PartySalesNotesClient } from "./party-sales-notes-client";
+import { PartyPdfExportButton } from "./party-pdf-export-button";
 
 import { EyeIcon, PencilSquareIcon } from "@heroicons/react/16/solid";
 import { moneyMX } from "@/modules/shared/utils/formatters";
@@ -77,13 +83,21 @@ export function PartyDetailsClient({
   party,
   summary,
   ledger,
+  salesNotes,
 }: {
   party: PartyDetailsDto;
   summary: PartyLedgerSummaryDto;
-  ledger: { data: PartyLedgerRowDto[]; pagination: TablePagination };
+  ledger: {
+    data: PartyLedgerRowDto[];
+    pagination: TablePagination;
+    query: PartyLedgerQuery;
+  };
+  salesNotes: PartySalesNotesTableResult;
 }) {
   const router = useRouter();
   const pushTableQuery = useTableUrlQuery();
+  const [salesNotesOpen, setSalesNotesOpen] = useState(true);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
 
   const columns: Array<ColumnDef<PartyLedgerRowDto>> = useMemo(
     () => [
@@ -181,7 +195,15 @@ export function PartyDetailsClient({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 justify-end">
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              <PartyPdfExportButton
+                partyId={party.id}
+                ledgerOpen={ledgerOpen}
+                salesNotesOpen={salesNotesOpen}
+                ledgerQuery={ledger.query}
+                salesNotesQuery={salesNotes.query}
+              />
+
               <button
                 className="btn btn-ghost"
                 type="button"
@@ -220,18 +242,81 @@ export function PartyDetailsClient({
         </div>
       </div>
 
-      {/* Ledger table */}
-      <div className="card bg-base-100 shadow-sm">
-        <div className="card-body">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Historial contable</h2>
+      <div className="collapse collapse-arrow rounded-box border border-base-300 bg-base-100 shadow-sm">
+        <input
+          type="checkbox"
+          checked={salesNotesOpen}
+          onChange={(e) => setSalesNotesOpen(e.target.checked)}
+        />
+
+        <div className="collapse-title">
+          <div className="flex flex-wrap items-start justify-between gap-2 pr-6">
+            <div>
+              <h2 className="font-semibold">Notas de venta relacionadas</h2>
+              <p className="text-sm opacity-70">
+                Notas vinculadas al contacto seleccionado. Se pueden filtrar por
+                fecha de creación o estado de pago.
+              </p>
+            </div>
+            <span className="text-sm opacity-70">
+              {salesNotes.pagination.totalItems} notas
+            </span>
+          </div>
+        </div>
+
+        <div className="collapse-content">
+          <div className="pt-2">
+            <PartySalesNotesClient
+              key={[
+                salesNotes.query.page,
+                salesNotes.query.pageSize,
+                salesNotes.query.sortField ?? "",
+                salesNotes.query.sortOrder ?? "",
+                salesNotes.query.search ?? "",
+                salesNotes.query.paymentStatus,
+                salesNotes.query.from,
+                salesNotes.query.to,
+              ].join("|")}
+              data={salesNotes.data}
+              pagination={salesNotes.pagination}
+              query={salesNotes.query}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="collapse collapse-arrow rounded-box border border-base-300 bg-base-100 shadow-sm">
+        <input
+          type="checkbox"
+          checked={ledgerOpen}
+          onChange={(e) => setLedgerOpen(e.target.checked)}
+        />
+
+        <div className="collapse-title">
+          <div className="flex flex-wrap items-start justify-between gap-2 pr-6">
+            <div>
+              <h2 className="font-semibold">Historial contable</h2>
+              <p className="text-sm opacity-70">
+                Movimientos derivados de notas de venta, pagos y compras. No son
+                notas de venta.
+              </p>
+            </div>
             <span className="text-sm opacity-70">
               {ledger.pagination.totalItems} movimientos
             </span>
           </div>
+        </div>
 
-          <div className="mt-3">
+        <div className="collapse-content">
+          <div className="pt-2">
             <GenericPaginatedTable<PartyLedgerRowDto>
+              key={[
+                ledger.query.page,
+                ledger.query.pageSize,
+                ledger.query.sortField ?? "",
+                ledger.query.sortOrder ?? "",
+                ledger.query.search ?? "",
+              ].join("|")}
               data={ledger.data}
               columns={columns}
               actions={actions}
@@ -250,7 +335,15 @@ export function PartyDetailsClient({
               searchPlaceholder="Buscar por referencia o notas…"
               pageSizeOptions={[10, 25, 50]}
               showPageSizeSelector
-              initialSort={{ sortField: "occurredAt", sortOrder: "desc" }}
+              initialSort={
+                ledger.query.sortField && ledger.query.sortOrder
+                  ? {
+                      sortField: ledger.query.sortField,
+                      sortOrder: ledger.query.sortOrder,
+                    }
+                  : { sortField: "occurredAt", sortOrder: "desc" }
+              }
+              initialSearchTerm={ledger.query.search ?? ""}
             />
           </div>
         </div>
