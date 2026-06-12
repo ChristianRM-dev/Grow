@@ -1,4 +1,5 @@
 import { Prisma, PaymentDirection } from "@/generated/prisma/client";
+import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers";
 import { computeOutstandingBalance } from "@/modules/shared/utils/decimals";
 
 export type SalesNoteBalanceResult = {
@@ -26,6 +27,7 @@ export async function computeSalesNoteBalance(
     where: {
       direction: PaymentDirection.IN,
       salesNoteId: note.id,
+      ...excludeSoftDeletedPayments,
     },
     _sum: { amount: true },
   });
