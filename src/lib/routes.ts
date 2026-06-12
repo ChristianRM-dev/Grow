@@ -49,7 +49,8 @@ export const routes = {
     new: () => "/parties/new",
     details: (id: Id) => `/parties/${enc(id)}`,
     edit: (id: Id) => `/parties/${enc(id)}/edit`,
-    pdf: (id: string) => `/parties/${id}/pdf`,
+    pdf: (id: string, queryString?: string) =>
+      queryString ? `/parties/${id}/pdf?${queryString}` : `/parties/${id}/pdf`,
   },
 
   supplierPurchases: {

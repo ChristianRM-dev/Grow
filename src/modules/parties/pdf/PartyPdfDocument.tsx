@@ -1,19 +1,20 @@
 import React from "react";
 import {
   Document,
+  Image,
   Page,
+  StyleSheet,
   Text,
   View,
-  Image,
-  StyleSheet,
 } from "@react-pdf/renderer";
 
-import type {
-  PartyPdfPartyDto,
-  PartyPdfLedgerRowDto,
-  PartyPdfSummaryDto,
+import {
+  type PartyPdfLedgerRowDto,
+  type PartyPdfPartyDto,
+  type PartyPdfSalesNoteRowDto,
+  type PartyPdfSummaryDto,
 } from "@/modules/parties/queries/getPartyPdfDataById.query";
-import { moneyMX, dateMX } from "@/modules/shared/utils/formatters";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 type Header = {
   logoPublicPath: string;
@@ -22,8 +23,6 @@ type Header = {
   addressLines: string[];
   phone: string;
 };
-
-
 
 function roleLabel(r: string) {
   const x = String(r).toUpperCase();
@@ -48,22 +47,63 @@ function sourceTypeLabel(t: string) {
   return t;
 }
 
+function paymentStatusLabel(status: string) {
+  const x = String(status).toUpperCase();
+  if (x === "PAID") return "Pagada";
+  if (x === "PENDING") return "Pendiente";
+  if (x === "CANCELLED") return "Cancelada";
+  return status;
+}
+
 function safeText(v: unknown) {
   const s = String(v ?? "").trim();
   return s ? s : "—";
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 24, fontSize: 10 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  headerLeft: { flexDirection: "row", gap: 10, alignItems: "center" },
-  logo: { width: 48, height: 48, objectFit: "contain" },
-  hTitle: { fontSize: 12, fontWeight: 700 },
-  hMeta: { marginTop: 2, opacity: 0.8 },
-  rightMeta: { textAlign: "right" },
+  page: {
+    padding: 24,
+    fontSize: 10,
+    fontFamily: "Helvetica",
+  },
 
-  section: { marginTop: 14 },
-  sectionTitle: { fontSize: 11, fontWeight: 700, marginBottom: 6 },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    alignItems: "center",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    flexGrow: 1,
+  },
+  logo: {
+    width: 48,
+    height: 48,
+    objectFit: "contain",
+  },
+  hTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  hMeta: {
+    marginTop: 2,
+    opacity: 0.8,
+  },
+  rightMeta: {
+    textAlign: "right",
+  },
+
+  section: {
+    marginTop: 14,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    marginBottom: 6,
+  },
 
   card: {
     borderWidth: 1,
@@ -71,10 +111,21 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 6,
   },
-  grid2: { flexDirection: "row", gap: 10 },
-  col: { flexGrow: 1 },
+  grid2: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  col: {
+    flexGrow: 1,
+  },
+  label: {
+    fontWeight: 700,
+  },
 
-  statsRow: { flexDirection: "row", gap: 10 },
+  statsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
   stat: {
     flexGrow: 1,
     borderWidth: 1,
@@ -82,41 +133,88 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 6,
   },
-  statLabel: { opacity: 0.7 },
-  statValue: { marginTop: 4, fontSize: 12, fontWeight: 700 },
+  statLabel: {
+    opacity: 0.7,
+  },
+  statValue: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  statNote: {
+    marginTop: 2,
+    opacity: 0.7,
+  },
 
-  table: { marginTop: 8, borderWidth: 1, borderColor: "#ddd" },
-  tr: { flexDirection: "row" },
+  table: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  tr: {
+    flexDirection: "row",
+  },
+  trCancelled: {
+    flexDirection: "row",
+    backgroundColor: "#ffeaea",
+  },
   th: {
     fontWeight: 700,
     padding: 6,
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
+    backgroundColor: "#f5f5f5",
   },
   td: {
     padding: 6,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
+  right: {
+    textAlign: "right",
+  },
   cellDate: { width: "16%" },
+  cellFolio: { width: "18%" },
+  cellStatus: { width: "18%" },
+  cellTotal: { width: "16%" },
+  cellPaid: { width: "16%" },
+  cellPending: { width: "16%" },
   cellRef: { width: "22%" },
   cellType: { width: "14%" },
   cellSide: { width: "12%" },
   cellAmt: { width: "12%", textAlign: "right" },
   cellNotes: { width: "24%" },
 
-  footer: { marginTop: 12, opacity: 0.7, fontSize: 9 },
+  emptyRow: {
+    flexDirection: "row",
+  },
+  emptyCell: {
+    padding: 6,
+    width: "100%",
+  },
 });
 
-export function PartyPdfDocument(props: {
+type Props = {
   party: PartyPdfPartyDto;
   summary: PartyPdfSummaryDto;
   ledger: PartyPdfLedgerRowDto[];
+  salesNotes: PartyPdfSalesNoteRowDto[];
+  showLedger: boolean;
+  showSalesNotes: boolean;
   header: Header;
   headerLogoSrc: string | null;
-}) {
-  const { party, summary, ledger, header, headerLogoSrc } = props;
+};
 
+export function PartyPdfDocument({
+  party,
+  summary,
+  ledger,
+  salesNotes,
+  showLedger,
+  showSalesNotes,
+  header,
+  headerLogoSrc,
+}: Props) {
   const net = Number(summary.netTotal);
   const netIsValid = Number.isFinite(net);
   const netLabel = netIsValid
@@ -129,71 +227,74 @@ export function PartyPdfDocument(props: {
     ? party.roles.map(roleLabel).join(", ")
     : "—";
 
+  const headerAddress = header.addressLines?.filter(Boolean).join(" · ") || "—";
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
-        {/* <View style={styles.headerRow}>
+        <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
-            <Image style={styles.logo} src={headerLogoSrc} />
+            {headerLogoSrc ? (
+              // react-pdf's Image does not support alt text props.
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image
+                style={styles.logo}
+                src={headerLogoSrc}
+              />
+            ) : null}
+
             <View>
               <Text style={styles.hTitle}>{header.nurseryName}</Text>
               <Text style={styles.hMeta}>{header.rfc}</Text>
-              <Text style={styles.hMeta}>
-                {header.addressLines?.filter(Boolean).join(" · ")}
-              </Text>
+              <Text style={styles.hMeta}>{headerAddress}</Text>
               <Text style={styles.hMeta}>{header.phone}</Text>
             </View>
           </View>
 
           <View>
-            <Text style={[styles.hTitle, styles.rightMeta]}>
-              Estado de cuenta
+            <Text style={[styles.hTitle, styles.rightMeta]}>Estado de cuenta</Text>
+            <Text style={[styles.hMeta, styles.rightMeta]}>
+              Generado: {dateMX(new Date())}
             </Text>
             <Text style={[styles.hMeta, styles.rightMeta]}>
-              Generado: {formatDateTime(new Date().toISOString())}
-            </Text>
-            <Text style={[styles.hMeta, styles.rightMeta]}>
-              Contacto: {party.name}
+              Contacto: {safeText(party.name)}
             </Text>
           </View>
-        </View> */}
+        </View>
 
-        {/* Party details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Datos del contacto</Text>
           <View style={styles.card}>
             <View style={styles.grid2}>
               <View style={styles.col}>
                 <Text>
-                  <Text style={{ fontWeight: 700 }}>Nombre: </Text>
+                  <Text style={styles.label}>Nombre: </Text>
                   {safeText(party.name)}
                 </Text>
                 <Text>
-                  <Text style={{ fontWeight: 700 }}>Teléfono: </Text>
+                  <Text style={styles.label}>Teléfono: </Text>
                   {safeText(party.phone)}
                 </Text>
-                {/* <Text>
-                  <Text style={{ fontWeight: 700 }}>Rol(es): </Text>
+                <Text>
+                  <Text style={styles.label}>Rol(es): </Text>
                   {roles}
-                </Text> */}
+                </Text>
               </View>
 
-              {/* <View style={styles.col}>
+              <View style={styles.col}>
                 <Text>
-                  <Text style={{ fontWeight: 700 }}>Registrado: </Text>
-                  {formatDateTime(party.createdAt)}
+                  <Text style={styles.label}>Registrado: </Text>
+                  {dateMX(party.createdAt)}
                 </Text>
                 <Text>
-                  <Text style={{ fontWeight: 700 }}>Notas: </Text>
+                  <Text style={styles.label}>Notas: </Text>
                   {safeText(party.notes)}
                 </Text>
-              </View> */}
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Resumen</Text>
           <View style={styles.statsRow}>
@@ -214,63 +315,111 @@ export function PartyPdfDocument(props: {
               <Text style={styles.statValue}>
                 {netIsValid ? moneyMX(String(Math.abs(net))) : "—"}
               </Text>
-              <Text style={{ marginTop: 2, opacity: 0.7 }}>
-                Neto = cobrar − pagar
-              </Text>
+              <Text style={styles.statNote}>Neto = cobrar − pagar</Text>
             </View>
           </View>
         </View>
 
-        {/* Ledger table */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Historial contable</Text>
-          <View style={styles.table}>
-            <View style={styles.tr}>
-              <Text style={[styles.th, styles.cellDate]}>Fecha</Text>
-              <Text style={[styles.th, styles.cellRef]}>Referencia</Text>
-              <Text style={[styles.th, styles.cellType]}>Tipo</Text>
-              <Text style={[styles.th, styles.cellSide]}>Lado</Text>
-              <Text style={[styles.th, styles.cellAmt]}>Monto</Text>
-              <Text style={[styles.th, styles.cellNotes]}>Notas</Text>
-            </View>
-
-            {ledger.length ? (
-              ledger.map((r) => (
-                <View key={r.id} style={styles.tr}>
-                  <Text style={[styles.td, styles.cellDate]}>
-                    {dateMX(r.occurredAt)}
-                  </Text>
-                  <Text style={[styles.td, styles.cellRef]}>
-                    {safeText(r.reference)}
-                  </Text>
-                  <Text style={[styles.td, styles.cellType]}>
-                    {sourceTypeLabel(r.sourceType)}
-                  </Text>
-                  <Text style={[styles.td, styles.cellSide]}>
-                    {sideLabel(r.side)}
-                  </Text>
-                  <Text style={[styles.td, styles.cellAmt]}>
-                    {moneyMX(r.amount)}
-                  </Text>
-                  <Text style={[styles.td, styles.cellNotes]}>
-                    {safeText(r.notes)}
-                  </Text>
-                </View>
-              ))
-            ) : (
+        {showSalesNotes ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Notas de venta relacionadas</Text>
+            <View style={styles.table}>
               <View style={styles.tr}>
-                <Text style={[styles.td, { width: "100%" }]}>
-                  Sin movimientos.
+                <Text style={[styles.th, styles.cellDate]}>Fecha</Text>
+                <Text style={[styles.th, styles.cellFolio]}>Folio</Text>
+                <Text style={[styles.th, styles.cellStatus]}>Estado de pago</Text>
+                <Text style={[styles.th, styles.cellTotal, styles.right]}>
+                  Total
+                </Text>
+                <Text style={[styles.th, styles.cellPaid, styles.right]}>
+                  Pagado
+                </Text>
+                <Text style={[styles.th, styles.cellPending, styles.right]}>
+                  Pendiente
                 </Text>
               </View>
-            )}
-          </View>
 
-          {/* <Text style={styles.footer}>
-            Este documento es informativo y refleja el estado de cuenta con base
-            en los movimientos registrados.
-          </Text> */}
-        </View>
+              {salesNotes.length ? (
+                salesNotes.map((note) => {
+                  const rowStyle =
+                    note.paymentStatus === "CANCELLED" ? styles.trCancelled : styles.tr;
+
+                  return (
+                    <View key={note.id} style={rowStyle}>
+                      <Text style={[styles.td, styles.cellDate]}>
+                        {dateMX(note.createdAt)}
+                      </Text>
+                      <Text style={[styles.td, styles.cellFolio]}>
+                        {safeText(note.folio)}
+                      </Text>
+                      <Text style={[styles.td, styles.cellStatus]}>
+                        {paymentStatusLabel(note.paymentStatus)}
+                      </Text>
+                      <Text style={[styles.td, styles.cellTotal, styles.right]}>
+                        {moneyMX(note.total)}
+                      </Text>
+                      <Text style={[styles.td, styles.cellPaid, styles.right]}>
+                        {moneyMX(note.paidTotal)}
+                      </Text>
+                      <Text style={[styles.td, styles.cellPending, styles.right]}>
+                        {moneyMX(note.remainingTotal)}
+                      </Text>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyRow}>
+                  <Text style={styles.emptyCell}>Sin notas de venta.</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        ) : null}
+
+        {showLedger ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Historial contable</Text>
+            <View style={styles.table}>
+              <View style={styles.tr}>
+                <Text style={[styles.th, styles.cellDate]}>Fecha</Text>
+                <Text style={[styles.th, styles.cellRef]}>Referencia</Text>
+                <Text style={[styles.th, styles.cellType]}>Tipo</Text>
+                <Text style={[styles.th, styles.cellSide]}>Lado</Text>
+                <Text style={[styles.th, styles.cellAmt]}>Monto</Text>
+                <Text style={[styles.th, styles.cellNotes]}>Notas</Text>
+              </View>
+
+              {ledger.length ? (
+                ledger.map((r) => (
+                  <View key={r.id} style={styles.tr}>
+                    <Text style={[styles.td, styles.cellDate]}>
+                      {dateMX(r.occurredAt)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellRef]}>
+                      {safeText(r.reference)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellType]}>
+                      {sourceTypeLabel(r.sourceType)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellSide]}>
+                      {sideLabel(r.side)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellAmt]}>
+                      {moneyMX(r.amount)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellNotes]}>
+                      {safeText(r.notes)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptyRow}>
+                  <Text style={styles.emptyCell}>Sin movimientos.</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        ) : null}
       </Page>
     </Document>
   );

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getPartyDetailsWithLedgerQuery } from "@/modules/parties/queries/getPartyDetailsWithLedger.query";
+import { getPartySalesNotesTableQuery } from "@/modules/parties/queries/getPartySalesNotesTable.query";
 import { PartyDetailsClient } from "./party-details-client";
 
 import { DetailsPageLayout } from "@/components/ui/DetailsPageLayout/DetailsPageLayout";
@@ -23,10 +24,16 @@ export default async function PartyDetailsPage({
   const { id } = await params;
   const sp = await searchParams;
 
-  const result = await getPartyDetailsWithLedgerQuery({
-    partyId: id,
-    searchParams: sp,
-  });
+  const [result, salesNotes] = await Promise.all([
+    getPartyDetailsWithLedgerQuery({
+      partyId: id,
+      searchParams: sp,
+    }),
+    getPartySalesNotesTableQuery({
+      partyId: id,
+      searchParams: sp,
+    }),
+  ]);
 
   if (!result) return notFound();
 
@@ -55,14 +62,6 @@ export default async function PartyDetailsPage({
       headerActions={
         <>
           <Link
-            href={routes.parties.pdf(id)}
-            className="btn btn-info btn-sm"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Ver PDF
-          </Link>
-          <Link
             href={routes.parties.edit(id)}
             className="btn btn-warning btn-sm"
           >
@@ -75,6 +74,7 @@ export default async function PartyDetailsPage({
         party={result.party}
         summary={result.summary}
         ledger={result.ledger}
+        salesNotes={salesNotes}
       />
     </DetailsPageLayout>
   );

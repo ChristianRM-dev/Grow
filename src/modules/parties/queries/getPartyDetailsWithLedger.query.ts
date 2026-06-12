@@ -4,7 +4,10 @@ import {
   PartyLedgerSourceType,
   type Prisma,
 } from "@/generated/prisma/client";
-import { parseTableSearchParams } from "@/modules/shared/tables/parseTableSearchParams";
+import {
+  parseTableSearchParams,
+  type ParsedTableQuery,
+} from "@/modules/shared/tables/parseTableSearchParams";
 import { excludeSoftDeleted } from "@/modules/shared/queries/softDeleteHelpers";
 import {
   buildPartyLedgerSummary,
@@ -36,6 +39,8 @@ export type PartyLedgerSummaryDto = {
   payableTotal: string;
   netTotal: string; // receivable - payable
 };
+
+export type PartyLedgerQuery = ParsedTableQuery;
 
 const allowedSortFields = new Set([
   "occurredAt",
@@ -87,13 +92,24 @@ function toWhere(
   };
 }
 
+function normalizeSortQuery(q: ParsedTableQuery): ParsedTableQuery {
+  const sortField = (q.sortField ?? "").trim();
+  const sortOrder = (q.sortOrder ?? "").trim();
+
+  return {
+    ...q,
+    sortField: allowedSortFields.has(sortField) ? sortField : undefined,
+    sortOrder: sortOrder === "asc" || sortOrder === "desc" ? sortOrder : undefined,
+  };
+}
+
 export async function getPartyDetailsWithLedgerQuery(params: {
   partyId: string;
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   const { partyId, searchParams } = params;
 
-  const q = parseTableSearchParams(searchParams);
+  const q = normalizeSortQuery(parseTableSearchParams(searchParams));
 
   // Keep consistent limits with other tables (min 5, max 50)
   const pageSize = clamp(q.pageSize, 5, 50);
@@ -171,6 +187,7 @@ export async function getPartyDetailsWithLedgerQuery(params: {
         totalPages,
         totalItems,
       },
+      query: q,
     },
   };
 }
