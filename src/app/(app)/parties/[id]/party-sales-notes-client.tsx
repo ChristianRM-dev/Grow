@@ -159,71 +159,118 @@ export function PartySalesNotesClient({
     updateFilters({ paymentStatus: "all", from: "", to: "" });
   };
 
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [];
+
+    if (paymentStatus !== "all") {
+      parts.push(paymentStatus === "paid" ? "Solo pagadas" : "Solo pendientes");
+    }
+
+    if (from || to) {
+      const rangeParts = [];
+      if (from) rangeParts.push(`desde ${from}`);
+      if (to) rangeParts.push(`hasta ${to}`);
+      parts.push(rangeParts.join(" "));
+    }
+
+    return parts.length ? parts.join(" · ") : "Sin filtros activos";
+  }, [from, paymentStatus, to]);
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text font-medium">Estado</span>
-          </label>
+      <div className="rounded-box border border-base-300 bg-base-200/70 p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="font-semibold">Filtros de notas de venta</h3>
+            <p className="text-sm opacity-70">
+              Refina la tabla por estado de pago y rango de fechas.
+            </p>
+          </div>
 
-          <select
-            className="select select-bordered w-full"
-            value={paymentStatus}
-            onChange={(e) => {
-              const next = e.target.value as PartySalesNotePaymentStatus;
-              setPaymentStatus(next);
-              updateFilters({ paymentStatus: next });
-            }}
-          >
-            <option value="all">Todas</option>
-            <option value="paid">Pagadas</option>
-            <option value="pending">Pendientes</option>
-          </select>
+          <div className="text-xs opacity-70 sm:text-right">
+            <span className="font-medium">Aplicados:</span> {filterSummary}
+          </div>
         </div>
 
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text font-medium">Desde</span>
-          </label>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]">
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Estado de pago</span>
+            </label>
 
-          <input
-            type="date"
-            className="input input-bordered w-full"
-            value={from}
-            onChange={(e) => {
-              const next = e.target.value;
-              setFrom(next);
-              updateFilters({ from: next });
-            }}
-          />
-        </div>
+            <select
+              className="select select-bordered w-full"
+              value={paymentStatus}
+              onChange={(e) => {
+                const next = e.target.value as PartySalesNotePaymentStatus;
+                setPaymentStatus(next);
+                updateFilters({ paymentStatus: next });
+              }}
+            >
+              <option value="all">Todas</option>
+              <option value="paid">Pagadas</option>
+              <option value="pending">Pendientes</option>
+            </select>
 
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text font-medium">Hasta</span>
-          </label>
+            <p className="mt-1 text-xs opacity-60">
+              Muestra todas las notas o sólo las que ya están cobradas.
+            </p>
+          </div>
 
-          <input
-            type="date"
-            className="input input-bordered w-full"
-            value={to}
-            onChange={(e) => {
-              const next = e.target.value;
-              setTo(next);
-              updateFilters({ to: next });
-            }}
-          />
-        </div>
+          <div className="rounded-box border border-base-300 bg-base-100 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <label className="label p-0">
+                <span className="label-text font-medium">Rango de fechas</span>
+              </label>
+              <span className="text-xs opacity-60">Por fecha de creación</span>
+            </div>
 
-        <div className="flex items-end">
-          <button
-            className="btn btn-ghost w-full"
-            type="button"
-            onClick={clearFilters}
-          >
-            Limpiar filtros
-          </button>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text text-sm">Desde</span>
+                </label>
+
+                <input
+                  type="date"
+                  className="input input-bordered w-full"
+                  value={from}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setFrom(next);
+                    updateFilters({ from: next });
+                  }}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text text-sm">Hasta</span>
+                </label>
+
+                <input
+                  type="date"
+                  className="input input-bordered w-full"
+                  value={to}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setTo(next);
+                    updateFilters({ to: next });
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              className="btn btn-ghost w-full lg:self-end"
+              type="button"
+              onClick={clearFilters}
+            >
+              Limpiar filtros
+            </button>
+          </div>
         </div>
       </div>
 
