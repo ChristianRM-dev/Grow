@@ -7,6 +7,7 @@ import {
   AuditChangeKey,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { excludeSoftDeletedPayments } from "@/modules/shared/queries/softDeleteHelpers";
 
 import type { SalesNotePaymentFormValues } from "@/modules/sales-notes/forms/salesNotePaymentForm.schemas";
 import { toDecimal } from "@/modules/shared/utils/decimals";
@@ -64,6 +65,7 @@ export async function updateSalesNotePaymentUseCase(
         salesNoteId: note.id,
         direction: PaymentDirection.IN,
         NOT: { id: existingPayment.id },
+        ...excludeSoftDeletedPayments,
       },
       _sum: { amount: true },
     });
