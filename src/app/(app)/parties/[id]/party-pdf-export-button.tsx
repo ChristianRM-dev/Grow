@@ -3,9 +3,9 @@
 import React, { useMemo } from "react";
 
 import { routes } from "@/lib/routes";
-import { PARTY_SALES_NOTES_QUERY_KEYS } from "@/modules/parties/queries/getPartySalesNotesTable.query";
 import type { PartyLedgerQuery } from "@/modules/parties/queries/getPartyDetailsWithLedger.query";
 import type { PartySalesNotesQuery } from "@/modules/parties/queries/getPartySalesNotesTable.query";
+import { PARTY_SALES_NOTES_QUERY_KEYS } from "@/modules/parties/queries/partySalesNotesQuery";
 
 import { DocumentArrowDownIcon } from "@heroicons/react/16/solid";
 

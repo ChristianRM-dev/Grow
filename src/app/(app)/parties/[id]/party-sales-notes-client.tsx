@@ -10,16 +10,18 @@ import type {
   TablePagination,
 } from "@/components/ui/GenericPaginatedTable/GenericPaginatedTable.types";
 import { routes } from "@/lib/routes";
-import { renderPaymentStatusCell } from "@/modules/shared/tables/tableCellFormatters";
-import { usePrefixedTableUrlQuery } from "@/modules/shared/tables/usePrefixedTableUrlQuery";
-import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 import {
   PARTY_SALES_NOTES_QUERY_KEYS,
   PARTY_SALES_NOTES_QUERY_PREFIX,
   type PartySalesNotePaymentStatus,
-  type PartySalesNoteRowDto,
-  type PartySalesNotesQuery,
+} from "@/modules/parties/queries/partySalesNotesQuery";
+import type {
+  PartySalesNoteRowDto,
+  PartySalesNotesQuery,
 } from "@/modules/parties/queries/getPartySalesNotesTable.query";
+import { renderPaymentStatusCell } from "@/modules/shared/tables/tableCellFormatters";
+import { usePrefixedTableUrlQuery } from "@/modules/shared/tables/usePrefixedTableUrlQuery";
+import { dateMX, moneyMX } from "@/modules/shared/utils/formatters";
 
 import { DocumentIcon, EyeIcon } from "@heroicons/react/16/solid";
 

@@ -5,8 +5,8 @@ import { readPublicImageAsDataUri } from "@/modules/shared/pdf/readPublicImageAs
 import { LAURELES_PDF_HEADER } from "@/modules/shared/pdf/laurelesPdfHeader";
 
 import { getPartyPdfDataById } from "@/modules/parties/queries/getPartyPdfDataById.query";
-import { PARTY_SALES_NOTES_QUERY_KEYS } from "@/modules/parties/queries/getPartySalesNotesTable.query";
 import { PartyPdfDocument } from "@/modules/parties/pdf/PartyPdfDocument";
+import { PARTY_SALES_NOTES_QUERY_KEYS } from "@/modules/parties/queries/partySalesNotesQuery";
 
 export const runtime = "nodejs";
 
