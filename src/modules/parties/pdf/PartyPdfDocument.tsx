@@ -71,29 +71,82 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
-    alignItems: "center",
+    alignItems: "stretch",
+    marginBottom: 12,
   },
-  headerLeft: {
+  headerBrand: {
     flexDirection: "row",
     gap: 10,
-    alignItems: "center",
+    alignItems: "flex-start",
     flexGrow: 1,
+    paddingRight: 12,
+  },
+  logoCol: {
+    width: 78,
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: 8,
   },
   logo: {
-    width: 48,
-    height: 48,
+    width: 68,
+    height: 52,
     objectFit: "contain",
   },
-  hTitle: {
+  brandInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  brandTitle: {
+    fontSize: 14,
+    fontWeight: 700,
+    lineHeight: 1.15,
+  },
+  brandRfc: {
+    fontSize: 10.5,
+    fontWeight: 700,
+    marginTop: 2,
+    lineHeight: 1.2,
+  },
+  brandLine: {
+    fontSize: 9.5,
+    marginTop: 2,
+    lineHeight: 1.25,
+    color: "#333",
+  },
+  headerSummary: {
+    width: 185,
+    flexShrink: 0,
+  },
+  summaryBox: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 6,
+    padding: 10,
+    backgroundColor: "#fafafa",
+  },
+  summaryTitle: {
     fontSize: 12,
     fontWeight: 700,
-  },
-  hMeta: {
-    marginTop: 2,
-    opacity: 0.8,
-  },
-  rightMeta: {
     textAlign: "right",
+    lineHeight: 1.15,
+  },
+  summaryItem: {
+    flexDirection: "row",
+    marginTop: 6,
+  },
+  summaryLabel: {
+    width: 58,
+    fontSize: 9.5,
+    fontWeight: 700,
+    textAlign: "right",
+    paddingRight: 4,
+  },
+  summaryValue: {
+    flex: 1,
+    fontSize: 9.5,
+    textAlign: "right",
+    lineHeight: 1.25,
   },
 
   section: {
@@ -226,39 +279,47 @@ export function PartyPdfDocument({
   const roles = party.roles?.length
     ? party.roles.map(roleLabel).join(", ")
     : "—";
-
-  const headerAddress = header.addressLines?.filter(Boolean).join(" · ") || "—";
+  const headerAddressLines = header.addressLines?.filter(Boolean) ?? [];
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            {headerLogoSrc ? (
-              // react-pdf's Image does not support alt text props.
-              // eslint-disable-next-line jsx-a11y/alt-text
-              <Image
-                style={styles.logo}
-                src={headerLogoSrc}
-              />
-            ) : null}
+          <View style={styles.headerBrand}>
+            <View style={styles.logoCol}>
+              {headerLogoSrc ? (
+                // react-pdf's Image does not support alt text props.
+                // eslint-disable-next-line jsx-a11y/alt-text
+                <Image style={styles.logo} src={headerLogoSrc} />
+              ) : null}
+            </View>
 
-            <View>
-              <Text style={styles.hTitle}>{header.nurseryName}</Text>
-              <Text style={styles.hMeta}>{header.rfc}</Text>
-              <Text style={styles.hMeta}>{headerAddress}</Text>
-              <Text style={styles.hMeta}>{header.phone}</Text>
+            <View style={styles.brandInfo}>
+              <Text style={styles.brandTitle}>{header.nurseryName}</Text>
+              <Text style={styles.brandRfc}>{header.rfc}</Text>
+              {headerAddressLines.map((line, idx) => (
+                <Text key={idx} style={styles.brandLine}>
+                  {safeText(line)}
+                </Text>
+              ))}
+              <Text style={styles.brandLine}>{safeText(header.phone)}</Text>
             </View>
           </View>
 
-          <View>
-            <Text style={[styles.hTitle, styles.rightMeta]}>Estado de cuenta</Text>
-            <Text style={[styles.hMeta, styles.rightMeta]}>
-              Generado: {dateMX(new Date())}
-            </Text>
-            <Text style={[styles.hMeta, styles.rightMeta]}>
-              Contacto: {safeText(party.name)}
-            </Text>
+          <View style={styles.headerSummary}>
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryTitle}>Estado de cuenta</Text>
+
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Generado:</Text>
+                <Text style={styles.summaryValue}>{dateMX(new Date())}</Text>
+              </View>
+
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Contacto:</Text>
+                <Text style={styles.summaryValue}>{safeText(party.name)}</Text>
+              </View>
+            </View>
           </View>
         </View>
 
