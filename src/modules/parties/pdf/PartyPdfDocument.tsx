@@ -71,15 +71,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
-    alignItems: "stretch",
+    alignItems: "flex-start",
     marginBottom: 12,
+    width: "100%",
   },
   headerBrand: {
     flexDirection: "row",
     gap: 10,
     alignItems: "flex-start",
-    flexGrow: 1,
+    flex: 1,
+    flexShrink: 1,
+    flexBasis: 0,
     paddingRight: 12,
+    minWidth: 0,
   },
   logoCol: {
     width: 78,
@@ -95,6 +99,8 @@ const styles = StyleSheet.create({
   },
   brandInfo: {
     flex: 1,
+    flexShrink: 1,
+    flexBasis: 0,
     minWidth: 0,
   },
   brandTitle: {
@@ -115,7 +121,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   headerSummary: {
-    width: 185,
+    width: 192,
     flexShrink: 0,
   },
   summaryBox: {
