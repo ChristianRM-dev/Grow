@@ -60,6 +60,11 @@ export async function getQuotationForSalesNoteDraft(
     })),
   });
 
+  values.unregisteredLines = (values.unregisteredLines ?? []).map((line) => ({
+    ...line,
+    shouldRegister: true,
+  }));
+
   return {
     quotationId: row.id,
     folio: row.folio,

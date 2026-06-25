@@ -181,7 +181,11 @@ export function SalesNoteNewClient({
       )
 
       const t0 = performance.now()
-      const res = await createSalesNoteAction({ clientRequestId, values })
+      const res = await createSalesNoteAction({
+        clientRequestId,
+        values,
+        sourceQuotationId: sourceQuotation?.id,
+      })
       const elapsedMs = Math.round(performance.now() - t0)
 
       logger.log("createSalesNoteAction resolved", {
@@ -349,6 +353,8 @@ export function SalesNoteNewClient({
         initialValues={initialValues}
         onSubmit={handleSubmit}
         submitting={submitting}
+        forceRegisterAllUnregistered={!!sourceQuotation}
+        sourceQuotationFolio={sourceQuotation?.folio}
       />
     </>
   )

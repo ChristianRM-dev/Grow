@@ -9,7 +9,7 @@
  * - "Para registrar" badge and totals info
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useWatch } from "react-hook-form";
 import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import type { SalesNoteFormInput } from "@/modules/sales-notes/forms/salesNoteForm.schemas";
@@ -25,12 +25,34 @@ import {
 } from "./RegisterProductModal";
 
 type Props = StepComponentProps<SalesNoteFormInput>;
+type SalesNoteUnregisteredLinesStepProps = Props & {
+  forceRegisterAll?: boolean;
+  sourceQuotationFolio?: string;
+};
 
-export function SalesNoteUnregisteredLinesStep({ form }: Props) {
+export function SalesNoteUnregisteredLinesStep({
+  form,
+  forceRegisterAll = false,
+  sourceQuotationFolio,
+}: SalesNoteUnregisteredLinesStepProps) {
   const { register, control } = form;
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   const rows = useWatch({ control, name: "unregisteredLines" }) ?? [];
+
+  const unregisteredConfig = useMemo(
+    () =>
+      forceRegisterAll
+        ? {
+            ...SALES_NOTE_UNREGISTERED_CONFIG,
+            emptyRow: {
+              ...SALES_NOTE_UNREGISTERED_CONFIG.emptyRow,
+              shouldRegister: true,
+            },
+          }
+        : SALES_NOTE_UNREGISTERED_CONFIG,
+    [forceRegisterAll],
+  );
 
   // Log step mount/unmount
   useEffect(() => {
@@ -46,6 +68,23 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
       });
     };
   }, []);
+
+  useEffect(() => {
+    if (!forceRegisterAll) return;
+
+    const currentRows = form.getValues("unregisteredLines") ?? [];
+    if (currentRows.length === 0) return;
+    if (currentRows.every((row) => row?.shouldRegister === true)) return;
+
+    form.setValue(
+      "unregisteredLines",
+      currentRows.map((row) => ({
+        ...row,
+        shouldRegister: true,
+      })),
+      { shouldDirty: false },
+    );
+  }, [forceRegisterAll, form, rows]);
 
   const handleModalSubmit = (data: RegisterProductFormValues) => {
     salesNoteLogger.info("UnregisteredLinesStep", "Modal product submitted", {
@@ -80,9 +119,22 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
 
   return (
     <>
+      {forceRegisterAll ? (
+        <div className="alert alert-info mb-4">
+          <div>
+            <h4 className="font-semibold">Registro automático</h4>
+            <p className="text-sm opacity-80">
+              {sourceQuotationFolio
+                ? `Todos los productos no registrados de la cotización ${sourceQuotationFolio} se registrarán automáticamente al guardar esta nota.`
+                : "Todos los productos no registrados se registrarán automáticamente al guardar esta nota."}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <UnregisteredLinesStep
         form={form}
-        config={SALES_NOTE_UNREGISTERED_CONFIG}
+        config={unregisteredConfig}
         renderExtraHeaders={() => (
           <th className="w-16">
             <div className="flex items-center gap-2">
@@ -100,16 +152,19 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
                 className="checkbox checkbox-success"
                 {...register(`unregisteredLines.${index}.shouldRegister`)}
                 disabled={
+                  forceRegisterAll ||
                   !isUnregisteredRowComplete(
                     row,
-                    SALES_NOTE_UNREGISTERED_CONFIG.priceFieldKey,
+                    unregisteredConfig.priceFieldKey,
                   )
                 }
                 title={
-                  !isUnregisteredRowComplete(
-                    row,
-                    SALES_NOTE_UNREGISTERED_CONFIG.priceFieldKey,
-                  )
+                  forceRegisterAll
+                    ? "Este producto se registrará automáticamente porque la nota viene de una cotización"
+                    : !isUnregisteredRowComplete(
+                          row,
+                          unregisteredConfig.priceFieldKey,
+                        )
                     ? "Completa el producto para poder registrarlo"
                     : "Registrar este producto en el catálogo"
                 }
@@ -118,6 +173,14 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
           </td>
         )}
         renderHeaderBadge={(currentRows) => {
+          if (forceRegisterAll) {
+            return currentRows.length > 0 ? (
+              <div className="badge badge-info gap-2">
+                {currentRows.length} se registran
+              </div>
+            ) : null;
+          }
+
           const toRegister = currentRows.filter(
             (row) => row.shouldRegister === true,
           ).length;
@@ -128,6 +191,15 @@ export function SalesNoteUnregisteredLinesStep({ form }: Props) {
           ) : null;
         }}
         renderExtraTotals={(currentRows) => {
+          if (forceRegisterAll) {
+            return currentRows.length > 0 ? (
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-sm opacity-70">Se registrarán</span>
+                <span className="font-medium text-info">{currentRows.length}</span>
+              </div>
+            ) : null;
+          }
+
           const toRegister = currentRows.filter(
             (row) => row.shouldRegister === true,
           ).length;

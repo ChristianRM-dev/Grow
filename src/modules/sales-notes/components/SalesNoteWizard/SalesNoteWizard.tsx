@@ -15,6 +15,7 @@ import {
   defineFormStep,
   prefixIssuePathMapper,
 } from "@/components/ui/MultiStepForm/stepBuilders";
+import type { StepComponentProps } from "@/components/ui/MultiStepForm/MultiStepForm.types";
 import { arrayIssuePathToFieldPath } from "@/components/forms/document-wizard/documentForm.shared";
 import { salesNoteLogger } from "@/modules/sales-notes/utils/salesNoteLogger";
 
@@ -57,12 +58,16 @@ type SalesNoteWizardProps = {
   initialValues: Partial<SalesNoteFormInput>;
   onSubmit: (values: SalesNoteFormValues) => Promise<void> | void;
   submitting: boolean;
+  forceRegisterAllUnregistered?: boolean;
+  sourceQuotationFolio?: string;
 };
 
 export function SalesNoteWizard({
   initialValues,
   onSubmit,
   submitting,
+  forceRegisterAllUnregistered = false,
+  sourceQuotationFolio,
 }: SalesNoteWizardProps) {
   // Lifecycle logging
   useEffect(() => {
@@ -83,6 +88,20 @@ export function SalesNoteWizard({
   }, [submitting]);
 
   const steps = useMemo(() => {
+    const SalesNoteUnregisteredLinesStepWithMode = ({
+      form,
+      wizard,
+      readOnly,
+    }: StepComponentProps<SalesNoteFormInput>) => (
+      <SalesNoteUnregisteredLinesStep
+        form={form}
+        wizard={wizard}
+        readOnly={readOnly}
+        forceRegisterAll={forceRegisterAllUnregistered}
+        sourceQuotationFolio={sourceQuotationFolio}
+      />
+    );
+
     return [
       Step.withValidator({
         id: "customer",
@@ -126,7 +145,7 @@ export function SalesNoteWizard({
               issuePath,
             ),
         },
-        Component: SalesNoteUnregisteredLinesStep,
+        Component: SalesNoteUnregisteredLinesStepWithMode,
       }),
       {
         id: "summary",
@@ -142,7 +161,7 @@ export function SalesNoteWizard({
         },
       },
     ] as const;
-  }, [submitting]);
+  }, [forceRegisterAllUnregistered, sourceQuotationFolio, submitting]);
 
   // Wrap onSubmit to log the event at wizard level
   const handleWizardSubmit = async (values: SalesNoteFormValues) => {
