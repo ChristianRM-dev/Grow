@@ -17,9 +17,9 @@ import type {
   PartyLedgerSummaryDto,
   PartyLedgerQuery,
 } from "@/modules/parties/queries/getPartyDetailsWithLedger.query";
-import type {
-  PartySalesNotesTableResult,
-} from "@/modules/parties/queries/getPartySalesNotesTable.query";
+import type { PartyPurchasesTableResult } from "@/modules/parties/queries/partyPurchasesQuery";
+import type { PartySalesNotesTableResult } from "@/modules/parties/queries/getPartySalesNotesTable.query";
+import { PartyPurchasesClient } from "./party-purchases-client";
 import { PartySalesNotesClient } from "./party-sales-notes-client";
 import { PartyPdfExportButton } from "./party-pdf-export-button";
 
@@ -83,6 +83,7 @@ export function PartyDetailsClient({
   party,
   summary,
   ledger,
+  purchases,
   salesNotes,
 }: {
   party: PartyDetailsDto;
@@ -92,10 +93,12 @@ export function PartyDetailsClient({
     pagination: TablePagination;
     query: PartyLedgerQuery;
   };
+  purchases: PartyPurchasesTableResult;
   salesNotes: PartySalesNotesTableResult;
 }) {
   const router = useRouter();
   const pushTableQuery = useTableUrlQuery();
+  const [purchasesOpen, setPurchasesOpen] = useState(true);
   const [salesNotesOpen, setSalesNotesOpen] = useState(true);
   const [ledgerOpen, setLedgerOpen] = useState(false);
 
@@ -199,8 +202,10 @@ export function PartyDetailsClient({
               <PartyPdfExportButton
                 partyId={party.id}
                 ledgerOpen={ledgerOpen}
+                purchasesOpen={purchasesOpen}
                 salesNotesOpen={salesNotesOpen}
                 ledgerQuery={ledger.query}
+                purchasesQuery={purchases.query}
                 salesNotesQuery={salesNotes.query}
               />
 
@@ -239,6 +244,49 @@ export function PartyDetailsClient({
           <div className="stat-title">{netLabel}</div>
           <div className="stat-value">{moneyMX(String(Math.abs(net)))}</div>
           <div className="stat-desc">Neto = cobrar − pagar</div>
+        </div>
+      </div>
+
+      <div className="collapse collapse-arrow rounded-box border border-base-300 bg-base-100 shadow-sm">
+        <input
+          type="checkbox"
+          checked={purchasesOpen}
+          onChange={(e) => setPurchasesOpen(e.target.checked)}
+        />
+
+        <div className="collapse-title">
+          <div className="flex flex-wrap items-start justify-between gap-2 pr-6">
+            <div>
+              <h2 className="font-semibold">Compras relacionadas</h2>
+              <p className="text-sm opacity-70">
+                Compras vinculadas al contacto seleccionado. Se pueden filtrar
+                por fecha de compra o estado de pago.
+              </p>
+            </div>
+            <span className="text-sm opacity-70">
+              {purchases.pagination.totalItems} compras
+            </span>
+          </div>
+        </div>
+
+        <div className="collapse-content">
+          <div className="pt-2">
+            <PartyPurchasesClient
+              key={[
+                purchases.query.page,
+                purchases.query.pageSize,
+                purchases.query.sortField ?? "",
+                purchases.query.sortOrder ?? "",
+                purchases.query.search ?? "",
+                purchases.query.paymentStatus,
+                purchases.query.from,
+                purchases.query.to,
+              ].join("|")}
+              data={purchases.data}
+              pagination={purchases.pagination}
+              query={purchases.query}
+            />
+          </div>
         </div>
       </div>
 

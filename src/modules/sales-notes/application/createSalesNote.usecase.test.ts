@@ -139,4 +139,80 @@ describe("createSalesNoteUseCase", () => {
     expect(ensureSingleLedgerEntryForSourceMock).toHaveBeenCalledOnce();
     expect(createAuditLogMock).toHaveBeenCalledOnce();
   });
+
+  it("forces registration of all unregistered lines when the sales note comes from a quotation", async () => {
+    prismaMock.salesNote.findUnique.mockResolvedValue(null);
+    resolvePartyIdForCustomerSelectionMock.mockResolvedValue("party-1");
+    generateMonthlyFolioMock.mockResolvedValue("SN-2026-04-02");
+    ensureSingleLedgerEntryForSourceMock.mockResolvedValue({
+      id: "ledger-2",
+      created: true,
+    });
+    createAuditLogMock.mockResolvedValue({ id: "audit-2" });
+
+    const tx = {
+      salesNote: {
+        create: vi.fn().mockResolvedValue({
+          id: "sales-note-2",
+          folio: "SN-2026-04-02",
+          createdAt: new Date("2026-04-17T11:00:00.000Z"),
+        }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: "sales-note-2",
+          folio: "SN-2026-04-02",
+          partyId: "party-1",
+          total: { toString: () => "25" },
+          clientRequestId: "request-2",
+          _count: { lines: 1 },
+        }),
+      },
+      salesNoteLine: {
+        createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      productVariant: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: "created-variant-1",
+          defaultPrice: { toString: () => "25" },
+        }),
+      },
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback) => callback(tx));
+
+    const result = await createSalesNoteUseCase(
+      {
+        customer: { mode: "PUBLIC" },
+        lines: [],
+        unregisteredLines: [
+          {
+            name: "Tierra preparada",
+            quantity: 1,
+            unitPrice: "25.00",
+            discountPercent: 0,
+            description: "Saco grande",
+            shouldRegister: false,
+          },
+        ],
+      },
+      { traceId: "trace-3" },
+      "user-1",
+      "request-2",
+      "quotation-1",
+    );
+
+    expect(result).toEqual({
+      salesNoteId: "sales-note-2",
+      newProductsRegistered: 1,
+    });
+    expect(tx.productVariant.create).toHaveBeenCalledOnce();
+    expect(tx.salesNoteLine.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          productVariantId: "created-variant-1",
+          descriptionSnapshot: "Tierra preparada — Saco grande",
+        }),
+      ],
+    });
+  });
 });

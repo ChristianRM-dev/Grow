@@ -11,6 +11,7 @@ import { createScopedLogger } from "@/modules/shared/observability/scopedLogger"
 const CreateSalesNoteActionSchema = z.object({
   clientRequestId: z.string().uuid(),
   values: SalesNoteFormSchema,
+  sourceQuotationId: z.string().min(1).optional(),
 });
 
 export type CreateSalesNoteActionInput = z.infer<
@@ -39,6 +40,7 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
   logger.debug("start", {
     traceId,
     clientRequestId: input.clientRequestId,
+    sourceQuotationId: input.sourceQuotationId ?? null,
     customerMode: input.values?.customer?.mode,
     linesCount: input.values?.lines?.length ?? 0,
     unregisteredLinesCount: input.values?.unregisteredLines?.length ?? 0,
@@ -57,6 +59,7 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
     logger.debug("validated", {
       traceId,
       customerMode: parsed.data.values.customer.mode,
+      sourceQuotationId: parsed.data.sourceQuotationId ?? null,
     });
 
     const session = await auth();
@@ -72,6 +75,7 @@ export async function createSalesNoteAction(input: CreateSalesNoteActionInput) {
       { traceId },
       userId,
       parsed.data.clientRequestId,
+      parsed.data.sourceQuotationId,
     );
     const elapsedMs = Math.round(performance.now() - t0);
 

@@ -42,15 +42,25 @@ export async function createSalesNoteUseCase(
   ctx?: UseCaseContext,
   userId?: string,
   clientRequestId?: string,
+  sourceQuotationId?: string,
 ) {
   const logger = createScopedLogger("createSalesNoteUseCase", ctx);
+
+  const effectiveUnregisteredLines = (values.unregisteredLines ?? []).map(
+    (line) => ({
+      ...line,
+      shouldRegister: sourceQuotationId ? true : line.shouldRegister,
+    }),
+  );
 
   logger.log("start", {
     customerMode: values.customer.mode,
     partyMode: values.customer.partyMode,
     lines: values.lines?.length ?? 0,
-    unregisteredLines: values.unregisteredLines?.length ?? 0,
+    unregisteredLines: effectiveUnregisteredLines.length,
     clientRequestId: clientRequestId ?? null,
+    sourceQuotationId: sourceQuotationId ?? null,
+    forceRegisterAllUnregistered: Boolean(sourceQuotationId),
   });
 
   // Idempotency fast-path: if a sales note was already created for this request id, return it.
@@ -86,12 +96,13 @@ export async function createSalesNoteUseCase(
       );
 
       // 2) Register products marked for registration
-      const registeredProductIds = await registerProductVariantsFromUnregisteredLines(
-        tx,
-        values.unregisteredLines ?? [],
-        "unitPrice",
-        logger,
-      );
+      const registeredProductIds =
+        await registerProductVariantsFromUnregisteredLines(
+          tx,
+          effectiveUnregisteredLines,
+          "unitPrice",
+          logger,
+        );
 
       // 3) Build line payloads
       const registeredLines = buildRegisteredDocumentLinePayloads(
@@ -99,7 +110,7 @@ export async function createSalesNoteUseCase(
         "unitPrice",
       );
       const unregisteredLines = buildUnregisteredDocumentLinePayloads(
-        values.unregisteredLines ?? [],
+        effectiveUnregisteredLines,
         "unitPrice",
         registeredProductIds,
       );
@@ -181,6 +192,7 @@ export async function createSalesNoteUseCase(
             linesCount: allLines.length,
             newProductsRegistered: registeredProductIds.size,
             clientRequestId: clientRequestId ?? null,
+            sourceQuotationId: sourceQuotationId ?? null,
           },
         },
         ctx,
@@ -235,6 +247,7 @@ export async function createSalesNoteUseCase(
       logger.log("tx_end_written_snapshot", {
         ...written,
         newProductsRegistered: registeredProductIds.size,
+        sourceQuotationId: sourceQuotationId ?? null,
       });
 
       return {
@@ -265,6 +278,7 @@ export async function createSalesNoteUseCase(
 
     logger.log("failed", {
       clientRequestId: clientRequestId ?? null,
+      sourceQuotationId: sourceQuotationId ?? null,
       error:
         err instanceof Error
           ? { message: err.message, stack: err.stack }

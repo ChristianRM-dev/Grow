@@ -5,6 +5,10 @@ import React, { useMemo } from "react";
 import { routes } from "@/lib/routes";
 import type { PartyLedgerQuery } from "@/modules/parties/queries/getPartyDetailsWithLedger.query";
 import type { PartySalesNotesQuery } from "@/modules/parties/queries/getPartySalesNotesTable.query";
+import {
+  PARTY_PURCHASES_QUERY_KEYS,
+  type PartyPurchasesQuery,
+} from "@/modules/parties/queries/partyPurchasesQuery";
 import { PARTY_SALES_NOTES_QUERY_KEYS } from "@/modules/parties/queries/partySalesNotesQuery";
 
 import { DocumentArrowDownIcon } from "@heroicons/react/16/solid";
@@ -17,20 +21,25 @@ function setIfPresent(params: URLSearchParams, key: string, value?: string) {
 export function PartyPdfExportButton({
   partyId,
   ledgerOpen,
+  purchasesOpen,
   salesNotesOpen,
   ledgerQuery,
+  purchasesQuery,
   salesNotesQuery,
 }: {
   partyId: string;
   ledgerOpen: boolean;
+  purchasesOpen: boolean;
   salesNotesOpen: boolean;
   ledgerQuery: PartyLedgerQuery;
+  purchasesQuery: PartyPurchasesQuery;
   salesNotesQuery: PartySalesNotesQuery;
 }) {
   const href = useMemo(() => {
     const params = new URLSearchParams();
 
     params.set("showLedger", ledgerOpen ? "1" : "0");
+    params.set("showPurchases", purchasesOpen ? "1" : "0");
     params.set("showSalesNotes", salesNotesOpen ? "1" : "0");
 
     if (ledgerOpen) {
@@ -66,6 +75,33 @@ export function PartyPdfExportButton({
       setIfPresent(params, PARTY_SALES_NOTES_QUERY_KEYS.to, salesNotesQuery.to);
     }
 
+    if (purchasesOpen) {
+      setIfPresent(
+        params,
+        PARTY_PURCHASES_QUERY_KEYS.search,
+        purchasesQuery.search,
+      );
+      setIfPresent(
+        params,
+        PARTY_PURCHASES_QUERY_KEYS.sortField,
+        purchasesQuery.sortField,
+      );
+      setIfPresent(
+        params,
+        PARTY_PURCHASES_QUERY_KEYS.sortOrder,
+        purchasesQuery.sortOrder,
+      );
+      setIfPresent(
+        params,
+        PARTY_PURCHASES_QUERY_KEYS.paymentStatus,
+        purchasesQuery.paymentStatus === "all"
+          ? undefined
+          : purchasesQuery.paymentStatus,
+      );
+      setIfPresent(params, PARTY_PURCHASES_QUERY_KEYS.from, purchasesQuery.from);
+      setIfPresent(params, PARTY_PURCHASES_QUERY_KEYS.to, purchasesQuery.to);
+    }
+
     return routes.parties.pdf(partyId, params.toString());
   }, [
     ledgerOpen,
@@ -73,6 +109,13 @@ export function PartyPdfExportButton({
     ledgerQuery.sortField,
     ledgerQuery.sortOrder,
     partyId,
+    purchasesOpen,
+    purchasesQuery.from,
+    purchasesQuery.paymentStatus,
+    purchasesQuery.search,
+    purchasesQuery.sortField,
+    purchasesQuery.sortOrder,
+    purchasesQuery.to,
     salesNotesOpen,
     salesNotesQuery.from,
     salesNotesQuery.paymentStatus,
