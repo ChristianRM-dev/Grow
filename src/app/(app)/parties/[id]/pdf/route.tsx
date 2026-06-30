@@ -5,6 +5,7 @@ import { readPublicImageAsDataUri } from "@/modules/shared/pdf/readPublicImageAs
 import { LAURELES_PDF_HEADER } from "@/modules/shared/pdf/laurelesPdfHeader";
 
 import { getPartyPdfDataById } from "@/modules/parties/queries/getPartyPdfDataById.query";
+import { PARTY_PURCHASES_QUERY_KEYS } from "@/modules/parties/queries/partyPurchasesQuery";
 import { PartyPdfDocument } from "@/modules/parties/pdf/PartyPdfDocument";
 import { PARTY_SALES_NOTES_QUERY_KEYS } from "@/modules/parties/queries/partySalesNotesQuery";
 
@@ -32,6 +33,7 @@ export async function GET(
   }
 
   const showSalesNotes = parseBool(searchParams.get("showSalesNotes"), true);
+  const showPurchases = parseBool(searchParams.get("showPurchases"), true);
   const showLedger = parseBool(searchParams.get("showLedger"), false);
 
   const salesNotesPaymentStatus = searchParams.get(
@@ -42,8 +44,17 @@ export async function GET(
       ? salesNotesPaymentStatus
       : undefined;
 
+  const purchasesPaymentStatus = searchParams.get(
+    PARTY_PURCHASES_QUERY_KEYS.paymentStatus,
+  );
+  const purchasesStatus =
+    purchasesPaymentStatus === "paid" || purchasesPaymentStatus === "pending"
+      ? purchasesPaymentStatus
+      : undefined;
+
   const data = await getPartyPdfDataById(id, {
     includeLedger: showLedger,
+    includePurchases: showPurchases,
     includeSalesNotes: showSalesNotes,
     ledgerQuery: {
       search: searchParams.get("search") ?? undefined,
@@ -53,6 +64,21 @@ export async function GET(
         searchParams.get("sortOrder") === "desc"
           ? (searchParams.get("sortOrder") as "asc" | "desc")
           : undefined,
+    },
+    purchasesQuery: {
+      search: searchParams.get(PARTY_PURCHASES_QUERY_KEYS.search) ?? undefined,
+      sortField:
+        searchParams.get(PARTY_PURCHASES_QUERY_KEYS.sortField) ?? undefined,
+      sortOrder:
+        searchParams.get(PARTY_PURCHASES_QUERY_KEYS.sortOrder) === "asc" ||
+        searchParams.get(PARTY_PURCHASES_QUERY_KEYS.sortOrder) === "desc"
+          ? (searchParams.get(PARTY_PURCHASES_QUERY_KEYS.sortOrder) as
+              | "asc"
+              | "desc")
+          : undefined,
+      paymentStatus: purchasesStatus,
+      from: searchParams.get(PARTY_PURCHASES_QUERY_KEYS.from) ?? undefined,
+      to: searchParams.get(PARTY_PURCHASES_QUERY_KEYS.to) ?? undefined,
     },
     salesNotesQuery: {
       search: searchParams.get(PARTY_SALES_NOTES_QUERY_KEYS.search) ?? undefined,
@@ -81,8 +107,10 @@ export async function GET(
       party={data.party}
       summary={data.summary}
       ledger={data.ledger}
+      purchases={data.purchases}
       salesNotes={data.salesNotes}
       showLedger={showLedger}
+      showPurchases={showPurchases}
       showSalesNotes={showSalesNotes}
       header={LAURELES_PDF_HEADER}
       headerLogoSrc={headerLogoSrc}

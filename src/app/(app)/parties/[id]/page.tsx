@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getPartyDetailsWithLedgerQuery } from "@/modules/parties/queries/getPartyDetailsWithLedger.query";
+import { getPartyPurchasesTableQuery } from "@/modules/parties/queries/getPartyPurchasesTable.query";
 import { getPartySalesNotesTableQuery } from "@/modules/parties/queries/getPartySalesNotesTable.query";
 import { PartyDetailsClient } from "./party-details-client";
 
@@ -24,8 +25,12 @@ export default async function PartyDetailsPage({
   const { id } = await params;
   const sp = await searchParams;
 
-  const [result, salesNotes] = await Promise.all([
+  const [result, purchases, salesNotes] = await Promise.all([
     getPartyDetailsWithLedgerQuery({
+      partyId: id,
+      searchParams: sp,
+    }),
+    getPartyPurchasesTableQuery({
       partyId: id,
       searchParams: sp,
     }),
@@ -74,6 +79,7 @@ export default async function PartyDetailsPage({
         party={result.party}
         summary={result.summary}
         ledger={result.ledger}
+        purchases={purchases}
         salesNotes={salesNotes}
       />
     </DetailsPageLayout>

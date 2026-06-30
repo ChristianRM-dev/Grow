@@ -18,6 +18,10 @@ import {
   decimalToString,
   mapDecimalSumsByKey,
 } from "@/modules/shared/utils/decimals";
+import {
+  type PartyPurchasePaymentStatusFilter,
+  type PartyPurchaseRowDto,
+} from "@/modules/parties/queries/partyPurchasesQuery";
 
 export type PartyPdfPartyDto = {
   id: string;
@@ -50,6 +54,8 @@ export type PartyPdfSalesNoteRowDto = {
   isFullyPaid: boolean;
 };
 
+export type PartyPdfPurchaseRowDto = PartyPurchaseRowDto;
+
 export type PartyPdfSummaryDto = {
   receivableTotal: string;
   payableTotal: string;
@@ -71,10 +77,21 @@ type PartyPdfSalesNotesQuery = {
   to?: string;
 };
 
+type PartyPdfPurchasesQuery = {
+  search?: string;
+  sortField?: string;
+  sortOrder?: "asc" | "desc";
+  paymentStatus?: PartyPurchasePaymentStatusFilter;
+  from?: string;
+  to?: string;
+};
+
 export type PartyPdfDataOptions = {
   includeLedger?: boolean;
+  includePurchases?: boolean;
   includeSalesNotes?: boolean;
   ledgerQuery?: PartyPdfLedgerQuery;
+  purchasesQuery?: PartyPdfPurchasesQuery;
   salesNotesQuery?: PartyPdfSalesNotesQuery;
 };
 
@@ -143,6 +160,23 @@ function toSalesNotesOrderBy(
   ];
 }
 
+function toPurchasesOrderBy(
+  q: PartyPdfPurchasesQuery,
+): Prisma.SupplierPurchaseOrderByWithRelationInput[] {
+  const allowed = new Set(["occurredAt", "supplierFolio", "total"]);
+  const sortField = allowed.has(String(q.sortField ?? "").trim())
+    ? String(q.sortField).trim()
+    : "occurredAt";
+  const sortOrder = (q.sortOrder ?? "desc") as Prisma.SortOrder;
+
+  return [
+    {
+      [sortField]: sortOrder,
+    } as Prisma.SupplierPurchaseOrderByWithRelationInput,
+    { id: "desc" },
+  ];
+}
+
 function toSalesNotesWhere(
   partyId: string,
   query?: PartyPdfSalesNotesQuery,
@@ -165,6 +199,37 @@ function toSalesNotesWhere(
 
   if (term) {
     where.OR = [{ folio: { contains: term, mode: "insensitive" } }];
+  }
+
+  return where;
+}
+
+function toPurchasesWhere(
+  partyId: string,
+  query?: PartyPdfPurchasesQuery,
+): Prisma.SupplierPurchaseWhereInput {
+  const q = query ?? {};
+  const term = String(q.search ?? "").trim();
+  const from = String(q.from ?? "").trim();
+  const to = String(q.to ?? "").trim();
+
+  const where: Prisma.SupplierPurchaseWhereInput = {
+    partyId,
+    isDeleted: false,
+  };
+
+  if (isDateOnly(from) || isDateOnly(to)) {
+    const occurredAt: Prisma.DateTimeFilter = {};
+    if (isDateOnly(from)) occurredAt.gte = startOfDayUtc(from);
+    if (isDateOnly(to)) occurredAt.lt = addDaysUtc(startOfDayUtc(to), 1);
+    where.occurredAt = occurredAt;
+  }
+
+  if (term) {
+    where.OR = [
+      { supplierFolio: { contains: term, mode: "insensitive" } },
+      { notes: { contains: term, mode: "insensitive" } },
+    ];
   }
 
   return where;
@@ -243,6 +308,67 @@ async function getPartySalesNotesPdfRows(params: {
   return filtered;
 }
 
+async function getPartyPurchasesPdfRows(params: {
+  partyId: string;
+  query?: PartyPdfPurchasesQuery;
+}) {
+  const { partyId, query } = params;
+
+  const where = toPurchasesWhere(partyId, query);
+  const orderBy = toPurchasesOrderBy(query ?? {});
+
+  const purchases = await prisma.supplierPurchase.findMany({
+    where,
+    orderBy,
+    select: {
+      id: true,
+      supplierFolio: true,
+      occurredAt: true,
+      total: true,
+    },
+  });
+
+  const ids = purchases.map((purchase) => purchase.id);
+  const paidGroups = ids.length
+    ? await prisma.payment.groupBy({
+        by: ["supplierPurchaseId"],
+        where: {
+          supplierPurchaseId: { in: ids },
+          direction: PaymentDirection.OUT,
+          ...excludeSoftDeletedPayments,
+        },
+        _sum: { amount: true },
+      })
+    : [];
+
+  const paidByPurchaseId = mapDecimalSumsByKey(paidGroups, "supplierPurchaseId");
+  const paymentStatus = query?.paymentStatus ?? "all";
+
+  const mapped = purchases.map((purchase) => {
+    const { isFullyPaid, paid, remaining } = computeOutstandingBalance({
+      total: purchase.total,
+      paid: paidByPurchaseId.get(purchase.id),
+    });
+
+    return {
+      id: purchase.id,
+      supplierFolio: purchase.supplierFolio,
+      occurredAt: purchase.occurredAt.toISOString(),
+      paymentStatus: isFullyPaid ? "PAID" : "PENDING",
+      total: decimalToString(purchase.total),
+      paidTotal: decimalToString(paid),
+      remainingTotal: decimalToString(remaining),
+      isFullyPaid,
+    } satisfies PartyPdfPurchaseRowDto;
+  });
+
+  if (paymentStatus === "all") return mapped;
+
+  return mapped.filter((purchase) =>
+    paymentStatus === "paid" ? purchase.isFullyPaid : !purchase.isFullyPaid,
+  );
+}
+
 export async function getPartyPdfDataById(
   partyId: string,
   options: PartyPdfDataOptions = {},
@@ -275,9 +401,10 @@ export async function getPartyPdfDataById(
   const summary: PartyPdfSummaryDto = buildPartyLedgerSummary(grouped);
 
   const includeLedger = options.includeLedger ?? true;
+  const includePurchases = options.includePurchases ?? true;
   const includeSalesNotes = options.includeSalesNotes ?? false;
 
-  const [ledgerRows, salesNotesRows] = await Promise.all([
+  const [ledgerRows, purchasesRows, salesNotesRows] = await Promise.all([
     includeLedger
       ? prisma.partyLedgerEntry.findMany({
           where: toLedgerWhere(partyId, options.ledgerQuery?.search),
@@ -292,6 +419,12 @@ export async function getPartyPdfDataById(
             amount: true,
             notes: true,
           },
+        })
+      : Promise.resolve([]),
+    includePurchases
+      ? getPartyPurchasesPdfRows({
+          partyId,
+          query: options.purchasesQuery,
         })
       : Promise.resolve([]),
     includeSalesNotes
@@ -313,6 +446,7 @@ export async function getPartyPdfDataById(
     } satisfies PartyPdfPartyDto,
     summary,
     ledger: mapPartyLedgerRows(ledgerRows) satisfies PartyPdfLedgerRowDto[],
+    purchases: purchasesRows,
     salesNotes: salesNotesRows,
   };
 }

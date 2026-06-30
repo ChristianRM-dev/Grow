@@ -11,6 +11,7 @@ import {
 import {
   type PartyPdfLedgerRowDto,
   type PartyPdfPartyDto,
+  type PartyPdfPurchaseRowDto,
   type PartyPdfSalesNoteRowDto,
   type PartyPdfSummaryDto,
 } from "@/modules/parties/queries/getPartyPdfDataById.query";
@@ -257,8 +258,10 @@ type Props = {
   party: PartyPdfPartyDto;
   summary: PartyPdfSummaryDto;
   ledger: PartyPdfLedgerRowDto[];
+  purchases: PartyPdfPurchaseRowDto[];
   salesNotes: PartyPdfSalesNoteRowDto[];
   showLedger: boolean;
+  showPurchases: boolean;
   showSalesNotes: boolean;
   header: Header;
   headerLogoSrc: string | null;
@@ -268,8 +271,10 @@ export function PartyPdfDocument({
   party,
   summary,
   ledger,
+  purchases,
   salesNotes,
   showLedger,
+  showPurchases,
   showSalesNotes,
   header,
   headerLogoSrc,
@@ -386,6 +391,57 @@ export function PartyPdfDocument({
             </View>
           </View>
         </View>
+
+        {showPurchases ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Compras relacionadas</Text>
+            <View style={styles.table}>
+              <View style={styles.tr}>
+                <Text style={[styles.th, styles.cellDate]}>Fecha</Text>
+                <Text style={[styles.th, styles.cellFolio]}>Folio</Text>
+                <Text style={[styles.th, styles.cellStatus]}>Estado de pago</Text>
+                <Text style={[styles.th, styles.cellTotal, styles.right]}>
+                  Total
+                </Text>
+                <Text style={[styles.th, styles.cellPaid, styles.right]}>
+                  Pagado
+                </Text>
+                <Text style={[styles.th, styles.cellPending, styles.right]}>
+                  Pendiente
+                </Text>
+              </View>
+
+              {purchases.length ? (
+                purchases.map((purchase) => (
+                  <View key={purchase.id} style={styles.tr}>
+                    <Text style={[styles.td, styles.cellDate]}>
+                      {dateMX(purchase.occurredAt)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellFolio]}>
+                      {safeText(purchase.supplierFolio)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellStatus]}>
+                      {paymentStatusLabel(purchase.paymentStatus)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellTotal, styles.right]}>
+                      {moneyMX(purchase.total)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellPaid, styles.right]}>
+                      {moneyMX(purchase.paidTotal)}
+                    </Text>
+                    <Text style={[styles.td, styles.cellPending, styles.right]}>
+                      {moneyMX(purchase.remainingTotal)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptyRow}>
+                  <Text style={styles.emptyCell}>Sin compras relacionadas.</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        ) : null}
 
         {showSalesNotes ? (
           <View style={styles.section}>
